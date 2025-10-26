@@ -1,0 +1,7 @@
+{
+  "LOG_LEVEL": "INFO",
+  "LOG_FILE": "logs/hippobot.log",
+  "CMD_PREFIX": "!",
+  "TEST_GUILDS": "111111111111111111",
+  "OWNER_IDS": "123456789012345678"
+}
