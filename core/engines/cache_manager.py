@@ -33,6 +33,12 @@ class CacheManager:
             return None
         return code
 
+    def delete_user_lang(self, guild_id: int, user_id: int) -> None:
+        """
+        Remove a cached language preference for a user if present.
+        """
+        self._user_lang.pop((guild_id, user_id), None)
+
     # ----------------------
     # Generic KV Cache
     # ----------------------

@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 import asyncio
-import logging
-from typing import Any, Dict, Optional
+import time
+from typing import Any, Dict, Iterable, Optional, Tuple
 
 from discord_bot.language_context.translation_job import TranslationJob
 from discord_bot.language_context.context_models import (
@@ -10,8 +10,18 @@ from discord_bot.language_context.context_models import (
     TranslationResponse,
     JobEnvironment,
 )
+from discord_bot.language_context.context.policies import PolicyRepository, TranslationPolicy
+from discord_bot.language_context.context.context_memory import ContextMemory
+from discord_bot.language_context.context.session_memory import SessionMemory, SessionEvent
 
-_logger = logging.getLogger(__name__)
+from discord_bot.core.engines.base.logging_utils import get_logger
+
+try:
+    from discord_bot.language_context.normalizer import normalize as normalize_text  # type: ignore
+except Exception:  # pragma: no cover - optional dependency
+    normalize_text = None  # type: ignore[misc]
+
+_logger = get_logger("language_context.context_engine")
 
 
 class ContextEngine:
@@ -25,6 +35,9 @@ class ContextEngine:
         ambiguity_resolver: Optional[Any] = None,
         localization_registry: Optional[Any] = None,
         detection_service: Optional[Any] = None,
+        policy_repository: Optional[PolicyRepository] = None,
+        context_memory: Optional[ContextMemory] = None,
+        session_memory: Optional[SessionMemory] = None,
     ) -> None:
         """
         ContextEngine coordinates language resolution and job planning.
@@ -48,6 +61,17 @@ class ContextEngine:
         self.ambiguity_resolver = ambiguity_resolver
         self.localization = localization_registry
         self.detector = detection_service
+        self.policy_repo = policy_repository
+        self.context_memory = context_memory
+        self.session_memory = session_memory
+
+    @staticmethod
+    def _preview(text: str, limit: int = 60) -> str:
+        """Return a compact, single-line preview suitable for logs."""
+        condensed = " ".join(text.split())
+        if len(condensed) > limit:
+            return f"{condensed[:limit - 3]}..."
+        return condensed
 
     def _log_error(self, exc: Exception, *, context: str) -> None:
         """Report errors through the injected error engine when available."""
@@ -64,6 +88,148 @@ class ContextEngine:
         except Exception:
             pass
 
+    def _resolve_policy(
+        self,
+        *,
+        guild_id: Optional[int],
+        channel_id: Optional[int],
+        user_id: Optional[int],
+    ) -> Optional[TranslationPolicy]:
+        """Best-effort resolve policy for the current scope."""
+        if not self.policy_repo:
+            return None
+        gid = guild_id if guild_id else None
+        try:
+            return self.policy_repo.get_policy(guild_id=gid, channel_id=channel_id, user_id=user_id)
+        except Exception:
+            _logger.exception("policy lookup failed for guild=%s channel=%s user=%s", gid, channel_id, user_id)
+            return None
+
+    async def _fetch_recent_events(
+        self,
+        *,
+        guild_id: Optional[int],
+        channel_id: Optional[int],
+        user_id: Optional[int],
+        limit: int = 3,
+    ) -> Tuple[SessionEvent, ...]:
+        if not self.session_memory:
+            return tuple()
+        gid = guild_id if guild_id else 0
+        try:
+            events = await self.session_memory.get_history(guild_id=gid, channel_id=channel_id, user_id=user_id, limit=limit)
+            return tuple(events)
+        except Exception:
+            _logger.debug("session memory history lookup failed", exc_info=True)
+            return tuple()
+
+    def _policy_snapshot(self, policy: Optional[TranslationPolicy]) -> Dict[str, Any]:
+        if not policy:
+            return {}
+        return {
+            "fallback_language": policy.fallback_language,
+            "auto_detect_source": policy.auto_detect_source,
+            "allow_inline_commands": policy.allow_inline_commands,
+            "preferred_providers": list(policy.preferred_providers),
+            "blocked_languages": list(policy.blocked_languages),
+        }
+
+    def _apply_policy_target(self, target: Optional[str], policy: Optional[TranslationPolicy]) -> str:
+        normalized = self._normalize_code(target) if target else ""
+        if policy:
+            if normalized and not policy.allows_language(normalized):
+                fallback = self._normalize_code(policy.fallback_language)
+                if policy.allows_language(fallback):
+                    normalized = fallback
+                else:
+                    normalized = ""
+            if not normalized:
+                normalized = self._normalize_code(policy.fallback_language)
+        if not normalized:
+            normalized = "en"
+        return normalized
+
+    def _normalize_input_text(self, text: str, policy: Optional[TranslationPolicy]) -> str:
+        """
+        Best-effort normalization using the shared language_context normalizer.
+        Falls back to original text if normalizer unavailable or fails.
+        """
+        if not normalize_text:
+            return text
+        try:
+            hint = policy.fallback_language if policy and policy.fallback_language else None
+            result = normalize_text(text, language_hint=hint)
+            normalized = getattr(result, "normalized", None)
+            if isinstance(normalized, str) and normalized:
+                return normalized
+        except Exception:
+            _logger.debug("normalizer.normalize failed", exc_info=True)
+        return text
+
+    async def _record_translation_event(
+        self,
+        *,
+        guild_id: int,
+        channel_id: Optional[int],
+        user_id: int,
+        job: Optional[TranslationJob],
+        response: Optional[TranslationResponse],
+        original_text: str,
+    ) -> None:
+        if not self.session_memory and not self.context_memory:
+            return
+        job_metadata = job.metadata if job else {}
+        policy = job_metadata.get("policy") if isinstance(job_metadata, dict) else {}
+        provider = getattr(response, "provider", None)
+        resp_text = getattr(response, "text", None)
+        timestamp = time.time()
+        truncated_text = original_text if len(original_text) <= 500 else f"{original_text[:497]}..."
+        locale_code: Optional[str] = None
+        if self.localization:
+            try:
+                bundle = self.localization.resolve_prompt_bundle(guild_id=guild_id if guild_id else None, user_id=user_id)
+                locale_code = getattr(bundle, "locale_code", None)
+            except Exception:
+                _logger.debug("localization resolve_prompt_bundle failed", exc_info=True)
+
+        if self.session_memory:
+            try:
+                await self.session_memory.add_event(
+                    guild_id,
+                    channel_id=channel_id,
+                    user_id=user_id,
+                    text=truncated_text,
+                    metadata={
+                        "job_id": job.job_id if job else None,
+                        "provider": provider,
+                        "tgt": getattr(response, "tgt", None),
+                        "timestamp": timestamp,
+                        "has_translation": bool(resp_text),
+                        "locale": locale_code,
+                    },
+                )
+            except Exception:
+                _logger.debug("session memory add_event failed", exc_info=True)
+
+        if self.context_memory:
+            try:
+                namespace = f"guild:{guild_id}"
+                key = f"user:{user_id}:last_translation"
+                payload = {
+                    "job_id": job.job_id if job else None,
+                    "src": getattr(response, "src", None),
+                    "tgt": getattr(response, "tgt", None),
+                    "provider": provider,
+                    "text": resp_text if isinstance(resp_text, str) else None,
+                    "policy": policy,
+                    "timestamp": timestamp,
+                    "channel_id": channel_id,
+                    "locale": locale_code,
+                }
+                await self.context_memory.set(namespace, key, payload, ttl=1800)
+            except Exception:
+                _logger.debug("context memory set failed", exc_info=True)
+
     # -------------------------
     # Planning / job creation
     # -------------------------
@@ -74,21 +240,56 @@ class ContextEngine:
         *,
         text: str,
         force_tgt: Optional[str] = None,
+        channel_id: Optional[int] = None,
     ) -> Dict[str, Any]:
         """
         Build a TranslationJob for the author given the text and optional forced target.
         Uses the configured detector if available (async-aware).
         """
-        tgt = self._resolve_target_code(guild_id, author_id, force_tgt)
-        src = await self._detect_source_code(text)
+        policy = self._resolve_policy(guild_id=guild_id, channel_id=channel_id, user_id=author_id)
+        recent = await self._fetch_recent_events(guild_id=guild_id, channel_id=channel_id, user_id=author_id)
+
+        processed_text = self._normalize_input_text(text, policy)
+        tgt = self._resolve_target_code(guild_id, author_id, force_tgt, policy=policy)
+        src = await self._detect_source_code(processed_text)
         if self._equivalent_lang(src, tgt):
+            _logger.info(
+                "🧭 plan_for_author skip: guild=%s user=%s src=%s tgt=%s len=%d preview=%r",
+                guild_id,
+                author_id,
+                src,
+                tgt,
+                len(text),
+                self._preview(text),
+            )
             return {"job": None, "context": {"src": src, "tgt": tgt}}
+        metadata: Dict[str, Any] = {
+            "preferred_providers": list(policy.preferred_providers) if policy else [],
+            "policy": self._policy_snapshot(policy),
+            "channel_id": channel_id,
+        }
+        if recent:
+            metadata["recent_history"] = [event.text for event in recent]
+        if processed_text != text:
+            metadata["normalized_text"] = processed_text
         job = TranslationJob(
             guild_id=guild_id,
             author_id=author_id,
             text=text,
             src_lang=src,
             tgt_lang=tgt,
+            metadata=metadata,
+        )
+        _logger.info(
+            "🧭 plan_for_author job=%s guild=%s user=%s src=%s tgt=%s forced=%s len=%d preview=%r",
+            job.short(),
+            guild_id,
+            author_id,
+            src,
+            tgt,
+            bool(force_tgt),
+            len(text),
+            self._preview(text),
         )
         return {"job": job, "context": {"src": src, "tgt": tgt}}
 
@@ -100,20 +301,58 @@ class ContextEngine:
         *,
         text: str,
         force_tgt: Optional[str] = None,
+        channel_id: Optional[int] = None,
     ) -> Dict[str, Any]:
         """
         Build a TranslationJob for a message directed to another user (pair).
         """
-        tgt = self._resolve_target_code(guild_id, other_user_id, force_tgt)
-        src = await self._detect_source_code(text)
+        policy = self._resolve_policy(guild_id=guild_id, channel_id=channel_id, user_id=other_user_id)
+        recent = await self._fetch_recent_events(guild_id=guild_id, channel_id=channel_id, user_id=other_user_id)
+
+        processed_text = self._normalize_input_text(text, policy)
+        tgt = self._resolve_target_code(guild_id, other_user_id, force_tgt, policy=policy)
+        src = await self._detect_source_code(processed_text)
         if self._equivalent_lang(src, tgt):
+            _logger.info(
+                "🧭 plan_for_pair skip: guild=%s author=%s other=%s src=%s tgt=%s len=%d preview=%r",
+                guild_id,
+                author_id,
+                other_user_id,
+                src,
+                tgt,
+                len(text),
+                self._preview(text),
+            )
             return {"job": None, "context": {"src": src, "tgt": tgt, "pair": True}}
+        metadata: Dict[str, Any] = {
+            "preferred_providers": list(policy.preferred_providers) if policy else [],
+            "policy": self._policy_snapshot(policy),
+            "channel_id": channel_id,
+            "pair_target_user": other_user_id,
+        }
+        if recent:
+            metadata["recent_history"] = [event.text for event in recent]
+        if processed_text != text:
+            metadata["normalized_text"] = processed_text
         job = TranslationJob(
             guild_id=guild_id,
             author_id=author_id,
             text=text,
             src_lang=src,
             tgt_lang=tgt,
+            metadata=metadata,
+        )
+        _logger.info(
+            "🧭 plan_for_pair job=%s guild=%s author=%s other=%s src=%s tgt=%s forced=%s len=%d preview=%r",
+            job.short(),
+            guild_id,
+            author_id,
+            other_user_id,
+            src,
+            tgt,
+            bool(force_tgt),
+            len(text),
+            self._preview(text),
         )
         return {"job": job, "context": {"src": src, "tgt": tgt, "pair": True}}
 
@@ -124,20 +363,56 @@ class ContextEngine:
         *,
         text: str,
         code: str,
+        channel_id: Optional[int] = None,
     ) -> Dict[str, Any]:
         """
         Build a TranslationJob when a target code is provided explicitly.
         """
+        policy = self._resolve_policy(guild_id=guild_id, channel_id=channel_id, user_id=author_id)
+        recent = await self._fetch_recent_events(guild_id=guild_id, channel_id=channel_id, user_id=author_id)
+
+        processed_text = self._normalize_input_text(text, policy)
         tgt = self._normalize_code(code)
-        src = await self._detect_source_code(text)
+        tgt = self._apply_policy_target(tgt, policy)
+        src = await self._detect_source_code(processed_text)
         if self._equivalent_lang(src, tgt):
+            _logger.info(
+                "🧭 plan_for_code skip: guild=%s user=%s src=%s tgt=%s len=%d preview=%r",
+                guild_id,
+                author_id,
+                src,
+                tgt,
+                len(text),
+                self._preview(text),
+            )
             return {"job": None, "context": {"src": src, "tgt": tgt, "forced": True}}
+        metadata: Dict[str, Any] = {
+            "preferred_providers": list(policy.preferred_providers) if policy else [],
+            "policy": self._policy_snapshot(policy),
+            "channel_id": channel_id,
+            "forced": True,
+        }
+        if recent:
+            metadata["recent_history"] = [event.text for event in recent]
+        if processed_text != text:
+            metadata["normalized_text"] = processed_text
         job = TranslationJob(
             guild_id=guild_id,
             author_id=author_id,
             text=text,
             src_lang=src,
             tgt_lang=tgt,
+            metadata=metadata,
+        )
+        _logger.info(
+            "🧭 plan_for_code job=%s guild=%s user=%s src=%s tgt=%s len=%d preview=%r",
+            job.short(),
+            guild_id,
+            author_id,
+            src,
+            tgt,
+            len(text),
+            self._preview(text),
         )
         return {"job": job, "context": {"src": src, "tgt": tgt, "forced": True}}
 
@@ -282,6 +557,7 @@ class ContextEngine:
         text: str,
         force_tgt: Optional[str] = None,
         timeout: Optional[float] = None,
+        channel_id: Optional[int] = None,
     ) -> Dict[str, Any]:
         """
         Convenience combined flow:
@@ -297,16 +573,27 @@ class ContextEngine:
 
         This is suitable for cogs that want a single-call high-level operation.
         """
-        env = await self.plan_for_author(guild_id, author_id, text=text, force_tgt=force_tgt)
+        env = await self.plan_for_author(guild_id, author_id, text=text, force_tgt=force_tgt, channel_id=channel_id)
         job = env.get("job")
         context = env.get("context", {})
 
         if not job:
-            # No translation needed � return empty response but include context
+            # No translation needed - return empty response but include context
             empty = TranslationResponse(text=None, src=context.get("src", "en"), tgt=context.get("tgt", "en"), provider=None, confidence=0.0, meta={"reason": "no_translation_needed"})
             return {"job": None, "context": context, "response": empty}
 
         resp = await self.execute_job_with_orchestrator(job, orchestrator, timeout=timeout)
+        try:
+            await self._record_translation_event(
+                guild_id=guild_id,
+                channel_id=channel_id,
+                user_id=author_id,
+                job=job,
+                response=resp,
+                original_text=text,
+            )
+        except Exception:
+            _logger.debug("record_translation_event failed", exc_info=True)
         return {"job": job, "context": context, "response": resp}
 
     # -------------------------
@@ -359,7 +646,14 @@ class ContextEngine:
     # -------------------------
     # Existing internal helpers (kept & slightly hardened)
     # -------------------------
-    def _resolve_target_code(self, guild_id: int, user_id: int, force_tgt: Optional[str]) -> str:
+    def _resolve_target_code(
+        self,
+        guild_id: int,
+        user_id: int,
+        force_tgt: Optional[str],
+        *,
+        policy: Optional[TranslationPolicy] = None,
+    ) -> str:
         """
         Synchronous resolving of a target token (forced or cached).
         Uses alias_helper, roles.resolve_code and ambiguity resolver hooks.
@@ -367,7 +661,15 @@ class ContextEngine:
         if force_tgt:
             forced = self._normalize_code(force_tgt)
             resolved = self._resolve_ambiguity(forced, {"guild_id": guild_id, "user_id": user_id})
-            return resolved or forced
+            target = resolved or forced
+            _logger.debug(
+                "Resolved forced target code for guild=%s user=%s -> %s (input=%s)",
+                guild_id,
+                user_id,
+                target,
+                force_tgt,
+            )
+            return self._apply_policy_target(target, policy)
         # Cache access kept synchronous here for compatibility; async wrappers exist above.
         try:
             cached = None
@@ -379,11 +681,19 @@ class ContextEngine:
             if cached:
                 normalized = self._normalize_code(cached)
                 resolved = self._resolve_ambiguity(normalized, {"guild_id": guild_id, "user_id": user_id})
-                return resolved or normalized
+                target = resolved or normalized
+                _logger.debug(
+                    "Resolved cached target code for guild=%s user=%s -> %s",
+                    guild_id,
+                    user_id,
+                    target,
+                )
+                return self._apply_policy_target(target, policy)
         except Exception as exc:
             _logger.exception("_resolve_target_code: cache access failure")
             self._log_error(exc, context="_resolve_target_code")
-        return "en"
+        _logger.debug("Fallback target code 'en' for guild=%s user=%s", guild_id, user_id)
+        return self._apply_policy_target("en", policy)
 
     def _normalize_code(self, token: Optional[str]) -> str:
         """

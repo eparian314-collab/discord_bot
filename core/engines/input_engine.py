@@ -124,8 +124,9 @@ class InputEngine:
         guild_id = message.guild.id if message.guild else 0
         author_id = message.author.id
         content = safe_truncate((message.content or "").strip())
+        channel_id = getattr(message.channel, "id", None)
 
-        job_env = await self._build_job_for_author(guild_id, author_id, content)
+        job_env = await self._build_job_for_author(guild_id, author_id, content, channel_id=channel_id)
         if not job_env:
             return
 
@@ -133,7 +134,7 @@ class InputEngine:
         if not job:
             return
 
-        translated = await self._execute_job(job, guild_id=guild_id, author_id=author_id, original_text=content)
+        translated = await self._execute_job(job, guild_id=guild_id, author_id=author_id, original_text=content, channel_id=channel_id)
         if not translated:
             return
 
@@ -147,8 +148,9 @@ class InputEngine:
             return
 
         content = safe_truncate((message.content or "").strip())
+        channel_id = getattr(message.channel, "id", None)
 
-        job_env = await self._build_job_for_pair(guild_id, author_id, reference.author.id, content)
+        job_env = await self._build_job_for_pair(guild_id, author_id, reference.author.id, content, channel_id=channel_id)
         if not job_env:
             return
 
@@ -156,7 +158,7 @@ class InputEngine:
         if not job:
             return
 
-        translated = await self._execute_job(job, guild_id=guild_id, author_id=author_id, original_text=content)
+        translated = await self._execute_job(job, guild_id=guild_id, author_id=author_id, original_text=content, channel_id=channel_id)
         if not translated:
             return
 
@@ -172,6 +174,7 @@ class InputEngine:
         guild_id: int,
         author_id: int,
         original_text: str,
+        channel_id: Optional[int] = None,
     ) -> Optional[str]:
         """
         Execute job via orchestrator (preferred) or fallback adapters.
@@ -186,6 +189,7 @@ class InputEngine:
                     author_id=author_id,
                     orchestrator=orchestrator,
                     text=original_text,
+                    channel_id=channel_id,
                 )
                 resp = wrapper.get("response") if isinstance(wrapper, dict) else None
                 if resp and getattr(resp, "text", None):
@@ -200,16 +204,16 @@ class InputEngine:
             await self._log_error(exc, context="execute_job")
             return None
 
-    async def _build_job_for_author(self, guild_id: int, author_id: int, text: str) -> Optional[Dict[str, Any]]:
+    async def _build_job_for_author(self, guild_id: int, author_id: int, text: str, *, channel_id: Optional[int]) -> Optional[Dict[str, Any]]:
         try:
-            return await self.context.plan_for_author(guild_id, author_id, text=text)
+            return await self.context.plan_for_author(guild_id, author_id, text=text, channel_id=channel_id)
         except Exception as exc:
             await self._log_error(exc, context="plan_for_author")
             return None
 
-    async def _build_job_for_pair(self, guild_id: int, author_id: int, other_user_id: int, text: str) -> Optional[Dict[str, Any]]:
+    async def _build_job_for_pair(self, guild_id: int, author_id: int, other_user_id: int, text: str, *, channel_id: Optional[int]) -> Optional[Dict[str, Any]]:
         try:
-            return await self.context.plan_for_pair(guild_id, author_id, other_user_id, text=text)
+            return await self.context.plan_for_pair(guild_id, author_id, other_user_id, text=text, channel_id=channel_id)
         except Exception as exc:
             await self._log_error(exc, context="plan_for_pair")
             return None
@@ -234,11 +238,115 @@ class InputEngine:
     async def _trigger_sos(self, message: discord.Message, mapped_msg: str) -> None:
         alert = f"{ROTATING_LIGHT} **SOS Triggered:** {mapped_msg}"
         try:
+            # Send alert in the channel
             sent = await message.channel.send(alert)
             with contextlib.suppress(Exception):
                 await sent.add_reaction(SOS_REACTION_EMOJI)
+            
+            # Send translated DMs to all users with language roles
+            if message.guild:
+                await self._send_sos_dms(message.guild, mapped_msg, message.author)
         except Exception as exc:
             await self._log_error(exc, context="trigger_sos")
+
+    async def _send_sos_dms(
+        self, guild: discord.Guild, sos_message: str, sender: discord.User
+    ) -> None:
+        """
+        Send SOS alert to all guild members with language roles.
+        Messages are translated to each user's language role (if not English).
+        """
+        if not self.roles:
+            logger.debug("RoleManager not available, skipping SOS DMs")
+            return
+
+        # Get translation orchestrator
+        orchestrator = getattr(self.processing, "orchestrator", None) if self.processing else None
+        if not orchestrator:
+            logger.debug("TranslationOrchestrator not available, skipping translation for SOS DMs")
+            # Fall back to sending English-only DMs
+            orchestrator = None
+
+        # Track sent DMs to avoid duplicates
+        sent_users: Set[int] = set()
+        failed_dms = 0
+
+        try:
+            # Iterate through all guild members
+            for member in guild.members:
+                # Skip bots and the sender
+                if member.bot or member.id == sender.id or member.id in sent_users:
+                    continue
+
+                # Get user's language roles
+                try:
+                    user_languages = await self.roles.get_user_languages(member.id, guild.id)
+                except Exception as exc:
+                    logger.warning("Failed to get languages for user %s: %s", member.id, exc)
+                    user_languages = []
+
+                # Skip users with no language roles
+                if not user_languages:
+                    continue
+
+                # Determine target language (use first language role, default to English)
+                target_lang = user_languages[0] if user_languages else "en"
+                
+                # Translate message if not English and orchestrator is available
+                translated_msg = sos_message
+                if target_lang.lower() != "en" and orchestrator:
+                    try:
+                        translation, _, provider = await orchestrator.translate_text_for_user(
+                            text=sos_message,
+                            guild_id=guild.id,
+                            user_id=member.id,
+                            tgt_lang=target_lang
+                        )
+                        if translation:
+                            translated_msg = translation
+                            logger.debug(
+                                "Translated SOS for user %s to %s via %s",
+                                member.id, target_lang, provider
+                            )
+                        else:
+                            logger.warning(
+                                "Translation failed for user %s (target: %s), using original message",
+                                member.id, target_lang
+                            )
+                    except Exception as exc:
+                        logger.warning(
+                            "Error translating SOS for user %s to %s: %s",
+                            member.id, target_lang, exc
+                        )
+
+                # Send DM with translated message
+                try:
+                    dm_alert = (
+                        f"{ROTATING_LIGHT} **SOS ALERT** {ROTATING_LIGHT}\n"
+                        f"**From:** {sender.mention} in {guild.name}\n"
+                        f"**Message:** {translated_msg}\n\n"
+                        f"_This is an emergency alert from your server._"
+                    )
+                    await member.send(dm_alert)
+                    sent_users.add(member.id)
+                    logger.info("Sent SOS DM to user %s (%s) in language: %s", member.id, member.name, target_lang)
+                except discord.Forbidden:
+                    logger.debug("Cannot DM user %s (DMs disabled or blocked)", member.id)
+                    failed_dms += 1
+                except discord.HTTPException as exc:
+                    logger.warning("Failed to send DM to user %s: %s", member.id, exc)
+                    failed_dms += 1
+                except Exception as exc:
+                    logger.error("Unexpected error sending DM to user %s: %s", member.id, exc)
+                    failed_dms += 1
+
+            logger.info(
+                "SOS DM broadcast complete: %d sent, %d failed",
+                len(sent_users), failed_dms
+            )
+        except Exception as exc:
+            logger.exception("Error during SOS DM broadcast: %s", exc)
+            await self._log_error(exc, context="send_sos_dms")
 
     # ------------------------------------------------------------------
     # SOS configuration (managed by SOSPhraseCog)

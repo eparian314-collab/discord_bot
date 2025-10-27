@@ -70,6 +70,15 @@ class DeepLAdapter:
       first and falling back to positional invocation.
     """
 
+    # DeepL supported target languages (as of 2024)
+    # Source: https://www.deepl.com/docs-api/general/get-languages/
+    SUPPORTED_TARGET_LANGUAGES = {
+        "bg", "cs", "da", "de", "el", "en", "en-gb", "en-us",
+        "es", "et", "fi", "fr", "hu", "id", "it", "ja",
+        "ko", "lt", "lv", "nb", "nl", "pl", "pt", "pt-br", "pt-pt",
+        "ro", "ru", "sk", "sl", "sv", "tr", "uk", "zh", "zh-hans", "zh-hant"
+    }
+
     def __init__(
         self,
         api_key: Optional[str] = None,
@@ -108,6 +117,14 @@ class DeepLAdapter:
 
     # ---- Public API -----------------------------------------------------------------
 
+    def supported_languages(self) -> list[str]:
+        """
+        Return list of supported target language codes.
+        
+        Returns lowercase language codes that DeepL can translate to.
+        """
+        return list(self.SUPPORTED_TARGET_LANGUAGES)
+
     def translate(self, text: str, src: Optional[str], tgt: str) -> Optional[TranslationResult]:
         """
         Synchronous translation entrypoint.
@@ -126,6 +143,10 @@ class DeepLAdapter:
         # Normalize language codes (DeepL commonly expects uppercase codes).
         src_lang = src.upper() if src else None
         tgt_lang = tgt.upper() if tgt else None
+        
+        # DeepL requires EN-GB or EN-US instead of EN
+        if tgt_lang == "EN":
+            tgt_lang = "EN-US"
 
         attempt = 0
         last_exc: Optional[BaseException] = None

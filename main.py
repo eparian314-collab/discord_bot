@@ -19,6 +19,12 @@ import uuid
 from pathlib import Path
 from typing import Mapping
 
+# Ensure parent directory is in path for proper package imports
+_current_file = Path(__file__).resolve()
+_project_root = _current_file.parent.parent
+if str(_project_root) not in sys.path:
+    sys.path.insert(0, str(_project_root))
+
 from discord_bot.core.engines.base.logging_utils import (
     configure_logging,
     get_logger,
@@ -28,6 +34,7 @@ from discord_bot.integrations import build_application, load_config, require_key
 
 from discord_bot.scripts.sanitize_encoding import run as sanitize
 
+# Ensure source files are consistently decoded (safe no-op if already clean).
 sanitize()
 
 logger = get_logger("main")
@@ -71,14 +78,14 @@ def run_preflight_checks(injected: Mapping[str, str]) -> None:
             masked_env[key] = raw
 
     if missing:
-        logger.warning("Preflight: expected critical environment variables missing: %s", ", ".join(missing))
+        logger.warning("Preflight missing required environment variables: %s", ", ".join(missing))
 
     if masked_env:
-        logger.info("Preflight: environment snapshot (sanitised): %s", masked_env)
+        logger.debug("Preflight environment snapshot (sanitised): %s", masked_env)
 
     if injected:
         redacted = {k: (_mask(v) if k in SENSITIVE_KEYS else v) for k, v in injected.items()}
-        logger.debug("Preflight: JSON configuration injected keys: %s", redacted)
+        logger.debug("Preflight JSON configuration injected keys: %s", redacted)
 
     config_json = os.getenv("CONFIG_JSON")
     if config_json:
@@ -90,16 +97,20 @@ def run_preflight_checks(injected: Mapping[str, str]) -> None:
 def configure_logging_from_env() -> None:
     """Configure logging based on LOG_LEVEL / LOG_FILE environment variables."""
     level_name = os.getenv("LOG_LEVEL", "INFO").upper()
+    # Map provided level to logging numeric constant; default to INFO on errors.
     try:
-        level = getattr(logging, level_name, logging.INFO)
+        level = int(level_name) if level_name.isdigit() else getattr(logging, level_name, logging.INFO)
     except Exception:
         level = logging.INFO
 
     log_file = os.getenv("LOG_FILE")
+    # Do not force reconfiguration to respect libs/tests that preconfigure logging.
     configure_logging(level=level, log_file=log_file, force=False)
 
+    # Reduce discord library chatter unless debugging.
     if level > logging.DEBUG:
         logging.getLogger("discord").setLevel(logging.WARNING)
+    logger.debug("Logging configured (level=%s%s)", level_name, f", file={log_file}" if log_file else "")
 
 
 async def _amain() -> None:
@@ -121,7 +132,7 @@ async def _amain() -> None:
 
     instance_id = os.getenv("INSTANCE_ID") or uuid.uuid4().hex
     set_correlation_id(instance_id)
-    logger.info("Booting HippoBot (instance=%s)", instance_id)
+    logger.info("🚀 Starting HippoBot (instance=%s)", instance_id)
 
     try:
         bot, _registry = build_application()
@@ -137,7 +148,7 @@ async def _amain() -> None:
     try:
         await bot.start(token)
     except KeyboardInterrupt:
-        logger.warning("Keyboard interrupt received, shutting down...")
+        logger.warning("⏹️ Keyboard interrupt received, shutting down...")
     except Exception:
         logger.exception("Unhandled exception in bot.start()")
         raise
@@ -146,7 +157,7 @@ async def _amain() -> None:
             await bot.close()
         except Exception:
             logger.exception("Error while closing bot")
-        logger.info("HippoBot shut down cleanly.")
+        logger.info("🛑 HippoBot shut down cleanly.")
 
 
 def main() -> None:

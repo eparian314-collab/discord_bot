@@ -1,11 +1,13 @@
-﻿{
+{
   "deepl_lang_codes": {
     "Bulgarian": "BG",
     "Czech": "CS",
     "Danish": "DA",
     "German": "DE",
     "Greek": "EL",
-    "English": "EN-US",
+    "English": "EN-GB",
+    "English (US)": "EN-US",
+    "English (UK)": "EN-GB",
     "Spanish": "ES",
     "Estonian": "ET",
     "Finnish": "FI",
@@ -20,7 +22,9 @@
     "Norwegian": "NB",
     "Dutch": "NL",
     "Polish": "PL",
-    "Portuguese": "PT-BR",
+    "Portuguese": "PT-PT",
+    "Portuguese (Portugal)": "PT-PT",
+    "Portuguese (Brazil)": "PT-BR",
     "Romanian": "RO",
     "Russian": "RU",
     "Slovak": "SK",
@@ -28,422 +32,378 @@
     "Swedish": "SV",
     "Turkish": "TR",
     "Ukrainian": "UK",
-    "Chinese": "ZH",
-    "Filipino": "FIL"
+    "Chinese": "ZH"
   },
   "google_lang_codes": {
     "Afrikaans": "af",
-    "Albanian": "sq",
-    "Amharic": "am",
     "Arabic": "ar",
-    "Armenian": "hy",
-    "Azerbaijani": "az",
-    "Basque": "eu",
-    "Belarusian": "be",
     "Bengali": "bn",
-    "Bosnian": "bs",
+    "Bulgarian": "bg",
     "Catalan": "ca",
-    "Cebuano": "ceb",
-    "Corsican": "co",
+    "Chinese": "zh-CN",
     "Croatian": "hr",
-    "Esperanto": "eo",
-    "Filipino": "tl",
-    "Frisian": "fy",
-    "Galician": "gl",
-    "Georgian": "ka",
+    "Czech": "cs",
+    "Danish": "da",
+    "Dutch": "nl",
+    "English": "en",
+    "English (US)": "en",
+    "English (UK)": "en",
+    "Estonian": "et",
+    "Finnish": "fi",
+    "French": "fr",
+    "German": "de",
+    "Greek": "el",
     "Gujarati": "gu",
-    "Haitian Creole": "ht",
-    "Hausa": "ha",
-    "Hawaiian": "haw",
-    "Hebrew": "iw",
+    "Hebrew": "he",
     "Hindi": "hi",
-    "Hmong": "hmn",
+    "Hungarian": "hu",
     "Icelandic": "is",
-    "Igbo": "ig",
+    "Indonesian": "id",
     "Irish": "ga",
-    "Javanese": "jw",
+    "Italian": "it",
+    "Japanese": "ja",
     "Kannada": "kn",
-    "Kazakh": "kk",
-    "Khmer": "km",
-    "Kurdish": "ku",
-    "Kyrgyz": "ky",
-    "Lao": "lo",
-    "Latin": "la",
-    "Luxembourgish": "lb",
-    "Macedonian": "mk",
-    "Malagasy": "mg",
+    "Korean": "ko",
+    "Latvian": "lv",
+    "Lithuanian": "lt",
     "Malay": "ms",
     "Malayalam": "ml",
     "Maltese": "mt",
-    "Maori": "mi",
     "Marathi": "mr",
-    "Mongolian": "mn",
-    "Myanmar (Burmese)": "my",
-    "Nepali": "ne",
-    "Pashto": "ps",
+    "Norwegian": "nb",
     "Persian": "fa",
+    "Polish": "pl",
+    "Portuguese": "pt",
+    "Portuguese (Portugal)": "pt",
+    "Portuguese (Brazil)": "pt",
     "Punjabi": "pa",
-    "Samoan": "sm",
-    "Scots Gaelic": "gd",
+    "Romanian": "ro",
+    "Russian": "ru",
     "Serbian": "sr",
-    "Sesotho": "st",
-    "Shona": "sn",
-    "Sindhi": "sd",
-    "Sinhala": "si",
-    "Somali": "so",
-    "Sundanese": "su",
+    "Slovak": "sk",
+    "Slovenian": "sl",
+    "Spanish": "es",
     "Swahili": "sw",
-    "Tajik": "tg",
+    "Swedish": "sv",
+    "Tagalog": "tl",
     "Tamil": "ta",
     "Telugu": "te",
     "Thai": "th",
+    "Turkish": "tr",
+    "Ukrainian": "uk",
     "Urdu": "ur",
-    "Uzbek": "uz",
     "Vietnamese": "vi",
-    "Welsh": "cy",
-    "Xhosa": "xh",
-    "Yiddish": "yi",
-    "Yoruba": "yo",
-    "Zulu": "zu"
+    "Welsh": "cy"
   },
-  "offline_argos_languages": [
-    "en",
-    "es",
-    "fr",
-    "de",
-    "ru",
-    "it",
-    "pt",
-    "zh",
-    "ja",
-    "ar",
-    "hi"
-  ],
   "flag_role_map": {
-    "🇺🇸": [ "English" ],
-    "🇬🇧": [ "English" ],
-    "🇪🇸": [ "Spanish" ],
-    "🇲🇽": [ "Spanish" ],
-    "🇫🇷": [ "French" ],
-    "🇩🇪": [ "German" ],
-    "🇯🇵": [ "Japanese" ],
-    "🇨🇳": [ "Chinese" ],
-    "🇷🇺": [ "Russian" ],
-    "🇮🇹": [ "Italian" ],
-    "🇵🇹": [ "Portuguese" ],
-    "🇧🇷": [ "Portuguese" ],
-    "🇰🇷": [ "Korean" ],
-    "🇸🇦": [ "Arabic" ],
-    "🇦🇪": [ "Arabic" ],
-    "🇳🇱": [ "Dutch" ],
-    "🇵🇱": [ "Polish" ],
-    "🇹🇷": [ "Turkish" ],
-    "🇸🇪": [ "Swedish" ],
-    "🇳🇴": [ "Norwegian" ],
-    "🇩🇰": [ "Danish" ],
-    "🇫🇮": [ "Finnish" ],
-    "🇮🇳": [ "Hindi", "Bengali" ],
-    "🇵🇭": [ "Filipino" ],
-    "🇻🇳": [ "Vietnamese" ],
-    "🇹🇭": [ "Thai" ],
-    "🇮🇩": [ "Indonesian" ],
-    "🇲🇾": [ "Malay" ],
-    "🇺🇦": [ "Ukrainian" ],
-    "🇷🇴": [ "Romanian" ],
-    "🇭🇺": [ "Hungarian" ],
-    "🇨🇿": [ "Czech" ],
-    "🇬🇷": [ "Greek" ],
-    "🇮🇱": [ "Hebrew" ],
-    "🇧🇬": [ "Bulgarian" ],
-    "🇪🇪": [ "Estonian" ],
-    "🇱🇹": [ "Lithuanian" ],
-    "🇱🇻": [ "Latvian" ],
-    "🇸🇰": [ "Slovak" ],
-    "🇸🇮": [ "Slovenian" ],
-    "🇭🇷": [ "Croatian" ],
-    "🇮🇸": [ "Icelandic" ],
-    "🇮🇪": [ "Irish" ],
-    "🇨🇭": [ "German", "French", "Italian" ],
-    "🇧🇪": [ "Dutch", "French", "German" ],
-    "🇨🇦": [ "English", "French" ],
-    "🇿🇦": [ "Afrikaans", "English", "Zulu", "Xhosa" ]
-  },
-  "ambiguous_flag_options": {
-    "🇮🇳": [
-      {
-        "role_name": "Hindi",
-        "button_label": "Hindi"
-      },
-      {
-        "role_name": "Bengali",
-        "button_label": "Bengali"
-      }
+    "🇺🇸": [
+      "English"
+    ],
+    "🇬🇧": [
+      "English"
+    ],
+    "🇪🇸": [
+      "Spanish"
+    ],
+    "🇲🇽": [
+      "Spanish"
+    ],
+    "🇫🇷": [
+      "French"
+    ],
+    "🇩🇪": [
+      "German"
+    ],
+    "🇯🇵": [
+      "Japanese"
+    ],
+    "🇨🇳": [
+      "Chinese"
+    ],
+    "🇷🇺": [
+      "Russian"
+    ],
+    "🇮🇹": [
+      "Italian"
+    ],
+    "🇵🇹": [
+      "Portuguese"
+    ],
+    "🇧🇷": [
+      "Portuguese"
+    ],
+    "🇰🇷": [
+      "Korean"
+    ],
+    "🇳🇱": [
+      "Dutch"
+    ],
+    "🇵🇱": [
+      "Polish"
+    ],
+    "🇹🇷": [
+      "Turkish"
+    ],
+    "🇸🇪": [
+      "Swedish"
+    ],
+    "🇳🇴": [
+      "Norwegian"
+    ],
+    "🇩🇰": [
+      "Danish"
+    ],
+    "🇫🇮": [
+      "Finnish"
+    ],
+    "🇮🇩": [
+      "Indonesian"
+    ],
+    "🇺🇦": [
+      "Ukrainian"
+    ],
+    "🇷🇴": [
+      "Romanian"
+    ],
+    "🇭🇺": [
+      "Hungarian"
+    ],
+    "🇨🇿": [
+      "Czech"
+    ],
+    "🇬🇷": [
+      "Greek"
+    ],
+    "🇧🇬": [
+      "Bulgarian"
+    ],
+    "🇪🇪": [
+      "Estonian"
+    ],
+    "🇱🇹": [
+      "Lithuanian"
+    ],
+    "🇱🇻": [
+      "Latvian"
+    ],
+    "🇸🇰": [
+      "Slovak"
+    ],
+    "🇸🇮": [
+      "Slovenian"
     ],
     "🇨🇭": [
-      {
-        "role_name": "German",
-        "button_label": "German"
-      },
-      {
-        "role_name": "French",
-        "button_label": "French"
-      },
-      {
-        "role_name": "Italian",
-        "button_label": "Italian"
-      }
+      "German",
+      "French",
+      "Italian"
     ],
     "🇧🇪": [
-      {
-        "role_name": "Dutch",
-        "button_label": "Dutch"
-      },
-      {
-        "role_name": "French",
-        "button_label": "French"
-      },
-      {
-        "role_name": "German",
-        "button_label": "German"
-      }
+      "Dutch",
+      "French",
+      "German"
     ],
     "🇨🇦": [
-      {
-        "role_name": "English",
-        "button_label": "English"
-      },
-      {
-        "role_name": "French",
-        "button_label": "French"
-      }
+      "English",
+      "French"
     ],
     "🇿🇦": [
-      {
-        "role_name": "Afrikaans",
-        "button_label": "Afrikaans"
-      },
-      {
-        "role_name": "English",
-        "button_label": "English"
-      },
-      {
-        "role_name": "Zulu",
-        "button_label": "Zulu"
-      },
-      {
-        "role_name": "Xhosa",
-        "button_label": "Xhosa"
-      }
+      "English"
+    ],
+    "🇵🇭": [
+      "Tagalog",
+      "English"
+    ],
+    "🇮🇳": [
+      "Hindi",
+      "English"
+    ],
+    "🇵🇰": [
+      "Urdu",
+      "English"
+    ],
+    "🇻🇳": [
+      "Vietnamese"
+    ],
+    "🇹🇭": [
+      "Thai"
+    ],
+    "🇮🇷": [
+      "Persian"
+    ],
+    "🇮🇱": [
+      "Hebrew"
+    ],
+    "🇦🇪": [
+      "Arabic"
+    ],
+    "🇸🇦": [
+      "Arabic"
+    ],
+    "🇪🇬": [
+      "Arabic"
+    ],
+    "🇮🇪": [
+      "Irish",
+      "English"
+    ],
+    "🇮🇸": [
+      "Icelandic"
+    ],
+    "🇲🇾": [
+      "Malay"
+    ],
+    "🇧🇩": [
+      "Bengali"
+    ],
+    "🇱🇰": [
+      "Tamil"
+    ],
+    "🇦🇱": [
+      "Albanian"
+    ],
+    "🇷🇸": [
+      "Serbian"
+    ],
+    "🇭🇷": [
+      "Croatian"
+    ],
+    "🇰🇪": [
+      "Swahili",
+      "English"
     ]
   },
   "language_aliases": {
-    "english": "English",
-    "en": "English",
-    "german": "German",
-    "de": "German",
-    "french": "French",
-    "fr": "French",
-    "spanish": "Spanish",
-    "es": "Spanish",
-    "italian": "Italian",
-    "it": "Italian",
-    "japanese": "Japanese",
-    "ja": "Japanese",
-    "dutch": "Dutch",
-    "nl": "Dutch",
-    "polish": "Polish",
-    "pl": "Polish",
-    "portuguese": "Portuguese",
-    "pt": "Portuguese",
-    "russian": "Russian",
-    "ru": "Russian",
-    "chinese": "Chinese",
-    "zh": "Chinese",
-    "bulgarian": "Bulgarian",
-    "bg": "Bulgarian",
-    "czech": "Czech",
-    "cs": "Czech",
-    "danish": "Danish",
-    "da": "Danish",
-    "estonian": "Estonian",
-    "et": "Estonian",
-    "finnish": "Finnish",
-    "fi": "Finnish",
-    "greek": "Greek",
-    "el": "Greek",
-    "hungarian": "Hungarian",
-    "hu": "Hungarian",
-    "indonesian": "Indonesian",
-    "id": "Indonesian",
-    "korean": "Korean",
-    "ko": "Korean",
-    "lithuanian": "Lithuanian",
-    "lt": "Lithuanian",
-    "latvian": "Latvian",
-    "lv": "Latvian",
-    "norwegian": "Norwegian",
-    "no": "Norwegian",
-    "nb": "Norwegian",
-    "romanian": "Romanian",
-    "ro": "Romanian",
-    "slovak": "Slovak",
-    "sk": "Slovak",
-    "slovenian": "Slovenian",
-    "sl": "Slovenian",
-    "swedish": "Swedish",
-    "sv": "Swedish",
-    "turkish": "Turkish",
-    "tr": "Turkish",
-    "ukrainian": "Ukrainian",
-    "uk": "Ukrainian",
-    "filipino": "Filipino",
-    "tl": "Filipino",
-    "tagalog": "Filipino",
-    "fil": "Filipino",
-    "afrikaans": "Afrikaans",
-    "af": "Afrikaans",
-    "albanian": "Albanian",
-    "sq": "Albanian",
-    "amharic": "Amharic",
-    "am": "Amharic",
-    "arabic": "Arabic",
-    "ar": "Arabic",
-    "armenian": "Armenian",
-    "hy": "Armenian",
-    "azerbaijani": "Azerbaijani",
-    "az": "Azerbaijani",
-    "basque": "Basque",
-    "eu": "Basque",
-    "belarusian": "Belarusian",
-    "be": "Belarusian",
-    "bengali": "Bengali",
-    "bn": "Bengali",
-    "bosnian": "Bosnian",
-    "bs": "Bosnian",
-    "catalan": "Catalan",
-    "ca": "Catalan",
-    "cebuano": "Cebuano",
-    "ceb": "Cebuano",
-    "corsican": "Corsican",
-    "co": "Corsican",
-    "croatian": "Croatian",
-    "hr": "Croatian",
-    "esperanto": "Esperanto",
-    "eo": "Esperanto",
-    "frisian": "Frisian",
-    "fy": "Frisian",
-    "galician": "Galician",
-    "gl": "Galician",
-    "georgian": "Georgian",
-    "ka": "Georgian",
-    "gujarati": "Gujarati",
-    "gu": "Gujarati",
-    "haitian creole": "Haitian Creole",
-    "ht": "Haitian Creole",
-    "hausa": "Hausa",
-    "ha": "Hausa",
-    "hawaiian": "Hawaiian",
-    "haw": "Hawaiian",
-    "hebrew": "Hebrew",
-    "he": "Hebrew",
-    "iw": "Hebrew",
-    "hindi": "Hindi",
-    "hi": "Hindi",
-    "hmong": "Hmong",
-    "hmn": "Hmong",
-    "icelandic": "Icelandic",
-    "is": "Icelandic",
-    "igbo": "Igbo",
-    "ig": "Igbo",
-    "irish": "Irish",
-    "ga": "Irish",
-    "javanese": "Javanese",
-    "jw": "Javanese",
-    "kannada": "Kannada",
-    "kn": "Kannada",
-    "kazakh": "Kazakh",
-    "kk": "Kazakh",
-    "khmer": "Khmer",
-    "km": "Khmer",
-    "kurdish": "Kurdish",
-    "ku": "Kurdish",
-    "kyrgyz": "Kyrgyz",
-    "ky": "Kyrgyz",
-    "lao": "Lao",
-    "lo": "Lao",
-    "latin": "Latin",
-    "la": "Latin",
-    "luxembourgish": "Luxembourgish",
-    "lb": "Luxembourgish",
-    "macedonian": "Macedonian",
-    "mk": "Macedonian",
-    "malagasy": "Malagasy",
-    "mg": "Malagasy",
-    "malay": "Malay",
-    "ms": "Malay",
-    "malayalam": "Malayalam",
-    "ml": "Malayalam",
-    "maltese": "Maltese",
-    "mt": "Maltese",
-    "maori": "Maori",
-    "mi": "Maori",
-    "marathi": "Marathi",
-    "mr": "Marathi",
-    "mongolian": "Mongolian",
-    "mn": "Mongolian",
-    "myanmar": "Myanmar (Burmese)",
-    "my": "Myanmar (Burmese)",
-    "nepali": "Nepali",
-    "ne": "Nepali",
-    "pashto": "Pashto",
-    "ps": "Pashto",
-    "persian": "Persian",
-    "fa": "Persian",
-    "punjabi": "Punjabi",
-    "pa": "Punjabi",
-    "samoan": "Samoan",
-    "sm": "Samoan",
-    "scots gaelic": "Scots Gaelic",
-    "gd": "Scots Gaelic",
-    "serbian": "Serbian",
-    "sr": "Serbian",
-    "sesotho": "Sesotho",
-    "st": "Sesotho",
-    "shona": "Shona",
-    "sn": "Shona",
-    "sindhi": "Sindhi",
-    "sd": "Sindhi",
-    "sinhala": "Sinhala",
-    "si": "Sinhala",
-    "somali": "Somali",
-    "so": "Somali",
-    "sundanese": "Sundanese",
-    "su": "Sundanese",
-    "swahili": "Swahili",
-    "sw": "Swahili",
-    "tajik": "Tajik",
-    "tg": "Tajik",
-    "tamil": "Tamil",
-    "ta": "Tamil",
-    "telugu": "Telugu",
-    "te": "Telugu",
-    "thai": "Thai",
-    "th": "Thai",
-    "urdu": "Urdu",
-    "ur": "Urdu",
-    "uzbek": "Uzbek",
-    "uz": "Uzbek",
-    "vietnamese": "Vietnamese",
-    "vi": "Vietnamese",
-    "welsh": "Welsh",
-    "cy": "Welsh",
-    "xhosa": "Xhosa",
-    "xh": "Xhosa",
-    "yiddish": "Yiddish",
-    "yi": "Yiddish",
-    "yoruba": "Yoruba",
-    "yo": "Yoruba",
-    "zulu": "Zulu",
-    "zu": "Zulu"
+    "af": "af",
+    "afrikaans": "af",
+    "ar": "ar",
+    "arabic": "ar",
+    "bg": "bg",
+    "bulgarian": "bg",
+    "bn": "bn",
+    "bengali": "bn",
+    "ca": "ca",
+    "catalan": "ca",
+    "chinese": "zh",
+    "cs": "cs",
+    "czech": "cs",
+    "cy": "cy",
+    "welsh": "cy",
+    "da": "da",
+    "danish": "da",
+    "de": "de",
+    "dutch": "nl",
+    "el": "el",
+    "en": "en",
+    "en-gb": "en",
+    "en-uk": "en",
+    "en-us": "en",
+    "english": "en",
+    "english (uk)": "en",
+    "english (us)": "en",
+    "english uk": "en",
+    "english us": "en",
+    "es": "es",
+    "estonian": "et",
+    "et": "et",
+    "fa": "fa",
+    "persian": "fa",
+    "fi": "fi",
+    "finnish": "fi",
+    "fil": "tl",
+    "filipino": "tl",
+    "fr": "fr",
+    "french": "fr",
+    "ga": "ga",
+    "irish": "ga",
+    "german": "de",
+    "greek": "el",
+    "gu": "gu",
+    "gujarati": "gu",
+    "he": "he",
+    "hebrew": "he",
+    "hi": "hi",
+    "hindi": "hi",
+    "hr": "hr",
+    "croatian": "hr",
+    "hu": "hu",
+    "hungarian": "hu",
+    "id": "id",
+    "indonesian": "id",
+    "is": "is",
+    "icelandic": "is",
+    "it": "it",
+    "italian": "it",
+    "ja": "ja",
+    "japanese": "ja",
+    "kn": "kn",
+    "kannada": "kn",
+    "ko": "ko",
+    "korean": "ko",
+    "latvian": "lv",
+    "lithuanian": "lt",
+    "lt": "lt",
+    "lv": "lv",
+    "mandarin": "zh",
+    "ml": "ml",
+    "malayalam": "ml",
+    "mr": "mr",
+    "marathi": "mr",
+    "ms": "ms",
+    "malay": "ms",
+    "mt": "mt",
+    "maltese": "mt",
+    "nb": "nb",
+    "nl": "nl",
+    "no": "nb",
+    "norwegian": "nb",
+    "pa": "pa",
+    "punjabi": "pa",
+    "pl": "pl",
+    "polish": "pl",
+    "portuguese": "pt",
+    "portuguese (brazil)": "pt",
+    "portuguese (portugal)": "pt",
+    "pt": "pt",
+    "pt-br": "pt",
+    "pt-pt": "pt",
+    "ro": "ro",
+    "romanian": "ro",
+    "ru": "ru",
+    "russian": "ru",
+    "simplified": "zh",
+    "simplified chinese": "zh",
+    "sk": "sk",
+    "sl": "sl",
+    "slovak": "sk",
+    "slovenian": "sl",
+    "spanish": "es",
+    "sq": "sq",
+    "albanian": "sq",
+    "sr": "sr",
+    "serbian": "sr",
+    "sv": "sv",
+    "swedish": "sv",
+    "sw": "sw",
+    "swahili": "sw",
+    "ta": "ta",
+    "tamil": "ta",
+    "te": "te",
+    "telugu": "te",
+    "th": "th",
+    "thai": "th",
+    "tl": "tl",
+    "tagalog": "tl",
+    "tr": "tr",
+    "turkish": "tr",
+    "uk": "uk",
+    "ukrainian": "uk",
+    "ur": "ur",
+    "urdu": "ur",
+    "vi": "vi",
+    "vietnamese": "vi",
+    "zh": "zh",
+    "zh-cn": "zh",
+    "zh-hans": "zh",
+    "zh-hant": "zh"
   }
 }

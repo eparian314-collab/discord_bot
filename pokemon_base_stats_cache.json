@@ -1,0 +1,64 @@
+{
+  "pidgey": {
+    "species": "pidgey",
+    "hp": 40,
+    "attack": 45,
+    "defense": 40,
+    "special_attack": 35,
+    "special_defense": 35,
+    "speed": 56,
+    "types": [
+      "normal",
+      "flying"
+    ]
+  },
+  "pikachu": {
+    "species": "pikachu",
+    "hp": 35,
+    "attack": 55,
+    "defense": 40,
+    "special_attack": 50,
+    "special_defense": 50,
+    "speed": 90,
+    "types": [
+      "electric"
+    ]
+  },
+  "gyarados": {
+    "species": "gyarados",
+    "hp": 95,
+    "attack": 125,
+    "defense": 79,
+    "special_attack": 60,
+    "special_defense": 100,
+    "speed": 81,
+    "types": [
+      "water",
+      "flying"
+    ]
+  },
+  "charmander": {
+    "species": "charmander",
+    "hp": 39,
+    "attack": 52,
+    "defense": 43,
+    "special_attack": 60,
+    "special_defense": 50,
+    "speed": 65,
+    "types": [
+      "fire"
+    ]
+  },
+  "squirtle": {
+    "species": "squirtle",
+    "hp": 44,
+    "attack": 48,
+    "defense": 65,
+    "special_attack": 50,
+    "special_defense": 64,
+    "speed": 43,
+    "types": [
+      "water"
+    ]
+  }
+}

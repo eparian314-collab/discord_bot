@@ -130,6 +130,51 @@ class MyMemoryAdapter:
     # ------------------------------------------------------------
     # Public API (ProcessingEngine will call this)
     # ------------------------------------------------------------
+    
+    def supported_languages(self) -> list[str]:
+        """
+        Return list of supported target language codes.
+        
+        MyMemory supports a very broad range of languages. This list includes
+        major world languages that MyMemory can translate to. For rare languages,
+        Google Translate (tier 3) may provide better coverage.
+        """
+        # MyMemory supports many languages - this is a curated list of well-supported ones
+        return [
+            "ar", "bg", "cs", "da", "de", "el", "en", "es", "et", "fi", "fr",
+            "he", "hi", "hr", "hu", "id", "it", "ja", "ko", "lt", "lv", "ms",
+            "mt", "nl", "no", "pl", "pt", "ro", "ru", "sk", "sl", "sq", "sr",
+            "sv", "th", "tl", "tr", "uk", "vi", "zh", "zh-cn", "zh-tw"
+        ]
+    
+    async def translate_async(self, text: str, src: Optional[str], tgt: str) -> Optional[str]:
+        """
+        Translate text asynchronously.
+        
+        Args:
+            text: Text to translate
+            src: Source language code (or None for auto-detect)
+            tgt: Target language code
+            
+        Returns:
+            Translated text string or None on failure
+        """
+        # Create a minimal job object that __call__ expects
+        class Job:
+            pass
+        
+        job = Job()
+        job.text = text
+        job.src = src
+        job.tgt = tgt
+        
+        result_dict = await self(job)
+        
+        # Extract text from result dict
+        if result_dict.get("ok"):
+            return result_dict.get("text")
+        return None
+    
     async def __call__(self, job: Any) -> TranslationDict:
         """
         Perform a translation job.

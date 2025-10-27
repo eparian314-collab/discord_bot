@@ -1,13 +1,16 @@
 from __future__ import annotations
 
+import logging
 import json
 from pathlib import Path
 from typing import Any, Dict, Optional
 
+_log = logging.getLogger("hippo_bot.language_map")
+
 # Existing helpers kept as-is
 def normalize_lang_code(code: Optional[str]) -> str:
     """
-    Normalize a language token into canonical 2�3 letter lowercase code.
+    Normalize a language token into canonical 2-3 letter lowercase code.
     Examples:
         "EN-US" -> "en"
         " pt_br " -> "pt"
@@ -93,12 +96,18 @@ def load_language_map(path: Optional[Path] = None) -> Optional[Dict[str, Any]]:
         base = Path(__file__).parent
         p = Path(path) if path else base / "language_map.json"
         if not p.exists():
+            _log.warning("language_map.json not found at %s", p)
             return None
-        with p.open("r", encoding="utf-8") as fh:
+        with p.open("r", encoding="utf-8-sig") as fh:
             data = json.load(fh)
         _LANGUAGE_MAP_CACHE = data
+        if isinstance(data, dict):
+            alias_count = len(data.get("language_aliases", {}) or {})
+            deepl_count = len(data.get("deepl_lang_codes", {}) or {})
+            _log.info("Loaded language_map.json (aliases=%d, deepl_codes=%d)", alias_count, deepl_count)
         return data
     except Exception:
+        _log.exception("Failed to load language_map.json")
         return None
 
 
@@ -137,11 +146,7 @@ def is_valid_lang_code(token: Optional[str], *, language_map: Optional[Dict[str,
     if not token:
         return False
     tok = token.strip()
-    norm = normalize_lang_code(tok)
-    # quick structural validation
-    if len(norm) in (2, 3) and norm.isalpha():
-        return True
-    # check alias map
+    # check alias map first to respect canonical mapping
     lm = language_map or load_language_map()
     try:
         aliases = lm.get("language_aliases", {}) if isinstance(lm, dict) else {}
@@ -149,15 +154,18 @@ def is_valid_lang_code(token: Optional[str], *, language_map: Optional[Dict[str,
             return True
     except Exception:
         pass
+    norm = normalize_lang_code(tok)
+    if len(norm) in (2, 3) and norm.isalpha():
+        return True
     return False
 
 
 def is_supported_by_provider(provider: str, tgt_token: str, *, language_map: Optional[Dict[str, Any]] = None) -> bool:
     """
     Check whether a target language is supported by a provider.
-    Provider names: 'deepl', 'mymemory', 'openai'
+    Provider names: 'deepl', 'mymemory'
     - DeepL: checks explicit list from language_map.json or fallback set.
-    - MyMemory/OpenAI: treated as broadly supporting (returns True) since they have wide coverage.
+    - MyMemory: treated as broadly supporting (returns True) since it has wide coverage.
     """
     if not provider or not tgt_token:
         return False
@@ -166,8 +174,8 @@ def is_supported_by_provider(provider: str, tgt_token: str, *, language_map: Opt
     if p == "deepl":
         codes = get_deepl_supported_codes(language_map)
         return tgt in codes
-    # MyMemory and OpenAI are considered generic/fallback (broad support)
-    if p in ("mymemory", "openai"):
+    # MyMemory is considered generic/fallback (broad support)
+    if p == "mymemory":
         return True
     # Unknown provider: be conservative and return False
     return False

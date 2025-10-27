@@ -25,6 +25,15 @@ class ContextFilter(logging.Filter):
         return True
 
 
+class HippoFormatter(logging.Formatter):
+    """Logging formatter that tolerates missing correlation_id values."""
+
+    def format(self, record: logging.LogRecord) -> str:
+        if not hasattr(record, "correlation_id"):
+            record.correlation_id = _CORRELATION_ID.get() or "-"
+        return super().format(record)
+
+
 def configure_logging(
     *,
     level: int = logging.INFO,
@@ -48,7 +57,7 @@ def configure_logging(
         fmt = "%(asctime)s %(levelname)-5s %(name)s [corr=%(correlation_id)s] %(message)s"
 
     handler_stream = logging.StreamHandler(stream=sys.stdout)
-    handler_stream.setFormatter(logging.Formatter(fmt, datefmt="%Y-%m-%dT%H:%M:%S%z"))
+    handler_stream.setFormatter(HippoFormatter(fmt, datefmt="%Y-%m-%dT%H:%M:%S%z"))
 
     root = logging.getLogger()
     # Clear handlers if forcing a reconfigure
@@ -65,7 +74,7 @@ def configure_logging(
     if log_file:
         try:
             fh = logging.FileHandler(log_file, encoding="utf-8")
-            fh.setFormatter(logging.Formatter(fmt))
+            fh.setFormatter(HippoFormatter(fmt))
             root.addHandler(fh)
         except Exception:
             # don't fail startup if file cannot be created; emit to stdout instead

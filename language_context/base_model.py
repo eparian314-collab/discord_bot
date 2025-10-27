@@ -19,7 +19,7 @@ class TranslationResult:
         "text": "<translated string or null>",
         "src": "<detected src code>",
         "tgt": "<target code>",
-        "provider": "<deepl|mymemory|openai|null>",
+        "provider": "<deepl|mymemory|null>",
         "confidence": 0.0,
         "meta": { "error": "...", "timings": {...}, "provider_info": {...} }
       }

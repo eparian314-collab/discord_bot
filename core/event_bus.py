@@ -6,9 +6,10 @@ from __future__ import annotations
 
 import asyncio
 from collections import defaultdict
-from typing import Any, Awaitable, Callable, DefaultDict, Dict, Iterable, List, Optional
+import inspect
+from typing import Any, Callable, DefaultDict, Dict, Iterable, List, Optional
 
-Handler = Callable[..., Awaitable[None]]
+Handler = Callable[..., Any]
 
 
 class EventBus:
@@ -16,25 +17,25 @@ class EventBus:
 
     def __init__(self) -> None:
         self._handlers: DefaultDict[str, List[Handler]] = defaultdict(list)
-        self._lock = asyncio.Lock()
 
-    async def subscribe(self, event: str, handler: Handler) -> None:
-        async with self._lock:
-            self._handlers[event].append(handler)
+    def subscribe(self, event: str, handler: Handler) -> None:
+        self._handlers[event].append(handler)
 
-    async def unsubscribe(self, event: str, handler: Handler) -> None:
-        async with self._lock:
-            if handler in self._handlers.get(event, []):
-                self._handlers[event].remove(handler)
+    def unsubscribe(self, event: str, handler: Handler) -> None:
+        handlers = self._handlers.get(event)
+        if handlers and handler in handlers:
+            handlers.remove(handler)
 
     async def emit(self, event: str, **payload: Any) -> None:
         handlers = list(self._handlers.get(event, []))
         for handler in handlers:
             try:
-                await handler(**payload)
+                result = handler(**payload)
+                if inspect.isawaitable(result):
+                    await result
             except Exception as exc:
                 if event != "event_bus.error":
-                    await self.emit("event_bus.error", event=event, handler=handler, exc=exc)
+                    await self.emit("event_bus.error", original_event=event, handler=handler, exc=exc)
 
     async def publish(self, event: str, **payload: Any) -> None:
         """Compatibility helper: mirror emit() signature for registry expectations."""

@@ -50,6 +50,7 @@ class StorageEngine:
     ) -> None:
         self.db_path = db_path
         self.json_backup = json_backup
+        self._json_backup_is_default = json_backup == "data/storage_backup.json"
         self.schema_file = schema_file
         self._lock = asyncio.Lock()
         self._error_engine = get_error_engine() if get_error_engine else None
@@ -173,14 +174,35 @@ class StorageEngine:
         return records
 
     async def _json_backup_write(self, table: str, data: Dict[str, Any]) -> None:
-        payload = {
-            "timestamp": datetime.utcnow().isoformat(),
-            "table": table,
-            "record": data,
-        }
+        payload = {"timestamp": datetime.utcnow().isoformat(), "table": table}
+        payload.update(data)
         try:
-            backup_path = Path(self.json_backup)
-            backup_path.parent.mkdir(parents=True, exist_ok=True)
+            cfg_path = Path(self.json_backup)
+            suffix = cfg_path.suffix.lower()
+
+            explicit_file = suffix in {".json", ".jsonl"}
+            if explicit_file:
+                target_dir = cfg_path.parent
+                target_name = cfg_path.name
+                if self._json_backup_is_default:
+                    db_dir = Path(self.db_path).parent
+                    if db_dir.exists():
+                        target_dir = db_dir
+                        target_name = f"{table}.jsonl"
+            else:
+                target_dir = cfg_path
+                target_name = f"{table}.jsonl"
+
+            if not target_dir.exists() or target_dir == Path("."):
+                db_dir = Path(self.db_path).parent
+                if db_dir.exists():
+                    target_dir = db_dir
+                    target_name = f"{table}.jsonl"
+
+            target_dir.mkdir(parents=True, exist_ok=True)
+            backup_path = target_dir / target_name
+            self._last_backup_path = backup_path
+
             await asyncio.to_thread(self._append_json_line, backup_path, payload)
         except Exception as exc:
             await self._log_internal(exc, "StorageEngine._json_backup_write")

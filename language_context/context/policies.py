@@ -10,7 +10,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Dict, Iterable, Optional, Tuple
 
-DEFAULT_PROVIDER_ORDER = ("deepl", "openai", "mymemory")
+DEFAULT_PROVIDER_ORDER = ("deepl", "mymemory")
 
 
 @dataclass

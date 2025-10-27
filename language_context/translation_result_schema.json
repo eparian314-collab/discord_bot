@@ -18,7 +18,7 @@
     },
     "provider": {
       "type": [ "string", "null" ],
-      "enum": [ "deepl", "mymemory", "openai", null ],
+      "enum": [ "deepl", "mymemory", null ],
       "description": "Provider used or null if none succeeded"
     },
     "confidence": {

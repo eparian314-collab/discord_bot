@@ -83,9 +83,11 @@ class GuardianErrorEngine(ErrorEngine):
                 "severity": severity,
                 "extra": metadata,
             }
+            from discord_bot.core.event_topics import ENGINE_ERROR
             emit = getattr(self._event_bus, "emit", None)
             if callable(emit):
-                maybe = emit("engine.error", **payload)
+                # Publish via canonical error topic for consistency across modules.
+                maybe = emit(ENGINE_ERROR, **payload)
                 if asyncio.iscoroutine(maybe):
                     await maybe
         except Exception:

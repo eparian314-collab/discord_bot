@@ -124,7 +124,7 @@ class EngineRegistry:
             already = key in self._injected
             self._injected[key] = value
             if already:
-                _logger.info("Re-injected key '%s' (overwriting previous value)", key)
+                _logger.debug("Re-injected key '%s' (overwriting previous value)", key)
             else:
                 _logger.debug("Injected key '%s' -> %r", key, value)
 
@@ -176,7 +176,7 @@ class EngineRegistry:
             if hasattr(inst, "on_dependencies_ready") and callable(getattr(inst, "on_dependencies_ready")):
                 try:
                     inst.on_dependencies_ready()
-                    _logger.info("Plugin '%s' dependencies satisfied; called on_dependencies_ready", name)
+                    _logger.debug("Plugin '%s' dependencies satisfied; called on_dependencies_ready", name)
                 except Exception:
                     _logger.exception("on_dependencies_ready failed for plugin '%s'", name)
             else:

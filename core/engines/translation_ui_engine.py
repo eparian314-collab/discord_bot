@@ -6,6 +6,7 @@ from typing import Any, Optional, Dict
 import discord
 
 from discord_bot.core.engines.base.engine_plugin import EnginePlugin
+from discord_bot.core.engines.base.engine_registry import EngineRegistry
 
 
 class TranslationUIEngine(EnginePlugin):
@@ -29,7 +30,9 @@ class TranslationUIEngine(EnginePlugin):
     def on_register(self, loader: Any) -> None:
         """Called when the engine is registered."""
         try:
-            self.registry = loader.event_bus if hasattr(loader, "event_bus") else None
+            self.registry = loader if isinstance(loader, EngineRegistry) else None
+            if hasattr(loader, "event_bus"):
+                self._bus = getattr(loader, "event_bus", self._bus)
         except Exception:
             self.registry = None
 

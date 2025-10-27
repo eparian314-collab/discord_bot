@@ -8,6 +8,8 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 
+from discord_bot.core.utils import is_admin_or_helper
+
 logger = logging.getLogger("hippo_bot.sos_cog")
 
 
@@ -21,6 +23,18 @@ class SOSPhraseCog(commands.Cog):
         self.input_engine = getattr(bot, "input_engine", None)
         self.error_engine = getattr(bot, "error_engine", None)
         self._local: Dict[int, Dict[str, str]] = {}
+
+    def _has_permission(self, interaction: discord.Interaction) -> bool:
+        """Check if user has permission to manage SOS phrases."""
+        return is_admin_or_helper(interaction.user, interaction.guild)
+
+    async def _deny_permission(self, interaction: discord.Interaction) -> None:
+        """Send permission denied message."""
+        msg = "You do not have permission to manage SOS phrases. This requires admin or helper role."
+        if interaction.response.is_done():
+            await interaction.followup.send(msg, ephemeral=True)
+        else:
+            await interaction.response.send_message(msg, ephemeral=True)
 
     def _get_mapping(self, guild_id: int) -> Dict[str, str]:
         if guild_id not in self._local:
@@ -52,11 +66,14 @@ class SOSPhraseCog(commands.Cog):
         logger.exception("%s failed: %s", context, exc)
 
     @sos.command(name="add", description="Add or update an SOS keyword for this guild.")
-    @app_commands.checks.has_permissions(manage_guild=True)
     @app_commands.describe(keyword="Word or phrase to watch for", phrase="Alert text to broadcast")
     async def add(self, interaction: discord.Interaction, keyword: str, phrase: str) -> None:
         if not interaction.guild:
             await interaction.response.send_message("This command must be used inside a guild.", ephemeral=True)
+            return
+
+        if not self._has_permission(interaction):
+            await self._deny_permission(interaction)
             return
 
         mapping = self._get_mapping(interaction.guild.id)
@@ -68,11 +85,14 @@ class SOSPhraseCog(commands.Cog):
         )
 
     @sos.command(name="remove", description="Remove an SOS keyword mapping.")
-    @app_commands.checks.has_permissions(manage_guild=True)
     @app_commands.describe(keyword="Word or phrase to remove from the SOS mapping")
     async def remove(self, interaction: discord.Interaction, keyword: str) -> None:
         if not interaction.guild:
             await interaction.response.send_message("This command must be used inside a guild.", ephemeral=True)
+            return
+
+        if not self._has_permission(interaction):
+            await self._deny_permission(interaction)
             return
 
         mapping = self._get_mapping(interaction.guild.id)
@@ -101,10 +121,13 @@ class SOSPhraseCog(commands.Cog):
         await interaction.response.send_message(content, ephemeral=True)
 
     @sos.command(name="clear", description="Remove all SOS keywords for this guild.")
-    @app_commands.checks.has_permissions(manage_guild=True)
     async def clear(self, interaction: discord.Interaction) -> None:
         if not interaction.guild:
             await interaction.response.send_message("This command must be used inside a guild.", ephemeral=True)
+            return
+
+        if not self._has_permission(interaction):
+            await self._deny_permission(interaction)
             return
 
         self._local.pop(interaction.guild.id, None)

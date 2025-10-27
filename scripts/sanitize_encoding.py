@@ -46,7 +46,9 @@ def sanitize_file(path: str):
 
 
 def run():
-    for root, _, files in os.walk(ROOT):
+    for root, dirs, files in os.walk(ROOT):
+        # Skip virtual environments and other generated directories
+        dirs[:] = [d for d in dirs if d not in {".venv", "__pycache__"}]
         for file in files:
             if file.endswith(".py"):
                 sanitize_file(os.path.join(root, file))

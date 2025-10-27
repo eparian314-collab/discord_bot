@@ -1,12 +1,13 @@
 from __future__ import annotations
 
 import asyncio
-import logging
+import time
 from typing import Any, Dict, List, Optional, Union
 
 from discord_bot.language_context.translation_job import TranslationJob
+from discord_bot.core.engines.base.logging_utils import get_logger
 
-_logger = logging.getLogger(__name__)
+_logger = get_logger("processing_engine")
 
 
 class ProcessingEngine:
@@ -212,25 +213,66 @@ class ProcessingEngine:
             return None
 
         text = job.text
-        src = job.src_lang
-        tgt = job.tgt_lang
+        # Support both older TranslationJob (src/tgt) and newer (src_lang/tgt_lang)
+        src = getattr(job, "src_lang", None) or getattr(job, "src", None)
+        tgt = getattr(job, "tgt_lang", None) or getattr(job, "tgt", None)
+        metadata = job.metadata if isinstance(getattr(job, "metadata", None), dict) else {}
+        preferred_providers = [str(p).lower() for p in metadata.get("preferred_providers", []) if isinstance(p, str) and p]
+        _logger.info(
+            "📝 execute_job start: job=%s len=%d src=%s tgt=%s guild=%s user=%s",
+            job.short(),
+            len(text),
+            src,
+            tgt,
+            job.guild_id,
+            job.author_id,
+        )
 
         # 1) Try orchestrator path first (if configured)
         if self.orchestrator:
+            orchestrator_name = getattr(self.orchestrator, "__class__", type(self.orchestrator)).__name__
+            started = time.perf_counter()
             try:
                 raw = await self._invoke_orchestrator(job, timeout)
+                elapsed = time.perf_counter() - started
                 translated = self._normalize_adapter_result(raw)
                 if translated:
+                    _logger.info(
+                        "🧠 orchestrator success: job=%s provider=%s elapsed=%.2fs len=%d",
+                        job.short(),
+                        orchestrator_name,
+                        elapsed,
+                        len(translated),
+                    )
                     return translated
+                _logger.debug(
+                    "orchestrator empty result: job=%s provider=%s elapsed=%.2fs",
+                    job.short(),
+                    orchestrator_name,
+                    elapsed,
+                )
             except asyncio.TimeoutError:
-                _logger.warning("orchestrator timed out for job guild=%s author=%s", job.guild_id, job.author_id)
+                elapsed = time.perf_counter() - started
+                _logger.warning(
+                    "orchestrator timeout: job=%s provider=%s elapsed=%.2fs",
+                    job.short(),
+                    orchestrator_name,
+                    elapsed,
+                )
                 try:
                     await self._safe_log_error(asyncio.TimeoutError("orchestrator timeout"), context="orchestrator")
                 except Exception:
                     pass
                 # fallthrough to adapters
             except Exception as e:
-                _logger.exception("orchestrator call failed; falling back to adapters")
+                elapsed = time.perf_counter() - started
+                _logger.warning(
+                    "orchestrator error: job=%s provider=%s elapsed=%.2fs err=%s",
+                    job.short(),
+                    orchestrator_name,
+                    elapsed,
+                    type(e).__name__,
+                )
                 try:
                     await self._safe_log_error(e, context="orchestrator")
                 except Exception:
@@ -238,23 +280,68 @@ class ProcessingEngine:
                 # fallthrough to adapters
 
         # 2) Try adapters in priority order
-        adapters_sorted = sorted(self._adapters, key=lambda e: int(e.get("priority", 100)))
+        def _provider_label(entry: Dict[str, Any]) -> str:
+            adapter = entry.get("adapter")
+            raw_provider = entry.get("provider_id") or getattr(adapter, "provider_id", None)
+            if isinstance(raw_provider, type):
+                label = raw_provider.__name__
+            elif isinstance(raw_provider, str) and raw_provider:
+                label = raw_provider
+            elif hasattr(adapter, "__class__"):
+                label = adapter.__class__.__name__
+            else:
+                label = type(adapter).__name__
+            return str(label)
+
+        def _adapter_sort_key(entry: Dict[str, Any]) -> tuple:
+            label = _provider_label(entry).lower()
+            try:
+                pref_index = preferred_providers.index(label)
+            except ValueError:
+                pref_index = len(preferred_providers)
+            return (pref_index, int(entry.get("priority", 100)))
+
+        adapters_sorted = sorted(self._adapters, key=_adapter_sort_key)
         for entry in adapters_sorted:
             adapter = entry.get("adapter")
             timeout_option = entry.get("timeout", None)
-            provider_id = entry.get("provider_id") or getattr(adapter, "__class__", getattr(adapter, "provider_id", None))
+            provider_label = _provider_label(entry)
+            started = time.perf_counter()
             try:
                 raw = await self._invoke_adapter(adapter, text, src, tgt, timeout_option)
+                elapsed = time.perf_counter() - started
                 translated = self._normalize_adapter_result(raw)
                 if translated:
+                    _logger.info(
+                        "🌐 adapter success: job=%s provider=%s elapsed=%.2fs len=%d",
+                        job.short(),
+                        provider_label,
+                        elapsed,
+                        len(translated),
+                    )
                     return translated
+                _logger.debug(
+                    "adapter empty result: job=%s provider=%s elapsed=%.2fs",
+                    job.short(),
+                    provider_label,
+                    elapsed,
+                )
             except Exception as e:
-                ctx = f"adapter.{getattr(adapter, '__class__', type(adapter)).__name__}"
+                elapsed = time.perf_counter() - started
+                _logger.warning(
+                    "adapter error: job=%s provider=%s elapsed=%.2fs err=%s",
+                    job.short(),
+                    provider_label,
+                    elapsed,
+                    type(e).__name__,
+                )
+                ctx = f"adapter.{provider_label}"
                 try:
                     await self._safe_log_error(e, context=ctx)
                 except Exception:
                     _logger.exception("failed to log adapter error for %s", ctx)
                 continue
 
-        # 3) All providers failed; return original text to remain compatible
-        return text
+        # 3) All providers failed; return None to indicate failure
+        _logger.warning("all translation providers failed; returning None for job=%s", job.short())
+        return None
