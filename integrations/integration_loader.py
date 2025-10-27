@@ -193,6 +193,7 @@ class IntegrationLoader:
         from discord_bot.core.engines.cookie_manager import CookieManager
         from discord_bot.games.pokemon_game import PokemonGame
         from discord_bot.games.pokemon_api_integration import PokemonAPIIntegration
+        from discord_bot.games.pokemon_data_manager import PokemonDataManager
         
         self.game_storage = GameStorageEngine(db_path="game_data.db")
         self.relationship_manager = RelationshipManager(storage=self.game_storage)
@@ -200,10 +201,13 @@ class IntegrationLoader:
             storage=self.game_storage,
             relationship_manager=self.relationship_manager
         )
+        # Initialize PokemonDataManager with configurable cache path
+        self.pokemon_data_manager = PokemonDataManager(cache_file="pokemon_base_stats_cache.json")
         self.pokemon_game = PokemonGame(
             storage=self.game_storage,
             cookie_manager=self.cookie_manager,
-            relationship_manager=self.relationship_manager
+            relationship_manager=self.relationship_manager,
+            data_manager=self.pokemon_data_manager
         )
         self.pokemon_api = PokemonAPIIntegration()
         logger.debug("Game system engines initialized")
@@ -404,6 +408,7 @@ class IntegrationLoader:
         self.registry.inject("game_storage", self.game_storage)
         self.registry.inject("relationship_manager", self.relationship_manager)
         self.registry.inject("cookie_manager", self.cookie_manager)
+        self.registry.inject("pokemon_data_manager", self.pokemon_data_manager)
         self.registry.inject("pokemon_game", self.pokemon_game)
         self.registry.inject("pokemon_api", self.pokemon_api)
         logger.debug("Game system engines registered")
@@ -460,6 +465,7 @@ class IntegrationLoader:
             "game_storage": self.game_storage,
             "relationship_manager": self.relationship_manager,
             "cookie_manager": self.cookie_manager,
+            "pokemon_data_manager": self.pokemon_data_manager,
             "pokemon_game": self.pokemon_game,
             "pokemon_api": self.pokemon_api,
         }

@@ -18,7 +18,7 @@ import json
 from typing import Optional, Dict, List, Tuple, TYPE_CHECKING
 from dataclasses import dataclass
 
-from discord_bot.games.pokemon_data_manager import get_pokemon_data_manager, PokemonDataManager
+from discord_bot.games.pokemon_data_manager import PokemonDataManager
 
 if TYPE_CHECKING:
     from discord_bot.games.storage.game_storage_engine import GameStorageEngine
@@ -180,11 +180,13 @@ class PokemonGame:
     }
     
     def __init__(self, storage: GameStorageEngine, cookie_manager: CookieManager, 
-                 relationship_manager: RelationshipManager):
+                 relationship_manager: RelationshipManager,
+                 data_manager: Optional[PokemonDataManager] = None):
         self.storage = storage
         self.cookie_manager = cookie_manager
         self.relationship_manager = relationship_manager
-        self.data_manager = get_pokemon_data_manager()
+        # Allow optional injection for testing, create default if not provided
+        self.data_manager = data_manager if data_manager is not None else PokemonDataManager()
     
     def generate_encounter(self, encounter_type: str = 'catch') -> PokemonEncounter:
         """

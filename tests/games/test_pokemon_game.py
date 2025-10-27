@@ -35,6 +35,14 @@ def pokemon_game(storage, cookie_manager, relationship_manager):
     return PokemonGame(storage, cookie_manager, relationship_manager)
 
 
+@pytest.fixture
+def pokemon_game_with_data_manager(storage, cookie_manager, relationship_manager):
+    """Create a PokemonGame with explicit data_manager injection."""
+    from discord_bot.games.pokemon_data_manager import PokemonDataManager
+    data_manager = PokemonDataManager(cache_file="test_pokemon_cache.json")
+    return PokemonGame(storage, cookie_manager, relationship_manager, data_manager=data_manager)
+
+
 class TestPokemonGame:
     """Test suite for PokemonGame."""
     
@@ -44,6 +52,13 @@ class TestPokemonGame:
         assert pokemon_game.storage is not None
         assert pokemon_game.cookie_manager is not None
         assert pokemon_game.relationship_manager is not None
+        assert pokemon_game.data_manager is not None  # Should auto-create
+    
+    def test_initialization_with_injected_data_manager(self, pokemon_game_with_data_manager):
+        """Test that PokemonGame properly accepts injected data_manager."""
+        assert pokemon_game_with_data_manager is not None
+        assert pokemon_game_with_data_manager.data_manager is not None
+        assert pokemon_game_with_data_manager.data_manager.cache_file == "test_pokemon_cache.json"
     
     def test_generate_encounter_catch(self, pokemon_game):
         """Test generating a catch encounter."""

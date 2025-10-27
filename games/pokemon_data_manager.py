@@ -338,12 +338,19 @@ class PokemonDataManager:
         return (total / max_total) * 100
 
 
-# Singleton instance for easy access
+# DEPRECATED: Singleton pattern - kept for backwards compatibility only
+# Use dependency injection via integration_loader instead
 _pokemon_data_manager: Optional[PokemonDataManager] = None
 
 
 def get_pokemon_data_manager() -> PokemonDataManager:
-    """Get or create the singleton Pokemon data manager."""
+    """
+    DEPRECATED: Get or create the singleton Pokemon data manager.
+    
+    This function is kept for backwards compatibility only.
+    New code should receive PokemonDataManager via dependency injection
+    from the integration_loader.
+    """
     global _pokemon_data_manager
     if _pokemon_data_manager is None:
         _pokemon_data_manager = PokemonDataManager()
