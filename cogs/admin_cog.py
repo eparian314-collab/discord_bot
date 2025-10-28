@@ -24,7 +24,12 @@ class AdminCog(commands.Cog):
 
     keyword = app_commands.Group(
         name="keyword",
-        description="Link and manage custom keywords for this guild.",
+        description="🔑 Link and manage custom keywords for this guild",
+    )
+    
+    admin = app_commands.Group(
+        name="admin",
+        description="🛡️ Moderation and administration tools"
     )
 
     def __init__(
@@ -233,7 +238,7 @@ class AdminCog(commands.Cog):
     # ------------------------------------------------------------------
     # Moderation commands (mute/unmute)
     # ------------------------------------------------------------------
-    @app_commands.command(name="mute", description="Timeout a user for a specified duration")
+    @admin.command(name="mute", description="⏸️ Timeout a user for a specified duration")
     @app_commands.describe(
         member="The member to mute",
         duration="Duration in minutes (default: 5)",
@@ -294,7 +299,7 @@ class AdminCog(commands.Cog):
         except discord.HTTPException as e:
             await interaction.response.send_message(f"❌ Failed to mute user: {e}", ephemeral=True)
     
-    @app_commands.command(name="unmute", description="Remove timeout from a user")
+    @admin.command(name="unmute", description="▶️ Remove timeout from a user")
     @app_commands.describe(member="The member to unmute")
     async def unmute_user(self, interaction: discord.Interaction, member: discord.Member) -> None:
         """Unmute (remove timeout from) a user."""

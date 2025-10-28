@@ -35,7 +35,8 @@ from discord_bot.integrations import build_application, load_config, require_key
 from discord_bot.scripts.sanitize_encoding import run as sanitize
 
 # Ensure source files are consistently decoded (safe no-op if already clean).
-sanitize()
+# Use verbose=False for clean startup logs
+sanitize(verbose=False)
 
 logger = get_logger("main")
 

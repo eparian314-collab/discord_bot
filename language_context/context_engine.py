@@ -252,6 +252,28 @@ class ContextEngine:
         processed_text = self._normalize_input_text(text, policy)
         tgt = self._resolve_target_code(guild_id, author_id, force_tgt, policy=policy)
         src = await self._detect_source_code(processed_text)
+        
+        # NEW: If target is "auto", it means no preference was found
+        # Return a special context indicating user needs to specify target
+        if tgt == "auto":
+            _logger.info(
+                "🧭 plan_for_author no_target: guild=%s user=%s src=%s len=%d preview=%r",
+                guild_id,
+                author_id,
+                src,
+                len(text),
+                self._preview(text),
+            )
+            return {
+                "job": None,
+                "context": {
+                    "src": src,
+                    "tgt": "auto",
+                    "needs_target": True,
+                    "reason": "no_target_preference"
+                }
+            }
+        
         if self._equivalent_lang(src, tgt):
             _logger.info(
                 "🧭 plan_for_author skip: guild=%s user=%s src=%s tgt=%s len=%d preview=%r",
@@ -578,8 +600,27 @@ class ContextEngine:
         context = env.get("context", {})
 
         if not job:
+            # Check if user needs to specify a target
+            if context.get("needs_target"):
+                empty = TranslationResponse(
+                    text=None,
+                    src=context.get("src", "unknown"),
+                    tgt="auto",
+                    provider=None,
+                    confidence=0.0,
+                    meta={"reason": "no_target_preference", "needs_target": True}
+                )
+                return {"job": None, "context": context, "response": empty}
+            
             # No translation needed - return empty response but include context
-            empty = TranslationResponse(text=None, src=context.get("src", "en"), tgt=context.get("tgt", "en"), provider=None, confidence=0.0, meta={"reason": "no_translation_needed"})
+            empty = TranslationResponse(
+                text=None,
+                src=context.get("src", "en"),
+                tgt=context.get("tgt", "en"),
+                provider=None,
+                confidence=0.0,
+                meta={"reason": "no_translation_needed"}
+            )
             return {"job": None, "context": context, "response": empty}
 
         resp = await self.execute_job_with_orchestrator(job, orchestrator, timeout=timeout)
@@ -657,6 +698,7 @@ class ContextEngine:
         """
         Synchronous resolving of a target token (forced or cached).
         Uses alias_helper, roles.resolve_code and ambiguity resolver hooks.
+        Returns language code or "auto" if no preference is set and no force_tgt provided.
         """
         if force_tgt:
             forced = self._normalize_code(force_tgt)
@@ -676,7 +718,7 @@ class ContextEngine:
             if hasattr(self.cache, "get_user_lang"):
                 cached = self.cache.get_user_lang(guild_id, user_id)
             elif hasattr(self.cache, "async_get_user_lang"):
-                # if only async API exists, fall back to 'en' here and let callers use get_user_preference
+                # if only async API exists, fall back to checking roles below
                 cached = None
             if cached:
                 normalized = self._normalize_code(cached)
@@ -692,8 +734,33 @@ class ContextEngine:
         except Exception as exc:
             _logger.exception("_resolve_target_code: cache access failure")
             self._log_error(exc, context="_resolve_target_code")
-        _logger.debug("Fallback target code 'en' for guild=%s user=%s", guild_id, user_id)
-        return self._apply_policy_target("en", policy)
+        
+        # NEW: Check if user has language roles assigned
+        # This allows users who haven't set explicit preferences but have language roles
+        # to get translations without specifying target each time
+        if self.roles and hasattr(self.roles, "get_user_languages"):
+            try:
+                user_langs = self.roles.get_user_languages(user_id, guild_id)
+                # If it's a coroutine, we can't await here (sync method), so skip
+                if user_langs and not asyncio.iscoroutine(user_langs):
+                    if isinstance(user_langs, (list, tuple)) and len(user_langs) > 0:
+                        # Use first language role as target
+                        role_lang = user_langs[0]
+                        normalized = self._normalize_code(role_lang)
+                        _logger.debug(
+                            "Resolved target from user role for guild=%s user=%s -> %s",
+                            guild_id,
+                            user_id,
+                            normalized,
+                        )
+                        return self._apply_policy_target(normalized, policy)
+            except Exception as exc:
+                _logger.debug("Failed to get user languages from roles", exc_info=True)
+        
+        # Return "auto" instead of "en" to signal that no preference was found
+        # This allows callers to prompt the user to specify a target
+        _logger.debug("No target preference found for guild=%s user=%s, returning 'auto'", guild_id, user_id)
+        return self._apply_policy_target("auto", policy)
 
     def _normalize_code(self, token: Optional[str]) -> str:
         """

@@ -20,7 +20,13 @@ BAD_CHARS = {
 }
 
 
-def sanitize_file(path: str):
+def sanitize_file(path: str, verbose: bool = False) -> tuple[bool, str | None]:
+    """
+    Sanitize a single file.
+    
+    Returns:
+        (success, error_message) tuple
+    """
     try:
         with open(path, "rb") as f:
             raw = f.read()
@@ -39,20 +45,48 @@ def sanitize_file(path: str):
         with open(path, "w", encoding="utf-8", newline="\n") as f:
             f.write(text)
 
-        print(f"[CLEAN] {path}")
+        if verbose:
+            print(f"[CLEAN] {path}")
+        
+        return (True, None)
 
     except Exception as e:
-        print(f"[SKIP] {path} ({e})")
+        error = f"{path} ({e})"
+        if verbose:
+            print(f"[SKIP] {error}")
+        return (False, error)
 
 
-def run():
+def run(verbose: bool = False):
+    """
+    Sanitize all Python files in the project.
+    
+    Args:
+        verbose: If True, print each file processed. If False, only show summary.
+    """
+    cleaned = 0
+    errors = []
+    
     for root, dirs, files in os.walk(ROOT):
         # Skip virtual environments and other generated directories
         dirs[:] = [d for d in dirs if d not in {".venv", "__pycache__"}]
         for file in files:
             if file.endswith(".py"):
-                sanitize_file(os.path.join(root, file))
+                success, error = sanitize_file(os.path.join(root, file), verbose=verbose)
+                if success:
+                    cleaned += 1
+                else:
+                    errors.append(error)
+    
+    # Always show summary
+    if not verbose:
+        print(f"✓ Sanitized {cleaned} Python files")
+        if errors:
+            print(f"⚠ Failed to sanitize {len(errors)} files")
+            for error in errors:
+                print(f"  - {error}")
 
 
 if __name__ == "__main__":
-    run()
+    # When run directly, show all files (verbose mode)
+    run(verbose=True)

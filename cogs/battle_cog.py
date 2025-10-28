@@ -14,6 +14,7 @@ from discord.ext import commands
 from typing import Optional
 
 from discord_bot.core.utils import find_bot_channel, is_allowed_channel
+from discord_bot.cogs.game_cog import GameCog
 
 try:
     from discord_bot.games.battle_system import (
@@ -35,6 +36,9 @@ except ImportError:
 
 class BattleCog(commands.Cog):
     """Pokemon battle commands."""
+    
+    # Use the battle group from GameCog (shared nested group)
+    battle = GameCog.battle
     
     def __init__(self, bot: commands.Bot, storage: GameStorageEngine,
                  cookie_manager: CookieManager, relationship_manager: RelationshipManager):
@@ -148,9 +152,9 @@ class BattleCog(commands.Cog):
         
         return embed
     
-    @app_commands.command(name="battle", description="Challenge someone to a Pokemon battle! (2 cookies)")
+    @battle.command(name="start", description="⚔️ Challenge someone to a Pokemon battle! (Costs 2 cookies)")
     @app_commands.describe(opponent="The user to challenge")
-    async def battle(self, interaction: discord.Interaction, opponent: discord.User) -> None:
+    async def battle_start(self, interaction: discord.Interaction, opponent: discord.User) -> None:
         """Challenge another user to a Pokemon battle."""
         if not await self._check_allowed_channel(interaction):
             return
@@ -270,7 +274,7 @@ class BattleCog(commands.Cog):
             # If DM fails, they can use /battle_status
             pass
     
-    @app_commands.command(name="battle_move", description="Use a move in your current battle")
+    @battle.command(name="move", description="⚡ Use a move in your current battle")
     @app_commands.describe(move_number="Which move to use (1-4)")
     async def battle_move(self, interaction: discord.Interaction, move_number: int) -> None:
         """Execute a move in the current battle."""
@@ -423,7 +427,7 @@ class BattleCog(commands.Cog):
                 except:
                     pass
     
-    @app_commands.command(name="battle_forfeit", description="Forfeit your current battle")
+    @battle.command(name="forfeit", description="🏳️ Forfeit your current battle")
     async def battle_forfeit(self, interaction: discord.Interaction) -> None:
         """Forfeit the current battle."""
         if not await self._check_allowed_channel(interaction):
@@ -456,7 +460,7 @@ class BattleCog(commands.Cog):
         # End battle
         end_battle(battle)
     
-    @app_commands.command(name="battle_status", description="Check your current battle status")
+    @battle.command(name="status", description="📊 Check your current battle status")
     async def battle_status(self, interaction: discord.Interaction) -> None:
         """Show current battle status."""
         if not await self._check_allowed_channel(interaction):

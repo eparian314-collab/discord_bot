@@ -224,35 +224,6 @@ class HelpCog(commands.Cog):
                 return channel
         return None
 
-    def _find_bot_channel(self, guild: discord.Guild) -> Optional[discord.TextChannel]:
-        preferred_names = ("bot", "bots", "bot-commands", "commands", "general")
-        me = guild.me
-
-        def can_send(channel: discord.TextChannel) -> bool:
-            perms = channel.permissions_for(me or guild.default_role)
-            return perms.send_messages
-
-        channel_id = self._welcome_channel_overrides.get(guild.id)
-        if channel_id is None:
-            channel_id = self._default_welcome_channel
-        if channel_id:
-            channel = guild.get_channel(channel_id)
-            if isinstance(channel, discord.TextChannel) and can_send(channel):
-                return channel
-
-        for name in preferred_names:
-            channel = discord.utils.get(guild.text_channels, name=name)
-            if channel and can_send(channel):
-                return channel
-
-        if guild.system_channel and can_send(guild.system_channel):
-            return guild.system_channel
-
-        for channel in guild.text_channels:
-            if can_send(channel):
-                return channel
-        return None
-
     async def _send_welcome(self, guild: discord.Guild, *, mention: Optional[discord.abc.User] = None) -> bool:
         channel = self._find_bot_channel(guild)
         if not channel:
@@ -267,7 +238,7 @@ class HelpCog(commands.Cog):
     # --------------
     # Slash command
     # --------------
-    @app_commands.command(name="help", description="Show a quick overview of HippoBot features.")
+    @app_commands.command(name="help", description="❓ Show a quick overview of HippoBot features")
     async def help(self, interaction: discord.Interaction) -> None:
         guild = interaction.guild
         member = interaction.user if isinstance(interaction.user, discord.Member) else (guild.get_member(interaction.user.id) if guild else None)

@@ -30,6 +30,29 @@ if TYPE_CHECKING:
 class GameCog(commands.Cog):
     """Pokemon game commands with unlock system."""
     
+    # Top-level game group
+    game = app_commands.Group(
+        name="game",
+        description="🎮 All game-related commands"
+    )
+    
+    # Nested subgroups under /game
+    pokemon = app_commands.Group(
+        name="pokemon", 
+        description="🎮 Catch, train, and evolve Pokemon!",
+        parent=game
+    )
+    cookies = app_commands.Group(
+        name="cookies",
+        description="🍪 Manage your cookies and check stats",
+        parent=game
+    )
+    battle = app_commands.Group(
+        name="battle",
+        description="⚔️ Pokemon battle system",
+        parent=game
+    )
+    
     def __init__(self, bot: commands.Bot, pokemon_game: PokemonGame, 
                  pokemon_api: PokemonAPIIntegration, storage: GameStorageEngine,
                  cookie_manager: CookieManager, relationship_manager: RelationshipManager,
@@ -98,7 +121,7 @@ class GameCog(commands.Cog):
         await interaction.response.send_message(embed=embed, ephemeral=True)
         return False
 
-    @app_commands.command(name="feed", description="Feed 5 cookies to Baby Hippo to unlock the Pokemon game!")
+    @app_commands.command(name="feed", description="🦛 Feed 5 cookies to Baby Hippo to unlock the Pokemon game!")
     async def feed(self, interaction: discord.Interaction) -> None:
         """Unlock the Pokemon game by feeding the hippo."""
         if not await self._check_allowed_channel(interaction):
@@ -180,8 +203,8 @@ class GameCog(commands.Cog):
         
         await interaction.response.send_message(embed=embed)
 
-    @app_commands.command(name="pokemonhelp", description="Get help with the Pokemon game")
-    async def pokemon_help(self, interaction: discord.Interaction) -> None:
+    @pokemon.command(name="help", description="📖 Get help with the Pokemon game")
+    async def pokemonhelp(self, interaction: discord.Interaction) -> None:
         """Show detailed Pokemon game help."""
         user_id = str(interaction.user.id)
         is_unlocked = self.storage.is_game_unlocked(user_id)
@@ -266,7 +289,7 @@ class GameCog(commands.Cog):
         
         await interaction.response.send_message(embed=embed, ephemeral=True)
 
-    @app_commands.command(name="check_cookies", description="Check your cookie balance and stats")
+    @cookies.command(name="balance", description="💰 Check your cookie balance and stats")
     async def check_cookies(self, interaction: discord.Interaction) -> None:
         """Check cookie balance and stats."""
         if not await self._check_allowed_channel(interaction):
@@ -287,13 +310,19 @@ class GameCog(commands.Cog):
             color=discord.Color.gold()
         )
         
+        # Check if owner has unlimited cookies
+        is_owner = self.cookie_manager._is_owner(user_id)
+        cookie_balance_text = (
+            f"**Current:** {cookie_stats['current_balance']} 🍪\n"
+            f"**Total Earned:** {cookie_stats['total_earned']} 🍪\n"
+            f"**Spent:** {cookie_stats['spent']} 🍪"
+        )
+        if is_owner:
+            cookie_balance_text += "\n✨ **UNLIMITED COOKIES** ✨ (Owner Mode)"
+        
         embed.add_field(
             name="Cookie Balance",
-            value=(
-                f"**Current:** {cookie_stats['current_balance']} 🍪\n"
-                f"**Total Earned:** {cookie_stats['total_earned']} 🍪\n"
-                f"**Spent:** {cookie_stats['spent']} 🍪"
-            ),
+            value=cookie_balance_text,
             inline=False
         )
         
@@ -326,7 +355,7 @@ class GameCog(commands.Cog):
         
         await interaction.response.send_message(embed=embed, ephemeral=True)
 
-    @app_commands.command(name="leaderboard", description="View the top cookie earners!")
+    @cookies.command(name="leaderboard", description="🏆 View the top cookie earners!")
     async def leaderboard(self, interaction: discord.Interaction) -> None:
         """Display cookie leaderboard."""
         # Defer response since we might need to fetch usernames
@@ -375,7 +404,7 @@ class GameCog(commands.Cog):
         if interaction.guild:
             await self._post_to_bot_channel(interaction.guild, embed)
 
-    @app_commands.command(name="catch", description="Attempt to catch a random Pokemon! (1 cookie)")
+    @pokemon.command(name="catch", description="🎯 Attempt to catch a random Pokemon! (Costs 1 cookie)")
     async def catch(self, interaction: discord.Interaction) -> None:
         """Catch a random Pokemon."""
         if not await self._check_allowed_channel(interaction):
@@ -446,7 +475,7 @@ class GameCog(commands.Cog):
                 
                 await interaction.response.send_message(msg)
 
-    @app_commands.command(name="fish", description="Fish for water-type Pokemon! (1 cookie)")
+    @pokemon.command(name="fish", description="🎣 Fish for water-type Pokemon! (Costs 1 cookie)")
     async def fish(self, interaction: discord.Interaction) -> None:
         """Fish for water-type Pokemon."""
         if not await self._check_allowed_channel(interaction):
@@ -514,7 +543,7 @@ class GameCog(commands.Cog):
             
             await interaction.response.send_message(msg)
 
-    @app_commands.command(name="explore", description="Explore for rare Pokemon! (1 cookies)")
+    @pokemon.command(name="explore", description="🔍 Explore for rare Pokemon! (Costs 1 cookie)")
     async def explore(self, interaction: discord.Interaction) -> None:
         """Explore for rare Pokemon."""
         if not await self._check_allowed_channel(interaction):
@@ -582,7 +611,7 @@ class GameCog(commands.Cog):
             
             await interaction.response.send_message(msg)
 
-    @app_commands.command(name="collection", description="View your Pokemon collection")
+    @pokemon.command(name="collection", description="📋 View your Pokemon collection")
     async def collection(self, interaction: discord.Interaction) -> None:
         """View Pokemon collection."""
         if not await self._check_allowed_channel(interaction):
@@ -633,7 +662,7 @@ class GameCog(commands.Cog):
         
         await interaction.response.send_message(embed=embed, ephemeral=True)
 
-    @app_commands.command(name="train", description="Train a Pokemon with cookies")
+    @pokemon.command(name="train", description="💪 Train a Pokemon with cookies to level it up")
     @app_commands.describe(pokemon_id="The ID of the Pokemon to train", cookies="Number of cookies to spend (2 stamina + cookies for XP)")
     async def train(self, interaction: discord.Interaction, pokemon_id: int, cookies: int) -> None:
         """Train a Pokemon."""
@@ -680,7 +709,7 @@ class GameCog(commands.Cog):
         
         await interaction.response.send_message(embed=embed)
 
-    @app_commands.command(name="evolve", description="Evolve a Pokemon using a duplicate")
+    @pokemon.command(name="evolve", description="✨ Evolve a Pokemon using a duplicate")
     @app_commands.describe(pokemon_id="Pokemon to evolve", duplicate_id="Duplicate Pokemon to consume")
     async def evolve(self, interaction: discord.Interaction, pokemon_id: int, duplicate_id: int) -> None:
         """Evolve a Pokemon."""
@@ -740,7 +769,7 @@ class GameCog(commands.Cog):
         
         await interaction.response.send_message(embed=embed)
 
-    @app_commands.command(name="pokemon_info", description="Get information about a Pokemon from PokeAPI")
+    @pokemon.command(name="info", description="ℹ️ Get detailed information about any Pokemon")
     @app_commands.describe(pokemon_name="Name of the Pokemon")
     async def pokemon_info(self, interaction: discord.Interaction, pokemon_name: str) -> None:
         """Fetch Pokemon information using PokeAPI."""

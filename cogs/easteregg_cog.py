@@ -23,6 +23,9 @@ from discord import app_commands
 from discord.ext import commands
 from typing import Optional, TYPE_CHECKING
 
+# Import GameCog to reference the shared cookies group
+from discord_bot.cogs.game_cog import GameCog
+
 if TYPE_CHECKING:
     from discord_bot.core.engines.relationship_manager import RelationshipManager
     from discord_bot.core.engines.cookie_manager import CookieManager
@@ -32,6 +35,15 @@ if TYPE_CHECKING:
 
 class EasterEggCog(commands.Cog):
     """Fun interactions and mini-games with cookie rewards."""
+    
+    # Command groups for better organization
+    fun = app_commands.Group(
+        name="fun",
+        description="🎉 Fun games and entertainment!"
+    )
+    
+    # Use the shared cookies group from GameCog
+    cookies = GameCog.cookies
     
     # RPS choices
     RPS_CHOICES = ['rock', 'paper', 'scissors']
@@ -88,7 +100,7 @@ class EasterEggCog(commands.Cog):
         self.active_trivia = {}  # Track active trivia sessions
         self.active_riddles = {}  # Track active riddle sessions
 
-    @app_commands.command(name="easteregg", description="Trigger a random easter egg surprise!")
+    @app_commands.command(name="easteregg", description="🎲 Trigger a random easter egg surprise!")
     async def easter_egg(self, interaction: discord.Interaction) -> None:
         """Random easter egg - could be anything!"""
         user_id = str(interaction.user.id)
@@ -212,7 +224,7 @@ class EasterEggCog(commands.Cog):
             if self.storage:
                 self.storage.reset_aggravation(user_id)
 
-    @app_commands.command(name="rps", description="Play Rock, Paper, Scissors with Baby Hippo!")
+    @fun.command(name="rps", description="✊ Play Rock, Paper, Scissors with Baby Hippo!")
     @app_commands.describe(choice="Your choice: rock, paper, or scissors")
     async def rps(self, interaction: discord.Interaction, choice: str) -> None:
         """Play Rock-Paper-Scissors."""
@@ -259,7 +271,7 @@ class EasterEggCog(commands.Cog):
         
         await interaction.response.send_message(message)
 
-    @app_commands.command(name="joke", description="Get a random joke!")
+    @fun.command(name="joke", description="😂 Get a random joke!")
     async def joke(self, interaction: discord.Interaction) -> None:
         """Fetch a random joke."""
         user_id = str(interaction.user.id)
@@ -302,7 +314,7 @@ class EasterEggCog(commands.Cog):
             if self.storage:
                 self.storage.reset_aggravation(user_id)
 
-    @app_commands.command(name="catfact", description="Get a random cat fact!")
+    @fun.command(name="catfact", description="🐱 Get a random cat fact!")
     async def cat_fact(self, interaction: discord.Interaction) -> None:
         """Fetch a random cat fact."""
         user_id = str(interaction.user.id)
@@ -345,7 +357,7 @@ class EasterEggCog(commands.Cog):
             if self.storage:
                 self.storage.reset_aggravation(user_id)
 
-    @app_commands.command(name="weather", description="Get weather for a location")
+    @fun.command(name="weather", description="🌤️ Get weather for a location")
     @app_commands.describe(location="City name or location")
     async def weather(self, interaction: discord.Interaction, location: str) -> None:
         """Fetch weather information."""
@@ -389,7 +401,7 @@ class EasterEggCog(commands.Cog):
             if self.storage:
                 self.storage.reset_aggravation(user_id)
 
-    @app_commands.command(name="8ball", description="Ask the magic 8-ball a question")
+    @fun.command(name="8ball", description="🎱 Ask the magic 8-ball a question")
     @app_commands.describe(question="Your yes/no question")
     async def eight_ball(self, interaction: discord.Interaction, question: str) -> None:
         """Magic 8-ball responses."""
@@ -433,7 +445,7 @@ class EasterEggCog(commands.Cog):
             if self.storage:
                 self.storage.reset_aggravation(user_id)
     
-    @app_commands.command(name="cookiestats", description="Check your cookie stats and daily limits")
+    @cookies.command(name="stats", description="📊 Check your cookie stats and daily limits")
     async def cookie_stats(self, interaction: discord.Interaction) -> None:
         """Display user's cookie statistics."""
         user_id = str(interaction.user.id)

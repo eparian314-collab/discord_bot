@@ -1,6 +1,6 @@
 """
 Google Translate Adapter - Free tier fallback translator
-Uses googletrans library (unofficial Google Translate API)
+Uses deep-translator library (more stable than googletrans)
 Supports 100+ languages as a third-tier fallback
 """
 from __future__ import annotations
@@ -12,26 +12,26 @@ from typing import Optional, List
 logger = logging.getLogger("hippo_bot.google_translate_adapter")
 
 try:
-    from googletrans import Translator
-    GOOGLETRANS_AVAILABLE = True
+    from deep_translator import GoogleTranslator
+    TRANSLATOR_AVAILABLE = True
 except ImportError:
-    GOOGLETRANS_AVAILABLE = False
-    logger.warning("googletrans not installed - Google Translate adapter disabled")
+    TRANSLATOR_AVAILABLE = False
+    logger.warning("deep-translator not installed - Google Translate adapter disabled")
 
 
 class GoogleTranslateAdapter:
     """
-    Adapter for Google Translate (free tier via googletrans library).
+    Adapter for Google Translate (free tier via deep-translator library).
     This is the third-tier fallback for languages not supported by DeepL or MyMemory.
     Supports 100+ languages.
     """
 
     def __init__(self):
-        self.translator = Translator() if GOOGLETRANS_AVAILABLE else None
+        self.translator = None  # Created per-translation with specific source/target
         self._supported_langs: Optional[List[str]] = None
         
-        if not GOOGLETRANS_AVAILABLE:
-            logger.error("GoogleTranslateAdapter initialized but googletrans not available")
+        if not TRANSLATOR_AVAILABLE:
+            logger.error("GoogleTranslateAdapter initialized but deep-translator not available")
 
     def supported_languages(self) -> List[str]:
         """
@@ -69,7 +69,7 @@ class GoogleTranslateAdapter:
         Returns:
             Translated text or None on failure
         """
-        if not GOOGLETRANS_AVAILABLE or not self.translator:
+        if not TRANSLATOR_AVAILABLE:
             logger.debug("Google Translate not available")
             return None
 
@@ -87,19 +87,22 @@ class GoogleTranslateAdapter:
             elif tgt_normalized == 'zh-tw':
                 tgt_normalized = 'zh-tw'
 
-            # Run translation in executor to avoid blocking
-            loop = asyncio.get_event_loop()
-            result = await loop.run_in_executor(
-                None,
-                lambda: self.translator.translate(
-                    text,
-                    src=src_normalized if src_normalized != 'auto' else 'auto',
-                    dest=tgt_normalized
-                )
+            # Create translator instance for this translation
+            # deep-translator uses auto-detect when src='auto'
+            translator = GoogleTranslator(
+                source='auto' if src_normalized == 'auto' else src_normalized,
+                target=tgt_normalized
             )
 
-            if result and result.text:
-                translated = result.text.strip()
+            # Run translation in executor to avoid blocking
+            loop = asyncio.get_event_loop()
+            translated = await loop.run_in_executor(
+                None,
+                lambda: translator.translate(text)
+            )
+
+            if translated:
+                translated = translated.strip()
                 logger.info(
                     "Google Translate: %s -> %s (input_len=%d, output_len=%d)",
                     src, tgt, len(text), len(translated)
@@ -122,12 +125,12 @@ class GoogleTranslateAdapter:
         Synchronous translation method (for compatibility).
         Note: This will block the event loop - prefer translate_async.
         """
-        if not GOOGLETRANS_AVAILABLE or not self.translator:
+        if not TRANSLATOR_AVAILABLE:
             return None
 
         try:
-            result = self.translator.translate(text, src=src, dest=tgt)
-            return result.text if result and result.text else None
+            translator = GoogleTranslator(source=src, target=tgt)
+            return translator.translate(text)
         except Exception as exc:
             logger.warning("Google Translate sync failed: %s", exc)
             return None
@@ -136,10 +139,10 @@ class GoogleTranslateAdapter:
 def create_google_translate_adapter() -> Optional[GoogleTranslateAdapter]:
     """
     Factory function to create Google Translate adapter.
-    Returns None if googletrans library is not available.
+    Returns None if deep-translator library is not available.
     """
-    if not GOOGLETRANS_AVAILABLE:
-        logger.info("Google Translate adapter not available (install googletrans)")
+    if not TRANSLATOR_AVAILABLE:
+        logger.info("Google Translate adapter not available (install deep-translator)")
         return None
     
     try:

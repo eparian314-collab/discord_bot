@@ -104,12 +104,30 @@ class TranslationUIEngine(EnginePlugin):
 
         # If result is a dict
         if isinstance(result, dict):
-            return result.get("text") or str(result)
+            text = result.get("text")
+            # Safety: Don't fallback to str(result) if text is explicitly None
+            # This prevents echoing the dict structure back to users
+            if text is not None:
+                return str(text)
+            # Check for metadata that explains why there's no text
+            meta = result.get("meta", {})
+            if meta.get("reason") == "no_translation_needed":
+                src = result.get("src", "unknown")
+                tgt = result.get("tgt", "unknown")
+                return f"Text is already in {tgt.upper()}. No translation needed."
+            return "No translation was produced."
 
         # Dataclass or object with .text
         text = getattr(result, "text", None)
-        if isinstance(text, str):
-            return text
+        if text is not None:
+            return str(text)
 
-        # Fallback to string
-        return str(result)
+        # Check for metadata in object form
+        meta = getattr(result, "meta", {}) or {}
+        if meta.get("reason") == "no_translation_needed":
+            src = getattr(result, "src", "unknown")
+            tgt = getattr(result, "tgt", "unknown")
+            return f"Text is already in {tgt.upper()}. No translation needed."
+
+        # Last resort fallback
+        return "No translation available."

@@ -9,8 +9,9 @@ Manages cookie earning, spending, and reward calculations based on:
 
 from __future__ import annotations
 
+import os
 import random
-from typing import TYPE_CHECKING, Optional, Dict
+from typing import TYPE_CHECKING, Optional, Dict, Set
 
 if TYPE_CHECKING:
     from discord_bot.games.storage.game_storage_engine import GameStorageEngine
@@ -67,9 +68,28 @@ class CookieManager:
     MUTE_CHANCE_INCREMENT = 0.10  # 10% per spam attempt
     MUTE_DURATION_MINUTES = 30
     
-    def __init__(self, storage: GameStorageEngine, relationship_manager: RelationshipManager):
+    def __init__(self, storage: GameStorageEngine, relationship_manager: RelationshipManager, owner_ids: Optional[Set[int]] = None):
         self.storage = storage
         self.relationship_manager = relationship_manager
+        # Owner bypass for testing - unlimited cookies!
+        self.owner_ids: Set[int] = owner_ids or self._load_owner_ids()
+    
+    def _load_owner_ids(self) -> Set[int]:
+        """Load owner IDs from environment variable."""
+        owner_ids_str = os.getenv("OWNER_IDS", "")
+        if not owner_ids_str:
+            return set()
+        try:
+            return {int(id.strip()) for id in owner_ids_str.split(",") if id.strip()}
+        except ValueError:
+            return set()
+    
+    def _is_owner(self, user_id: str) -> bool:
+        """Check if user is an owner (has unlimited cookies for testing)."""
+        try:
+            return int(user_id) in self.owner_ids
+        except ValueError:
+            return False
     
     def try_award_cookies(self, user_id: str, interaction_type: str, 
                          bot_mood: str = 'neutral') -> Optional[int]:
@@ -109,13 +129,28 @@ class CookieManager:
         """
         Spend stamina (cookies) for an action.
         Returns (success, cost).
+        
+        Owners have unlimited cookies for testing!
         """
         cost = self.STAMINA_COSTS.get(action, 1)
+        
+        # Owner bypass - always succeed without actually spending
+        if self._is_owner(user_id):
+            return (True, cost)
+        
         success = self.storage.spend_cookies(user_id, cost)
         return (success, cost)
     
     def can_afford(self, user_id: str, action: str) -> bool:
-        """Check if user can afford an action."""
+        """
+        Check if user can afford an action.
+        
+        Owners always have unlimited cookies for testing!
+        """
+        # Owner bypass - always can afford
+        if self._is_owner(user_id):
+            return True
+        
         cost = self.STAMINA_COSTS.get(action, 1)
         _, current = self.storage.get_user_cookies(user_id)
         return current >= cost

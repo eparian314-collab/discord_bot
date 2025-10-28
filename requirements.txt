@@ -10,4 +10,4 @@ cachetools
 pokeapi-wrapper
 graphql-pokemon
 pokemon-showdown
-googletrans==4.0.0-rc1
+deep-translator
