@@ -335,6 +335,55 @@ class AdminCog(commands.Cog):
         except discord.HTTPException as e:
             await interaction.response.send_message(f"❌ Failed to unmute user: {e}", ephemeral=True)
 
+    # ------------------------------------------------------------------
+    # Admin/Helper Cookie Give Command
+    # ------------------------------------------------------------------
+    @admin.command(name="give", description="🎁 Give 1 cookie to a community member (once per day)")
+    @app_commands.describe(
+        member="The member to give a cookie to",
+        reason="Optional reason for giving the cookie"
+    )
+    async def admin_give_cookie(
+        self,
+        interaction: discord.Interaction,
+        member: discord.Member,
+        reason: Optional[str] = None
+    ) -> None:
+        """Allow admins/helpers to give a cookie to a user (once per day)."""
+        try:
+            self._ensure_permitted(interaction)
+        except PermissionError:
+            await self._deny(interaction)
+            return
+
+        if not interaction.guild:
+            await interaction.response.send_message("This command can only be used inside a server.", ephemeral=True)
+            return
+
+        # Prevent giving to self
+        if member == interaction.user:
+            await interaction.response.send_message("❌ You can't give a cookie to yourself!", ephemeral=True)
+            return
+
+        # Check daily limit (simple example, can be improved)
+        if self.storage:
+            from datetime import datetime
+            last_given = self.storage.get_last_cookie_given(str(interaction.user.id))
+            now = datetime.utcnow()
+            if last_given and (now - last_given).days < 1:
+                await interaction.response.send_message("❌ You can only give one cookie per day!", ephemeral=True)
+                return
+            # Give cookie
+            self.storage.add_cookie(str(member.id), 1)
+            self.storage.set_last_cookie_given(str(interaction.user.id), now)
+            reason_text = f" (Reason: {reason})" if reason else ""
+            await interaction.response.send_message(
+                f"✅ {member.mention} has received 1 cookie from you!{reason_text}",
+                ephemeral=True
+            )
+        else:
+            await interaction.response.send_message("❌ Cookie storage not available.", ephemeral=True)
+
 
 async def setup_admin_cog(
     bot: commands.Bot,

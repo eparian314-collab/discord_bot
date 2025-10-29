@@ -212,6 +212,10 @@ class IntegrationLoader:
         )
         self.pokemon_api = PokemonAPIIntegration()
         logger.debug("Game system engines initialized")
+        
+        # Event reminder engine for Top Heroes events
+        self.event_reminder_engine = EventReminderEngine(storage_engine=self.game_storage)
+        logger.debug("Event reminder engine initialized")
 
         self.ambiguity_resolver = (
             AmbiguityResolver(
@@ -412,6 +416,7 @@ class IntegrationLoader:
         self.registry.inject("pokemon_data_manager", self.pokemon_data_manager)
         self.registry.inject("pokemon_game", self.pokemon_game)
         self.registry.inject("pokemon_api", self.pokemon_api)
+        self.registry.inject("event_reminder_engine", self.event_reminder_engine)
         logger.debug("Game system engines registered")
 
         self._expose_bot_attributes()
@@ -469,6 +474,7 @@ class IntegrationLoader:
             "pokemon_data_manager": self.pokemon_data_manager,
             "pokemon_game": self.pokemon_game,
             "pokemon_api": self.pokemon_api,
+            "event_reminder_engine": self.event_reminder_engine,
         }
 
         orchestrator = getattr(self.processing_engine, "orchestrator", None) or self.orchestrator
@@ -513,12 +519,14 @@ class IntegrationLoader:
             from discord_bot.cogs.sos_phrase_cog import setup as setup_sos_cog
             from discord_bot.cogs.easteregg_cog import EasterEggCog
             from discord_bot.cogs.game_cog import GameCog
+            from discord_bot.cogs.event_management_cog import setup as setup_event_cog
 
             await setup_translation_cog(self.bot, ui_engine=self.translation_ui)
-            await setup_admin_cog(self.bot, ui_engine=self.admin_ui, owners=set(owners))
+            await setup_admin_cog(self.bot, ui_engine=self.admin_ui, owners=set(owners), storage=self.game_storage, cookie_manager=self.cookie_manager)
             await setup_help_cog(self.bot)
             await setup_language_cog(self.bot)
             await setup_sos_cog(self.bot)
+            await setup_event_cog(self.bot, event_reminder_engine=self.event_reminder_engine)
             
             # Mount game system cogs with dependency injection
             easter_egg_cog = EasterEggCog(
@@ -540,7 +548,7 @@ class IntegrationLoader:
             )
             await self.bot.add_cog(game_cog)
             
-            logger.info("⚙️ Mounted cogs: translation, admin, help, language, sos, easteregg, game")
+            logger.info("⚙️ Mounted cogs: translation, admin, help, language, sos, events, easteregg, game")
         except Exception as exc:
             logger.exception("Failed to mount cogs")
             try:
