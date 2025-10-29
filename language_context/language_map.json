@@ -1,0 +1,409 @@
+{
+  "deepl_lang_codes": {
+    "Bulgarian": "BG",
+    "Czech": "CS",
+    "Danish": "DA",
+    "German": "DE",
+    "Greek": "EL",
+    "English": "EN-GB",
+    "English (US)": "EN-US",
+    "English (UK)": "EN-GB",
+    "Spanish": "ES",
+    "Estonian": "ET",
+    "Finnish": "FI",
+    "French": "FR",
+    "Hungarian": "HU",
+    "Indonesian": "ID",
+    "Italian": "IT",
+    "Japanese": "JA",
+    "Korean": "KO",
+    "Lithuanian": "LT",
+    "Latvian": "LV",
+    "Norwegian": "NB",
+    "Dutch": "NL",
+    "Polish": "PL",
+    "Portuguese": "PT-PT",
+    "Portuguese (Portugal)": "PT-PT",
+    "Portuguese (Brazil)": "PT-BR",
+    "Romanian": "RO",
+    "Russian": "RU",
+    "Slovak": "SK",
+    "Slovenian": "SL",
+    "Swedish": "SV",
+    "Turkish": "TR",
+    "Ukrainian": "UK",
+    "Chinese": "ZH"
+  },
+  "google_lang_codes": {
+    "Afrikaans": "af",
+    "Arabic": "ar",
+    "Bengali": "bn",
+    "Bulgarian": "bg",
+    "Catalan": "ca",
+    "Chinese": "zh-CN",
+    "Croatian": "hr",
+    "Czech": "cs",
+    "Danish": "da",
+    "Dutch": "nl",
+    "English": "en",
+    "English (US)": "en",
+    "English (UK)": "en",
+    "Estonian": "et",
+    "Finnish": "fi",
+    "French": "fr",
+    "German": "de",
+    "Greek": "el",
+    "Gujarati": "gu",
+    "Hebrew": "he",
+    "Hindi": "hi",
+    "Hungarian": "hu",
+    "Icelandic": "is",
+    "Indonesian": "id",
+    "Irish": "ga",
+    "Italian": "it",
+    "Japanese": "ja",
+    "Kannada": "kn",
+    "Korean": "ko",
+    "Latvian": "lv",
+    "Lithuanian": "lt",
+    "Malay": "ms",
+    "Malayalam": "ml",
+    "Maltese": "mt",
+    "Marathi": "mr",
+    "Norwegian": "nb",
+    "Persian": "fa",
+    "Polish": "pl",
+    "Portuguese": "pt",
+    "Portuguese (Portugal)": "pt",
+    "Portuguese (Brazil)": "pt",
+    "Punjabi": "pa",
+    "Romanian": "ro",
+    "Russian": "ru",
+    "Serbian": "sr",
+    "Slovak": "sk",
+    "Slovenian": "sl",
+    "Spanish": "es",
+    "Swahili": "sw",
+    "Swedish": "sv",
+    "Tagalog": "tl",
+    "Tamil": "ta",
+    "Telugu": "te",
+    "Thai": "th",
+    "Turkish": "tr",
+    "Ukrainian": "uk",
+    "Urdu": "ur",
+    "Vietnamese": "vi",
+    "Welsh": "cy"
+  },
+  "flag_role_map": {
+    "🇺🇸": [
+      "English"
+    ],
+    "🇬🇧": [
+      "English"
+    ],
+    "🇪🇸": [
+      "Spanish"
+    ],
+    "🇲🇽": [
+      "Spanish"
+    ],
+    "🇫🇷": [
+      "French"
+    ],
+    "🇩🇪": [
+      "German"
+    ],
+    "🇯🇵": [
+      "Japanese"
+    ],
+    "🇨🇳": [
+      "Chinese"
+    ],
+    "🇷🇺": [
+      "Russian"
+    ],
+    "🇮🇹": [
+      "Italian"
+    ],
+    "🇵🇹": [
+      "Portuguese"
+    ],
+    "🇧🇷": [
+      "Portuguese"
+    ],
+    "🇰🇷": [
+      "Korean"
+    ],
+    "🇳🇱": [
+      "Dutch"
+    ],
+    "🇵🇱": [
+      "Polish"
+    ],
+    "🇹🇷": [
+      "Turkish"
+    ],
+    "🇸🇪": [
+      "Swedish"
+    ],
+    "🇳🇴": [
+      "Norwegian"
+    ],
+    "🇩🇰": [
+      "Danish"
+    ],
+    "🇫🇮": [
+      "Finnish"
+    ],
+    "🇮🇩": [
+      "Indonesian"
+    ],
+    "🇺🇦": [
+      "Ukrainian"
+    ],
+    "🇷🇴": [
+      "Romanian"
+    ],
+    "🇭🇺": [
+      "Hungarian"
+    ],
+    "🇨🇿": [
+      "Czech"
+    ],
+    "🇬🇷": [
+      "Greek"
+    ],
+    "🇧🇬": [
+      "Bulgarian"
+    ],
+    "🇪🇪": [
+      "Estonian"
+    ],
+    "🇱🇹": [
+      "Lithuanian"
+    ],
+    "🇱🇻": [
+      "Latvian"
+    ],
+    "🇸🇰": [
+      "Slovak"
+    ],
+    "🇸🇮": [
+      "Slovenian"
+    ],
+    "🇨🇭": [
+      "German",
+      "French",
+      "Italian"
+    ],
+    "🇧🇪": [
+      "Dutch",
+      "French",
+      "German"
+    ],
+    "🇨🇦": [
+      "English",
+      "French"
+    ],
+    "🇿🇦": [
+      "English"
+    ],
+    "🇵🇭": [
+      "Tagalog",
+      "English"
+    ],
+    "🇮🇳": [
+      "Hindi",
+      "English"
+    ],
+    "🇵🇰": [
+      "Urdu",
+      "English"
+    ],
+    "🇻🇳": [
+      "Vietnamese"
+    ],
+    "🇹🇭": [
+      "Thai"
+    ],
+    "🇮🇷": [
+      "Persian"
+    ],
+    "🇮🇱": [
+      "Hebrew"
+    ],
+    "🇦🇪": [
+      "Arabic"
+    ],
+    "🇸🇦": [
+      "Arabic"
+    ],
+    "🇪🇬": [
+      "Arabic"
+    ],
+    "🇮🇪": [
+      "Irish",
+      "English"
+    ],
+    "🇮🇸": [
+      "Icelandic"
+    ],
+    "🇲🇾": [
+      "Malay"
+    ],
+    "🇧🇩": [
+      "Bengali"
+    ],
+    "🇱🇰": [
+      "Tamil"
+    ],
+    "🇦🇱": [
+      "Albanian"
+    ],
+    "🇷🇸": [
+      "Serbian"
+    ],
+    "🇭🇷": [
+      "Croatian"
+    ],
+    "🇰🇪": [
+      "Swahili",
+      "English"
+    ]
+  },
+  "language_aliases": {
+    "af": "af",
+    "afrikaans": "af",
+    "ar": "ar",
+    "arabic": "ar",
+    "bg": "bg",
+    "bulgarian": "bg",
+    "bn": "bn",
+    "bengali": "bn",
+    "ca": "ca",
+    "catalan": "ca",
+    "chinese": "zh",
+    "cs": "cs",
+    "czech": "cs",
+    "cy": "cy",
+    "welsh": "cy",
+    "da": "da",
+    "danish": "da",
+    "de": "de",
+    "dutch": "nl",
+    "el": "el",
+    "en": "en",
+    "en-gb": "en",
+    "en-uk": "en",
+    "en-us": "en",
+    "english": "en",
+    "english (uk)": "en",
+    "english (us)": "en",
+    "english uk": "en",
+    "english us": "en",
+    "es": "es",
+    "estonian": "et",
+    "et": "et",
+    "fa": "fa",
+    "persian": "fa",
+    "fi": "fi",
+    "finnish": "fi",
+    "fil": "tl",
+    "filipino": "tl",
+    "fr": "fr",
+    "french": "fr",
+    "ga": "ga",
+    "irish": "ga",
+    "german": "de",
+    "greek": "el",
+    "gu": "gu",
+    "gujarati": "gu",
+    "he": "he",
+    "hebrew": "he",
+    "hi": "hi",
+    "hindi": "hi",
+    "hr": "hr",
+    "croatian": "hr",
+    "hu": "hu",
+    "hungarian": "hu",
+    "id": "id",
+    "indonesian": "id",
+    "is": "is",
+    "icelandic": "is",
+    "it": "it",
+    "italian": "it",
+    "ja": "ja",
+    "japanese": "ja",
+    "kn": "kn",
+    "kannada": "kn",
+    "ko": "ko",
+    "korean": "ko",
+    "latvian": "lv",
+    "lithuanian": "lt",
+    "lt": "lt",
+    "lv": "lv",
+    "mandarin": "zh",
+    "ml": "ml",
+    "malayalam": "ml",
+    "mr": "mr",
+    "marathi": "mr",
+    "ms": "ms",
+    "malay": "ms",
+    "mt": "mt",
+    "maltese": "mt",
+    "nb": "nb",
+    "nl": "nl",
+    "no": "nb",
+    "norwegian": "nb",
+    "pa": "pa",
+    "punjabi": "pa",
+    "pl": "pl",
+    "polish": "pl",
+    "portuguese": "pt",
+    "portuguese (brazil)": "pt",
+    "portuguese (portugal)": "pt",
+    "pt": "pt",
+    "pt-br": "pt",
+    "pt-pt": "pt",
+    "ro": "ro",
+    "romanian": "ro",
+    "ru": "ru",
+    "russian": "ru",
+    "simplified": "zh",
+    "simplified chinese": "zh",
+    "sk": "sk",
+    "sl": "sl",
+    "slovak": "sk",
+    "slovenian": "sl",
+    "spanish": "es",
+    "sq": "sq",
+    "albanian": "sq",
+    "sr": "sr",
+    "serbian": "sr",
+    "sv": "sv",
+    "swedish": "sv",
+    "sw": "sw",
+    "swahili": "sw",
+    "ta": "ta",
+    "tamil": "ta",
+    "te": "te",
+    "telugu": "te",
+    "th": "th",
+    "thai": "th",
+    "tl": "tl",
+    "tagalog": "tl",
+    "tr": "tr",
+    "turkish": "tr",
+    "uk": "uk",
+    "ukrainian": "uk",
+    "ur": "ur",
+    "urdu": "ur",
+    "vi": "vi",
+    "vietnamese": "vi",
+    "zh": "zh",
+    "zh-cn": "zh",
+    "zh-hans": "zh",
+    "zh-hant": "zh"
+  }
+}

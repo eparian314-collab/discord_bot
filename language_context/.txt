@@ -1,0 +1,49 @@
+﻿""" language_context/
+│
+├─ detectors/
+│    script_detector.py
+│    heuristics.py
+│    noise_filter.py
+│
+├─ normalization/
+│    normalizer.py
+│    normalizer_rules.py
+│    tokenizer.py
+│
+├─ semantics/
+│    intent_classifier.py
+│    tone_detector.py
+│    purpose_tagging.py
+│
+├─ context/
+│    context_engine.py
+│    context_models.py
+│    session_memory.py
+│    context_merging.py
+│    policies.py
+│
+├─ router/
+│    language_routing.py
+│    fallbacks.py
+│    ai_bridge.py   (optional)
+│
+├─ translators/
+│    deepl_adapter.py
+│    mymemory_adapter.py
+│    openai_adapter.py
+│    local_adapter.py
+│    ambiguity_resolver.py
+│    alias_helper.py
+│    base_model.py
+│
+├─ localization/
+│    profile.py
+│    registry.py
+│    templates.py
+│    culture_map.py
+│
+├─ data/
+│    language_map.json
+│    translation_result_schema.json
+│    context_rules.json
+"""

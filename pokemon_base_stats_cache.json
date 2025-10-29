@@ -1,4 +1,20 @@
 {
+<<<<<<< HEAD
+=======
+  "pidgey": {
+    "species": "pidgey",
+    "hp": 40,
+    "attack": 45,
+    "defense": 40,
+    "special_attack": 35,
+    "special_defense": 35,
+    "speed": 56,
+    "types": [
+      "normal",
+      "flying"
+    ]
+  },
+>>>>>>> 0f91be467954dc8dab10150bdd6deb981d5dafab
   "pikachu": {
     "species": "pikachu",
     "hp": 35,
@@ -11,6 +27,22 @@
       "electric"
     ]
   },
+<<<<<<< HEAD
+=======
+  "gyarados": {
+    "species": "gyarados",
+    "hp": 95,
+    "attack": 125,
+    "defense": 79,
+    "special_attack": 60,
+    "special_defense": 100,
+    "speed": 81,
+    "types": [
+      "water",
+      "flying"
+    ]
+  },
+>>>>>>> 0f91be467954dc8dab10150bdd6deb981d5dafab
   "charmander": {
     "species": "charmander",
     "hp": 39,
@@ -34,6 +66,7 @@
     "types": [
       "water"
     ]
+<<<<<<< HEAD
   },
   "pidgey": {
     "species": "pidgey",
@@ -85,5 +118,7 @@
     "types": [
       "water"
     ]
+=======
+>>>>>>> 0f91be467954dc8dab10150bdd6deb981d5dafab
   }
 }

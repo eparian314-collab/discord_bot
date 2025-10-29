@@ -1,0 +1,13 @@
+discord.py>=2.0.0
+python-dotenv
+deepl
+aiofiles
+aiohttp
+openai
+aiosqlite
+pytest-asyncio
+cachetools
+pokeapi-wrapper
+graphql-pokemon
+pokemon-showdown
+googletrans==4.0.0-rc1
