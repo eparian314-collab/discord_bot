@@ -80,9 +80,9 @@ def run(verbose: bool = False):
     
     # Always show summary
     if not verbose:
-        print(f"✓ Sanitized {cleaned} Python files")
+        print(f"[OK] Sanitized {cleaned} Python files")
         if errors:
-            print(f"⚠ Failed to sanitize {len(errors)} files")
+            print(f"[WARN] Failed to sanitize {len(errors)} files")
             for error in errors:
                 print(f"  - {error}")
 
