@@ -8,8 +8,8 @@ aiosqlite
 pytest-asyncio
 cachetools
 pokeapi
-graphql-pokemon
-pokemon-showdown
+git+https://github.com/mazipan/graphql-pokemon.git
+git+https://github.com/smogon/pokemon-showdown.git
 deep-translator
 
 # OCR for ranking screenshot processing
