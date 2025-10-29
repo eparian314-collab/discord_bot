@@ -11,6 +11,7 @@ from discord_bot.core.engines.base.engine_registry import EngineRegistry
 from discord_bot.core.engines.base.logging_utils import get_logger
 from discord_bot.core.engines.cache_manager import CacheManager
 from discord_bot.core.engines.error_engine import GuardianErrorEngine
+from discord_bot.core.engines.event_reminder_engine import EventReminderEngine
 from discord_bot.core.engines.input_engine import InputEngine
 from discord_bot.core.engines.output_engine import OutputEngine
 from discord_bot.core.engines.personality_engine import PersonalityEngine
