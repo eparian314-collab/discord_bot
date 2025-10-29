@@ -1,0 +1,605 @@
+{
+  "Version": 1,
+  "WorkspaceRootPath": "C:\\Users\\Eugen\\OneDrive\\Desktop\\happy_hippo\\",
+  "Documents": [
+    {
+      "AbsoluteMoniker": "D:0:0:{2E5786C7-1DE9-411D-A0A5-319F82A91504}|happy_hippo.pyproj|C:\\Users\\Eugen\\OneDrive\\Desktop\\happy_hippo\\discord_bot\\language_context\\translators\\openai_adapter.py||{8B382828-6202-11D1-8870-0000F87579D2}",
+      "RelativeMoniker": "D:0:0:{2E5786C7-1DE9-411D-A0A5-319F82A91504}|happy_hippo.pyproj|solutionrelative:discord_bot\\language_context\\translators\\openai_adapter.py||{8B382828-6202-11D1-8870-0000F87579D2}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{2E5786C7-1DE9-411D-A0A5-319F82A91504}|happy_hippo.pyproj|C:\\Users\\Eugen\\OneDrive\\Desktop\\happy_hippo\\discord_bot\\language_context\\translators\\mymemory_adapter.py||{8B382828-6202-11D1-8870-0000F87579D2}",
+      "RelativeMoniker": "D:0:0:{2E5786C7-1DE9-411D-A0A5-319F82A91504}|happy_hippo.pyproj|solutionrelative:discord_bot\\language_context\\translators\\mymemory_adapter.py||{8B382828-6202-11D1-8870-0000F87579D2}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{2E5786C7-1DE9-411D-A0A5-319F82A91504}|happy_hippo.pyproj|C:\\Users\\Eugen\\OneDrive\\Desktop\\happy_hippo\\discord_bot\\language_context\\translators\\deepl_adapter.py||{8B382828-6202-11D1-8870-0000F87579D2}",
+      "RelativeMoniker": "D:0:0:{2E5786C7-1DE9-411D-A0A5-319F82A91504}|happy_hippo.pyproj|solutionrelative:discord_bot\\language_context\\translators\\deepl_adapter.py||{8B382828-6202-11D1-8870-0000F87579D2}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{2E5786C7-1DE9-411D-A0A5-319F82A91504}|happy_hippo.pyproj|C:\\Users\\Eugen\\OneDrive\\Desktop\\happy_hippo\\discord_bot\\language_context\\semantics\\tone_detector.py||{8B382828-6202-11D1-8870-0000F87579D2}",
+      "RelativeMoniker": "D:0:0:{2E5786C7-1DE9-411D-A0A5-319F82A91504}|happy_hippo.pyproj|solutionrelative:discord_bot\\language_context\\semantics\\tone_detector.py||{8B382828-6202-11D1-8870-0000F87579D2}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{2E5786C7-1DE9-411D-A0A5-319F82A91504}|happy_hippo.pyproj|C:\\Users\\Eugen\\OneDrive\\Desktop\\happy_hippo\\discord_bot\\language_context\\semantics\\purpose_tagging.py||{8B382828-6202-11D1-8870-0000F87579D2}",
+      "RelativeMoniker": "D:0:0:{2E5786C7-1DE9-411D-A0A5-319F82A91504}|happy_hippo.pyproj|solutionrelative:discord_bot\\language_context\\semantics\\purpose_tagging.py||{8B382828-6202-11D1-8870-0000F87579D2}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{2E5786C7-1DE9-411D-A0A5-319F82A91504}|happy_hippo.pyproj|C:\\Users\\Eugen\\OneDrive\\Desktop\\happy_hippo\\discord_bot\\language_context\\semantics\\intent_classifier.py||{8B382828-6202-11D1-8870-0000F87579D2}",
+      "RelativeMoniker": "D:0:0:{2E5786C7-1DE9-411D-A0A5-319F82A91504}|happy_hippo.pyproj|solutionrelative:discord_bot\\language_context\\semantics\\intent_classifier.py||{8B382828-6202-11D1-8870-0000F87579D2}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{2E5786C7-1DE9-411D-A0A5-319F82A91504}|happy_hippo.pyproj|C:\\Users\\Eugen\\OneDrive\\Desktop\\happy_hippo\\discord_bot\\language_context\\router\\language_routing.py||{8B382828-6202-11D1-8870-0000F87579D2}",
+      "RelativeMoniker": "D:0:0:{2E5786C7-1DE9-411D-A0A5-319F82A91504}|happy_hippo.pyproj|solutionrelative:discord_bot\\language_context\\router\\language_routing.py||{8B382828-6202-11D1-8870-0000F87579D2}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{2E5786C7-1DE9-411D-A0A5-319F82A91504}|happy_hippo.pyproj|C:\\Users\\Eugen\\OneDrive\\Desktop\\happy_hippo\\discord_bot\\language_context\\router\\fallbacks.py||{8B382828-6202-11D1-8870-0000F87579D2}",
+      "RelativeMoniker": "D:0:0:{2E5786C7-1DE9-411D-A0A5-319F82A91504}|happy_hippo.pyproj|solutionrelative:discord_bot\\language_context\\router\\fallbacks.py||{8B382828-6202-11D1-8870-0000F87579D2}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{2E5786C7-1DE9-411D-A0A5-319F82A91504}|happy_hippo.pyproj|C:\\Users\\Eugen\\OneDrive\\Desktop\\happy_hippo\\discord_bot\\language_context\\router\\ai_bridge.py||{8B382828-6202-11D1-8870-0000F87579D2}",
+      "RelativeMoniker": "D:0:0:{2E5786C7-1DE9-411D-A0A5-319F82A91504}|happy_hippo.pyproj|solutionrelative:discord_bot\\language_context\\router\\ai_bridge.py||{8B382828-6202-11D1-8870-0000F87579D2}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{2E5786C7-1DE9-411D-A0A5-319F82A91504}|happy_hippo.pyproj|C:\\Users\\Eugen\\OneDrive\\Desktop\\happy_hippo\\discord_bot\\language_context\\.txt||{8B382828-6202-11D1-8870-0000F87579D2}",
+      "RelativeMoniker": "D:0:0:{2E5786C7-1DE9-411D-A0A5-319F82A91504}|happy_hippo.pyproj|solutionrelative:discord_bot\\language_context\\.txt||{8B382828-6202-11D1-8870-0000F87579D2}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{2E5786C7-1DE9-411D-A0A5-319F82A91504}|happy_hippo.pyproj|C:\\Users\\Eugen\\OneDrive\\Desktop\\happy_hippo\\discord_bot\\language_context\\alias_helper.py||{8B382828-6202-11D1-8870-0000F87579D2}",
+      "RelativeMoniker": "D:0:0:{2E5786C7-1DE9-411D-A0A5-319F82A91504}|happy_hippo.pyproj|solutionrelative:discord_bot\\language_context\\alias_helper.py||{8B382828-6202-11D1-8870-0000F87579D2}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{2E5786C7-1DE9-411D-A0A5-319F82A91504}|happy_hippo.pyproj|C:\\Users\\Eugen\\OneDrive\\Desktop\\happy_hippo\\discord_bot\\language_context\\culture\\profanity_map.py||{8B382828-6202-11D1-8870-0000F87579D2}",
+      "RelativeMoniker": "D:0:0:{2E5786C7-1DE9-411D-A0A5-319F82A91504}|happy_hippo.pyproj|solutionrelative:discord_bot\\language_context\\culture\\profanity_map.py||{8B382828-6202-11D1-8870-0000F87579D2}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{2E5786C7-1DE9-411D-A0A5-319F82A91504}|happy_hippo.pyproj|C:\\Users\\Eugen\\OneDrive\\Desktop\\happy_hippo\\discord_bot\\language_context\\culture\\cross_language_equivalents.py||{8B382828-6202-11D1-8870-0000F87579D2}",
+      "RelativeMoniker": "D:0:0:{2E5786C7-1DE9-411D-A0A5-319F82A91504}|happy_hippo.pyproj|solutionrelative:discord_bot\\language_context\\culture\\cross_language_equivalents.py||{8B382828-6202-11D1-8870-0000F87579D2}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{2E5786C7-1DE9-411D-A0A5-319F82A91504}|happy_hippo.pyproj|C:\\Users\\Eugen\\OneDrive\\Desktop\\happy_hippo\\discord_bot\\language_context\\culture\\contextual_phrases.py||{8B382828-6202-11D1-8870-0000F87579D2}",
+      "RelativeMoniker": "D:0:0:{2E5786C7-1DE9-411D-A0A5-319F82A91504}|happy_hippo.pyproj|solutionrelative:discord_bot\\language_context\\culture\\contextual_phrases.py||{8B382828-6202-11D1-8870-0000F87579D2}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{2E5786C7-1DE9-411D-A0A5-319F82A91504}|happy_hippo.pyproj|C:\\Users\\Eugen\\OneDrive\\Desktop\\happy_hippo\\discord_bot\\language_context\\context\\policies.py||{8B382828-6202-11D1-8870-0000F87579D2}",
+      "RelativeMoniker": "D:0:0:{2E5786C7-1DE9-411D-A0A5-319F82A91504}|happy_hippo.pyproj|solutionrelative:discord_bot\\language_context\\context\\policies.py||{8B382828-6202-11D1-8870-0000F87579D2}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{2E5786C7-1DE9-411D-A0A5-319F82A91504}|happy_hippo.pyproj|C:\\Users\\Eugen\\OneDrive\\Desktop\\happy_hippo\\discord_bot\\language_context\\context\\context_memory.py||{8B382828-6202-11D1-8870-0000F87579D2}",
+      "RelativeMoniker": "D:0:0:{2E5786C7-1DE9-411D-A0A5-319F82A91504}|happy_hippo.pyproj|solutionrelative:discord_bot\\language_context\\context\\context_memory.py||{8B382828-6202-11D1-8870-0000F87579D2}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{2E5786C7-1DE9-411D-A0A5-319F82A91504}|happy_hippo.pyproj|C:\\Users\\Eugen\\OneDrive\\Desktop\\happy_hippo\\discord_bot\\language_context\\context\\session_memory.py||{8B382828-6202-11D1-8870-0000F87579D2}",
+      "RelativeMoniker": "D:0:0:{2E5786C7-1DE9-411D-A0A5-319F82A91504}|happy_hippo.pyproj|solutionrelative:discord_bot\\language_context\\context\\session_memory.py||{8B382828-6202-11D1-8870-0000F87579D2}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{2E5786C7-1DE9-411D-A0A5-319F82A91504}|happy_hippo.pyproj|C:\\Users\\Eugen\\OneDrive\\Desktop\\happy_hippo\\discord_bot\\language_context\\detectors\\script_detector.py||{8B382828-6202-11D1-8870-0000F87579D2}",
+      "RelativeMoniker": "D:0:0:{2E5786C7-1DE9-411D-A0A5-319F82A91504}|happy_hippo.pyproj|solutionrelative:discord_bot\\language_context\\detectors\\script_detector.py||{8B382828-6202-11D1-8870-0000F87579D2}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{2E5786C7-1DE9-411D-A0A5-319F82A91504}|happy_hippo.pyproj|C:\\Users\\Eugen\\OneDrive\\Desktop\\happy_hippo\\discord_bot\\language_context\\detectors\\noise_filter.py||{8B382828-6202-11D1-8870-0000F87579D2}",
+      "RelativeMoniker": "D:0:0:{2E5786C7-1DE9-411D-A0A5-319F82A91504}|happy_hippo.pyproj|solutionrelative:discord_bot\\language_context\\detectors\\noise_filter.py||{8B382828-6202-11D1-8870-0000F87579D2}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{2E5786C7-1DE9-411D-A0A5-319F82A91504}|happy_hippo.pyproj|C:\\Users\\Eugen\\OneDrive\\Desktop\\happy_hippo\\discord_bot\\language_context\\normalizer_rules.py||{8B382828-6202-11D1-8870-0000F87579D2}",
+      "RelativeMoniker": "D:0:0:{2E5786C7-1DE9-411D-A0A5-319F82A91504}|happy_hippo.pyproj|solutionrelative:discord_bot\\language_context\\normalizer_rules.py||{8B382828-6202-11D1-8870-0000F87579D2}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{2E5786C7-1DE9-411D-A0A5-319F82A91504}|happy_hippo.pyproj|C:\\Users\\Eugen\\OneDrive\\Desktop\\happy_hippo\\discord_bot\\language_context\\tokenizer.py||{8B382828-6202-11D1-8870-0000F87579D2}",
+      "RelativeMoniker": "D:0:0:{2E5786C7-1DE9-411D-A0A5-319F82A91504}|happy_hippo.pyproj|solutionrelative:discord_bot\\language_context\\tokenizer.py||{8B382828-6202-11D1-8870-0000F87579D2}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{2E5786C7-1DE9-411D-A0A5-319F82A91504}|happy_hippo.pyproj|C:\\Users\\Eugen\\OneDrive\\Desktop\\happy_hippo\\discord_bot\\language_context\\context_engine.py||{8B382828-6202-11D1-8870-0000F87579D2}",
+      "RelativeMoniker": "D:0:0:{2E5786C7-1DE9-411D-A0A5-319F82A91504}|happy_hippo.pyproj|solutionrelative:discord_bot\\language_context\\context_engine.py||{8B382828-6202-11D1-8870-0000F87579D2}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{2E5786C7-1DE9-411D-A0A5-319F82A91504}|happy_hippo.pyproj|C:\\Users\\Eugen\\OneDrive\\Desktop\\happy_hippo\\discord_bot\\language_context\\context_models.py||{8B382828-6202-11D1-8870-0000F87579D2}",
+      "RelativeMoniker": "D:0:0:{2E5786C7-1DE9-411D-A0A5-319F82A91504}|happy_hippo.pyproj|solutionrelative:discord_bot\\language_context\\context_models.py||{8B382828-6202-11D1-8870-0000F87579D2}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{2E5786C7-1DE9-411D-A0A5-319F82A91504}|happy_hippo.pyproj|C:\\Users\\Eugen\\OneDrive\\Desktop\\happy_hippo\\discord_bot\\language_context\\context_utils.py||{8B382828-6202-11D1-8870-0000F87579D2}",
+      "RelativeMoniker": "D:0:0:{2E5786C7-1DE9-411D-A0A5-319F82A91504}|happy_hippo.pyproj|solutionrelative:discord_bot\\language_context\\context_utils.py||{8B382828-6202-11D1-8870-0000F87579D2}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{2E5786C7-1DE9-411D-A0A5-319F82A91504}|happy_hippo.pyproj|C:\\Users\\Eugen\\OneDrive\\Desktop\\happy_hippo\\discord_bot\\language_context\\language_map.json||{90A6B3A7-C1A3-4009-A288-E2FF89E96FA0}",
+      "RelativeMoniker": "D:0:0:{2E5786C7-1DE9-411D-A0A5-319F82A91504}|happy_hippo.pyproj|solutionrelative:discord_bot\\language_context\\language_map.json||{90A6B3A7-C1A3-4009-A288-E2FF89E96FA0}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{2E5786C7-1DE9-411D-A0A5-319F82A91504}|happy_hippo.pyproj|C:\\Users\\Eugen\\OneDrive\\Desktop\\happy_hippo\\discord_bot\\language_context\\translation_job.py||{8B382828-6202-11D1-8870-0000F87579D2}",
+      "RelativeMoniker": "D:0:0:{2E5786C7-1DE9-411D-A0A5-319F82A91504}|happy_hippo.pyproj|solutionrelative:discord_bot\\language_context\\translation_job.py||{8B382828-6202-11D1-8870-0000F87579D2}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{2E5786C7-1DE9-411D-A0A5-319F82A91504}|happy_hippo.pyproj|C:\\Users\\Eugen\\OneDrive\\Desktop\\happy_hippo\\discord_bot\\language_context\\normalizer.py||{8B382828-6202-11D1-8870-0000F87579D2}",
+      "RelativeMoniker": "D:0:0:{2E5786C7-1DE9-411D-A0A5-319F82A91504}|happy_hippo.pyproj|solutionrelative:discord_bot\\language_context\\normalizer.py||{8B382828-6202-11D1-8870-0000F87579D2}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{2E5786C7-1DE9-411D-A0A5-319F82A91504}|happy_hippo.pyproj|C:\\Users\\Eugen\\OneDrive\\Desktop\\happy_hippo\\discord_bot\\language_context\\translation_result_schema.json||{90A6B3A7-C1A3-4009-A288-E2FF89E96FA0}",
+      "RelativeMoniker": "D:0:0:{2E5786C7-1DE9-411D-A0A5-319F82A91504}|happy_hippo.pyproj|solutionrelative:discord_bot\\language_context\\translation_result_schema.json||{90A6B3A7-C1A3-4009-A288-E2FF89E96FA0}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{2E5786C7-1DE9-411D-A0A5-319F82A91504}|happy_hippo.pyproj|C:\\Users\\Eugen\\OneDrive\\Desktop\\happy_hippo\\discord_bot\\scripts\\sanitize_encoding.py||{8B382828-6202-11D1-8870-0000F87579D2}",
+      "RelativeMoniker": "D:0:0:{2E5786C7-1DE9-411D-A0A5-319F82A91504}|happy_hippo.pyproj|solutionrelative:discord_bot\\scripts\\sanitize_encoding.py||{8B382828-6202-11D1-8870-0000F87579D2}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{2E5786C7-1DE9-411D-A0A5-319F82A91504}|happy_hippo.pyproj|C:\\Users\\Eugen\\OneDrive\\Desktop\\happy_hippo\\discord_bot\\scripts\\validate_env.py||{8B382828-6202-11D1-8870-0000F87579D2}",
+      "RelativeMoniker": "D:0:0:{2E5786C7-1DE9-411D-A0A5-319F82A91504}|happy_hippo.pyproj|solutionrelative:discord_bot\\scripts\\validate_env.py||{8B382828-6202-11D1-8870-0000F87579D2}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{2E5786C7-1DE9-411D-A0A5-319F82A91504}|happy_hippo.pyproj|C:\\Users\\Eugen\\OneDrive\\Desktop\\happy_hippo\\discord_bot\\cogs\\translation_cog.py||{8B382828-6202-11D1-8870-0000F87579D2}",
+      "RelativeMoniker": "D:0:0:{2E5786C7-1DE9-411D-A0A5-319F82A91504}|happy_hippo.pyproj|solutionrelative:discord_bot\\cogs\\translation_cog.py||{8B382828-6202-11D1-8870-0000F87579D2}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{2E5786C7-1DE9-411D-A0A5-319F82A91504}|happy_hippo.pyproj|C:\\Users\\Eugen\\OneDrive\\Desktop\\happy_hippo\\discord_bot\\core\\engines\\processing_engine.py||{8B382828-6202-11D1-8870-0000F87579D2}",
+      "RelativeMoniker": "D:0:0:{2E5786C7-1DE9-411D-A0A5-319F82A91504}|happy_hippo.pyproj|solutionrelative:discord_bot\\core\\engines\\processing_engine.py||{8B382828-6202-11D1-8870-0000F87579D2}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{2E5786C7-1DE9-411D-A0A5-319F82A91504}|happy_hippo.pyproj|C:\\Users\\Eugen\\OneDrive\\Desktop\\happy_hippo\\discord_bot\\core\\engines\\role_manager.py||{8B382828-6202-11D1-8870-0000F87579D2}",
+      "RelativeMoniker": "D:0:0:{2E5786C7-1DE9-411D-A0A5-319F82A91504}|happy_hippo.pyproj|solutionrelative:discord_bot\\core\\engines\\role_manager.py||{8B382828-6202-11D1-8870-0000F87579D2}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{2E5786C7-1DE9-411D-A0A5-319F82A91504}|happy_hippo.pyproj|C:\\Users\\Eugen\\OneDrive\\Desktop\\happy_hippo\\discord_bot\\core\\engines\\translation_orchestrator.py||{8B382828-6202-11D1-8870-0000F87579D2}",
+      "RelativeMoniker": "D:0:0:{2E5786C7-1DE9-411D-A0A5-319F82A91504}|happy_hippo.pyproj|solutionrelative:discord_bot\\core\\engines\\translation_orchestrator.py||{8B382828-6202-11D1-8870-0000F87579D2}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{2E5786C7-1DE9-411D-A0A5-319F82A91504}|happy_hippo.pyproj|C:\\Users\\Eugen\\OneDrive\\Desktop\\happy_hippo\\discord_bot\\core\\engines\\translation_ui_engine.py||{8B382828-6202-11D1-8870-0000F87579D2}",
+      "RelativeMoniker": "D:0:0:{2E5786C7-1DE9-411D-A0A5-319F82A91504}|happy_hippo.pyproj|solutionrelative:discord_bot\\core\\engines\\translation_ui_engine.py||{8B382828-6202-11D1-8870-0000F87579D2}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{2E5786C7-1DE9-411D-A0A5-319F82A91504}|happy_hippo.pyproj|C:\\Users\\Eugen\\OneDrive\\Desktop\\happy_hippo\\discord_bot\\core\\engines\\personality_engine.py||{8B382828-6202-11D1-8870-0000F87579D2}",
+      "RelativeMoniker": "D:0:0:{2E5786C7-1DE9-411D-A0A5-319F82A91504}|happy_hippo.pyproj|solutionrelative:discord_bot\\core\\engines\\personality_engine.py||{8B382828-6202-11D1-8870-0000F87579D2}"
+    }
+  ],
+  "DocumentGroupContainers": [
+    {
+      "Orientation": 0,
+      "VerticalTabListWidth": 256,
+      "DocumentGroups": [
+        {
+          "DockedWidth": 75,
+          "SelectedChildIndex": 1,
+          "Children": [
+            {
+              "$type": "Bookmark",
+              "Name": "ST:0:0:{40ea2e6b-2121-4bb8-a43e-c83c04b51041}"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 0,
+              "Title": "openai_adapter.py",
+              "DocumentMoniker": "C:\\Users\\Eugen\\OneDrive\\Desktop\\happy_hippo\\discord_bot\\language_context\\translators\\openai_adapter.py",
+              "RelativeDocumentMoniker": "discord_bot\\language_context\\translators\\openai_adapter.py",
+              "ToolTip": "C:\\Users\\Eugen\\OneDrive\\Desktop\\happy_hippo\\discord_bot\\language_context\\translators\\openai_adapter.py",
+              "RelativeToolTip": "discord_bot\\language_context\\translators\\openai_adapter.py",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAkAAAARAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.002457|",
+              "WhenOpened": "2025-10-24T21:00:45.458Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 1,
+              "Title": "mymemory_adapter.py",
+              "DocumentMoniker": "C:\\Users\\Eugen\\OneDrive\\Desktop\\happy_hippo\\discord_bot\\language_context\\translators\\mymemory_adapter.py",
+              "RelativeDocumentMoniker": "discord_bot\\language_context\\translators\\mymemory_adapter.py",
+              "ToolTip": "C:\\Users\\Eugen\\OneDrive\\Desktop\\happy_hippo\\discord_bot\\language_context\\translators\\mymemory_adapter.py",
+              "RelativeToolTip": "discord_bot\\language_context\\translators\\mymemory_adapter.py",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.002457|",
+              "WhenOpened": "2025-10-24T20:58:26.639Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 2,
+              "Title": "deepl_adapter.py",
+              "DocumentMoniker": "C:\\Users\\Eugen\\OneDrive\\Desktop\\happy_hippo\\discord_bot\\language_context\\translators\\deepl_adapter.py",
+              "RelativeDocumentMoniker": "discord_bot\\language_context\\translators\\deepl_adapter.py",
+              "ToolTip": "C:\\Users\\Eugen\\OneDrive\\Desktop\\happy_hippo\\discord_bot\\language_context\\translators\\deepl_adapter.py",
+              "RelativeToolTip": "discord_bot\\language_context\\translators\\deepl_adapter.py",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAO8AAABbAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.002457|",
+              "WhenOpened": "2025-10-24T20:19:34.476Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 4,
+              "Title": "purpose_tagging.py",
+              "DocumentMoniker": "C:\\Users\\Eugen\\OneDrive\\Desktop\\happy_hippo\\discord_bot\\language_context\\semantics\\purpose_tagging.py",
+              "RelativeDocumentMoniker": "discord_bot\\language_context\\semantics\\purpose_tagging.py",
+              "ToolTip": "C:\\Users\\Eugen\\OneDrive\\Desktop\\happy_hippo\\discord_bot\\language_context\\semantics\\purpose_tagging.py",
+              "RelativeToolTip": "discord_bot\\language_context\\semantics\\purpose_tagging.py",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAABwBAABYAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.002457|",
+              "WhenOpened": "2025-10-24T20:15:18.026Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 9,
+              "Title": ".txt",
+              "DocumentMoniker": "C:\\Users\\Eugen\\OneDrive\\Desktop\\happy_hippo\\discord_bot\\language_context\\.txt",
+              "RelativeDocumentMoniker": "discord_bot\\language_context\\.txt",
+              "ToolTip": "C:\\Users\\Eugen\\OneDrive\\Desktop\\happy_hippo\\discord_bot\\language_context\\.txt",
+              "RelativeToolTip": "discord_bot\\language_context\\.txt",
+              "ViewState": "AgIAAAwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.003109|",
+              "WhenOpened": "2025-10-24T19:59:50.048Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 8,
+              "Title": "ai_bridge.py",
+              "DocumentMoniker": "C:\\Users\\Eugen\\OneDrive\\Desktop\\happy_hippo\\discord_bot\\language_context\\router\\ai_bridge.py",
+              "RelativeDocumentMoniker": "discord_bot\\language_context\\router\\ai_bridge.py",
+              "ToolTip": "C:\\Users\\Eugen\\OneDrive\\Desktop\\happy_hippo\\discord_bot\\language_context\\router\\ai_bridge.py",
+              "RelativeToolTip": "discord_bot\\language_context\\router\\ai_bridge.py",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.002457|",
+              "WhenOpened": "2025-10-24T19:57:35.679Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 7,
+              "Title": "fallbacks.py",
+              "DocumentMoniker": "C:\\Users\\Eugen\\OneDrive\\Desktop\\happy_hippo\\discord_bot\\language_context\\router\\fallbacks.py",
+              "RelativeDocumentMoniker": "discord_bot\\language_context\\router\\fallbacks.py",
+              "ToolTip": "C:\\Users\\Eugen\\OneDrive\\Desktop\\happy_hippo\\discord_bot\\language_context\\router\\fallbacks.py",
+              "RelativeToolTip": "discord_bot\\language_context\\router\\fallbacks.py",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.002457|",
+              "WhenOpened": "2025-10-24T19:57:23.83Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 6,
+              "Title": "language_routing.py",
+              "DocumentMoniker": "C:\\Users\\Eugen\\OneDrive\\Desktop\\happy_hippo\\discord_bot\\language_context\\router\\language_routing.py",
+              "RelativeDocumentMoniker": "discord_bot\\language_context\\router\\language_routing.py",
+              "ToolTip": "C:\\Users\\Eugen\\OneDrive\\Desktop\\happy_hippo\\discord_bot\\language_context\\router\\language_routing.py",
+              "RelativeToolTip": "discord_bot\\language_context\\router\\language_routing.py",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.002457|",
+              "WhenOpened": "2025-10-24T19:56:49.555Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 3,
+              "Title": "tone_detector.py",
+              "DocumentMoniker": "C:\\Users\\Eugen\\OneDrive\\Desktop\\happy_hippo\\discord_bot\\language_context\\semantics\\tone_detector.py",
+              "RelativeDocumentMoniker": "discord_bot\\language_context\\semantics\\tone_detector.py",
+              "ToolTip": "C:\\Users\\Eugen\\OneDrive\\Desktop\\happy_hippo\\discord_bot\\language_context\\semantics\\tone_detector.py",
+              "RelativeToolTip": "discord_bot\\language_context\\semantics\\tone_detector.py",
+              "ViewState": "AgIAAB8BAAAAAAAAAAAuwE8BAABrAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.002457|",
+              "WhenOpened": "2025-10-24T19:54:46.057Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 10,
+              "Title": "alias_helper.py",
+              "DocumentMoniker": "C:\\Users\\Eugen\\OneDrive\\Desktop\\happy_hippo\\discord_bot\\language_context\\alias_helper.py",
+              "RelativeDocumentMoniker": "discord_bot\\language_context\\alias_helper.py",
+              "ToolTip": "C:\\Users\\Eugen\\OneDrive\\Desktop\\happy_hippo\\discord_bot\\language_context\\alias_helper.py",
+              "RelativeToolTip": "discord_bot\\language_context\\alias_helper.py",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.002457|",
+              "WhenOpened": "2025-10-24T20:05:30.922Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 5,
+              "Title": "intent_classifier.py",
+              "DocumentMoniker": "C:\\Users\\Eugen\\OneDrive\\Desktop\\happy_hippo\\discord_bot\\language_context\\semantics\\intent_classifier.py",
+              "RelativeDocumentMoniker": "discord_bot\\language_context\\semantics\\intent_classifier.py",
+              "ToolTip": "C:\\Users\\Eugen\\OneDrive\\Desktop\\happy_hippo\\discord_bot\\language_context\\semantics\\intent_classifier.py",
+              "RelativeToolTip": "discord_bot\\language_context\\semantics\\intent_classifier.py",
+              "ViewState": "AgIAAFkBAAAAAAAAAAAuwJIBAAABAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.002457|",
+              "WhenOpened": "2025-10-24T19:54:29.738Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 11,
+              "Title": "profanity_map.py",
+              "DocumentMoniker": "C:\\Users\\Eugen\\OneDrive\\Desktop\\happy_hippo\\discord_bot\\language_context\\culture\\profanity_map.py",
+              "RelativeDocumentMoniker": "discord_bot\\language_context\\culture\\profanity_map.py",
+              "ToolTip": "C:\\Users\\Eugen\\OneDrive\\Desktop\\happy_hippo\\discord_bot\\language_context\\culture\\profanity_map.py",
+              "RelativeToolTip": "discord_bot\\language_context\\culture\\profanity_map.py",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.002457|",
+              "WhenOpened": "2025-10-24T19:59:23.214Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 12,
+              "Title": "cross_language_equivalents.py",
+              "DocumentMoniker": "C:\\Users\\Eugen\\OneDrive\\Desktop\\happy_hippo\\discord_bot\\language_context\\culture\\cross_language_equivalents.py",
+              "RelativeDocumentMoniker": "discord_bot\\language_context\\culture\\cross_language_equivalents.py",
+              "ToolTip": "C:\\Users\\Eugen\\OneDrive\\Desktop\\happy_hippo\\discord_bot\\language_context\\culture\\cross_language_equivalents.py",
+              "RelativeToolTip": "discord_bot\\language_context\\culture\\cross_language_equivalents.py",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.002457|",
+              "WhenOpened": "2025-10-24T19:59:00.218Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 13,
+              "Title": "contextual_phrases.py",
+              "DocumentMoniker": "C:\\Users\\Eugen\\OneDrive\\Desktop\\happy_hippo\\discord_bot\\language_context\\culture\\contextual_phrases.py",
+              "RelativeDocumentMoniker": "discord_bot\\language_context\\culture\\contextual_phrases.py",
+              "ToolTip": "C:\\Users\\Eugen\\OneDrive\\Desktop\\happy_hippo\\discord_bot\\language_context\\culture\\contextual_phrases.py",
+              "RelativeToolTip": "discord_bot\\language_context\\culture\\contextual_phrases.py",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.002457|",
+              "WhenOpened": "2025-10-24T19:58:37.955Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 14,
+              "Title": "policies.py",
+              "DocumentMoniker": "C:\\Users\\Eugen\\OneDrive\\Desktop\\happy_hippo\\discord_bot\\language_context\\context\\policies.py",
+              "RelativeDocumentMoniker": "discord_bot\\language_context\\context\\policies.py",
+              "ToolTip": "C:\\Users\\Eugen\\OneDrive\\Desktop\\happy_hippo\\discord_bot\\language_context\\context\\policies.py",
+              "RelativeToolTip": "discord_bot\\language_context\\context\\policies.py",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.002457|",
+              "WhenOpened": "2025-10-24T19:56:21.75Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 15,
+              "Title": "context_memory.py",
+              "DocumentMoniker": "C:\\Users\\Eugen\\OneDrive\\Desktop\\happy_hippo\\discord_bot\\language_context\\context\\context_memory.py",
+              "RelativeDocumentMoniker": "discord_bot\\language_context\\context\\context_memory.py",
+              "ToolTip": "C:\\Users\\Eugen\\OneDrive\\Desktop\\happy_hippo\\discord_bot\\language_context\\context\\context_memory.py",
+              "RelativeToolTip": "discord_bot\\language_context\\context\\context_memory.py",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.002457|",
+              "WhenOpened": "2025-10-24T19:56:11.663Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 16,
+              "Title": "session_memory.py",
+              "DocumentMoniker": "C:\\Users\\Eugen\\OneDrive\\Desktop\\happy_hippo\\discord_bot\\language_context\\context\\session_memory.py",
+              "RelativeDocumentMoniker": "discord_bot\\language_context\\context\\session_memory.py",
+              "ToolTip": "C:\\Users\\Eugen\\OneDrive\\Desktop\\happy_hippo\\discord_bot\\language_context\\context\\session_memory.py",
+              "RelativeToolTip": "discord_bot\\language_context\\context\\session_memory.py",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.002457|",
+              "WhenOpened": "2025-10-24T19:56:00.699Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 18,
+              "Title": "noise_filter.py",
+              "DocumentMoniker": "C:\\Users\\Eugen\\OneDrive\\Desktop\\happy_hippo\\discord_bot\\language_context\\detectors\\noise_filter.py",
+              "RelativeDocumentMoniker": "discord_bot\\language_context\\detectors\\noise_filter.py",
+              "ToolTip": "C:\\Users\\Eugen\\OneDrive\\Desktop\\happy_hippo\\discord_bot\\language_context\\detectors\\noise_filter.py",
+              "RelativeToolTip": "discord_bot\\language_context\\detectors\\noise_filter.py",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAyAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.002457|",
+              "WhenOpened": "2025-10-24T19:51:03.466Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 17,
+              "Title": "script_detector.py",
+              "DocumentMoniker": "C:\\Users\\Eugen\\OneDrive\\Desktop\\happy_hippo\\discord_bot\\language_context\\detectors\\script_detector.py",
+              "RelativeDocumentMoniker": "discord_bot\\language_context\\detectors\\script_detector.py",
+              "ToolTip": "C:\\Users\\Eugen\\OneDrive\\Desktop\\happy_hippo\\discord_bot\\language_context\\detectors\\script_detector.py",
+              "RelativeToolTip": "discord_bot\\language_context\\detectors\\script_detector.py",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAA8AAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.002457|",
+              "WhenOpened": "2025-10-24T19:50:50.518Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 19,
+              "Title": "normalizer_rules.py",
+              "DocumentMoniker": "C:\\Users\\Eugen\\OneDrive\\Desktop\\happy_hippo\\discord_bot\\language_context\\normalizer_rules.py",
+              "RelativeDocumentMoniker": "discord_bot\\language_context\\normalizer_rules.py",
+              "ToolTip": "C:\\Users\\Eugen\\OneDrive\\Desktop\\happy_hippo\\discord_bot\\language_context\\normalizer_rules.py",
+              "RelativeToolTip": "discord_bot\\language_context\\normalizer_rules.py",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAABFAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.002457|",
+              "WhenOpened": "2025-10-24T19:51:46.644Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 20,
+              "Title": "tokenizer.py",
+              "DocumentMoniker": "C:\\Users\\Eugen\\OneDrive\\Desktop\\happy_hippo\\discord_bot\\language_context\\tokenizer.py",
+              "RelativeDocumentMoniker": "discord_bot\\language_context\\tokenizer.py",
+              "ToolTip": "C:\\Users\\Eugen\\OneDrive\\Desktop\\happy_hippo\\discord_bot\\language_context\\tokenizer.py",
+              "RelativeToolTip": "discord_bot\\language_context\\tokenizer.py",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAtAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.002457|",
+              "WhenOpened": "2025-10-24T19:52:03.116Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 21,
+              "Title": "context_engine.py",
+              "DocumentMoniker": "C:\\Users\\Eugen\\OneDrive\\Desktop\\happy_hippo\\discord_bot\\language_context\\context_engine.py",
+              "RelativeDocumentMoniker": "discord_bot\\language_context\\context_engine.py",
+              "ToolTip": "C:\\Users\\Eugen\\OneDrive\\Desktop\\happy_hippo\\discord_bot\\language_context\\context_engine.py",
+              "RelativeToolTip": "discord_bot\\language_context\\context_engine.py",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.002457|",
+              "WhenOpened": "2025-10-24T19:46:34.689Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 26,
+              "Title": "normalizer.py",
+              "DocumentMoniker": "C:\\Users\\Eugen\\OneDrive\\Desktop\\happy_hippo\\discord_bot\\language_context\\normalizer.py",
+              "RelativeDocumentMoniker": "discord_bot\\language_context\\normalizer.py",
+              "ToolTip": "C:\\Users\\Eugen\\OneDrive\\Desktop\\happy_hippo\\discord_bot\\language_context\\normalizer.py",
+              "RelativeToolTip": "discord_bot\\language_context\\normalizer.py",
+              "ViewState": "AgIAAE8BAAAAAAAAAAAuwH8BAAAOAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.002457|",
+              "WhenOpened": "2025-10-24T19:44:12.386Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 23,
+              "Title": "context_utils.py",
+              "DocumentMoniker": "C:\\Users\\Eugen\\OneDrive\\Desktop\\happy_hippo\\discord_bot\\language_context\\context_utils.py",
+              "RelativeDocumentMoniker": "discord_bot\\language_context\\context_utils.py",
+              "ToolTip": "C:\\Users\\Eugen\\OneDrive\\Desktop\\happy_hippo\\discord_bot\\language_context\\context_utils.py",
+              "RelativeToolTip": "discord_bot\\language_context\\context_utils.py",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.002457|",
+              "WhenOpened": "2025-10-24T19:24:37.532Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 22,
+              "Title": "context_models.py",
+              "DocumentMoniker": "C:\\Users\\Eugen\\OneDrive\\Desktop\\happy_hippo\\discord_bot\\language_context\\context_models.py",
+              "RelativeDocumentMoniker": "discord_bot\\language_context\\context_models.py",
+              "ToolTip": "C:\\Users\\Eugen\\OneDrive\\Desktop\\happy_hippo\\discord_bot\\language_context\\context_models.py",
+              "RelativeToolTip": "discord_bot\\language_context\\context_models.py",
+              "ViewState": "AgIAADkAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.002457|",
+              "WhenOpened": "2025-10-24T19:24:34.825Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 24,
+              "Title": "language_map.json",
+              "DocumentMoniker": "C:\\Users\\Eugen\\OneDrive\\Desktop\\happy_hippo\\discord_bot\\language_context\\language_map.json",
+              "RelativeDocumentMoniker": "discord_bot\\language_context\\language_map.json",
+              "ToolTip": "C:\\Users\\Eugen\\OneDrive\\Desktop\\happy_hippo\\discord_bot\\language_context\\language_map.json",
+              "RelativeToolTip": "discord_bot\\language_context\\language_map.json",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001642|",
+              "WhenOpened": "2025-10-24T19:24:34.007Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 25,
+              "Title": "translation_job.py",
+              "DocumentMoniker": "C:\\Users\\Eugen\\OneDrive\\Desktop\\happy_hippo\\discord_bot\\language_context\\translation_job.py",
+              "RelativeDocumentMoniker": "discord_bot\\language_context\\translation_job.py",
+              "ToolTip": "C:\\Users\\Eugen\\OneDrive\\Desktop\\happy_hippo\\discord_bot\\language_context\\translation_job.py",
+              "RelativeToolTip": "discord_bot\\language_context\\translation_job.py",
+              "ViewState": "AgIAACoAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.002457|",
+              "WhenOpened": "2025-10-24T19:24:33.202Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 27,
+              "Title": "translation_result_schema.json",
+              "DocumentMoniker": "C:\\Users\\Eugen\\OneDrive\\Desktop\\happy_hippo\\discord_bot\\language_context\\translation_result_schema.json",
+              "RelativeDocumentMoniker": "discord_bot\\language_context\\translation_result_schema.json",
+              "ToolTip": "C:\\Users\\Eugen\\OneDrive\\Desktop\\happy_hippo\\discord_bot\\language_context\\translation_result_schema.json",
+              "RelativeToolTip": "discord_bot\\language_context\\translation_result_schema.json",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001642|",
+              "WhenOpened": "2025-10-24T19:24:32.033Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 28,
+              "Title": "sanitize_encoding.py",
+              "DocumentMoniker": "C:\\Users\\Eugen\\OneDrive\\Desktop\\happy_hippo\\discord_bot\\scripts\\sanitize_encoding.py",
+              "RelativeDocumentMoniker": "discord_bot\\scripts\\sanitize_encoding.py",
+              "ToolTip": "C:\\Users\\Eugen\\OneDrive\\Desktop\\happy_hippo\\discord_bot\\scripts\\sanitize_encoding.py",
+              "RelativeToolTip": "discord_bot\\scripts\\sanitize_encoding.py",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.002457|",
+              "WhenOpened": "2025-10-24T19:24:24.406Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 29,
+              "Title": "validate_env.py",
+              "DocumentMoniker": "C:\\Users\\Eugen\\OneDrive\\Desktop\\happy_hippo\\discord_bot\\scripts\\validate_env.py",
+              "RelativeDocumentMoniker": "discord_bot\\scripts\\validate_env.py",
+              "ToolTip": "C:\\Users\\Eugen\\OneDrive\\Desktop\\happy_hippo\\discord_bot\\scripts\\validate_env.py",
+              "RelativeToolTip": "discord_bot\\scripts\\validate_env.py",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.002457|",
+              "WhenOpened": "2025-10-24T19:24:20.718Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 30,
+              "Title": "translation_cog.py",
+              "DocumentMoniker": "C:\\Users\\Eugen\\OneDrive\\Desktop\\happy_hippo\\discord_bot\\cogs\\translation_cog.py",
+              "RelativeDocumentMoniker": "discord_bot\\cogs\\translation_cog.py",
+              "ToolTip": "C:\\Users\\Eugen\\OneDrive\\Desktop\\happy_hippo\\discord_bot\\cogs\\translation_cog.py",
+              "RelativeToolTip": "discord_bot\\cogs\\translation_cog.py",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.002457|",
+              "WhenOpened": "2025-10-24T19:23:13.353Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 31,
+              "Title": "processing_engine.py",
+              "DocumentMoniker": "C:\\Users\\Eugen\\OneDrive\\Desktop\\happy_hippo\\discord_bot\\core\\engines\\processing_engine.py",
+              "RelativeDocumentMoniker": "discord_bot\\core\\engines\\processing_engine.py",
+              "ToolTip": "C:\\Users\\Eugen\\OneDrive\\Desktop\\happy_hippo\\discord_bot\\core\\engines\\processing_engine.py",
+              "RelativeToolTip": "discord_bot\\core\\engines\\processing_engine.py",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.002457|",
+              "WhenOpened": "2025-10-24T19:22:55.91Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 32,
+              "Title": "role_manager.py",
+              "DocumentMoniker": "C:\\Users\\Eugen\\OneDrive\\Desktop\\happy_hippo\\discord_bot\\core\\engines\\role_manager.py",
+              "RelativeDocumentMoniker": "discord_bot\\core\\engines\\role_manager.py",
+              "ToolTip": "C:\\Users\\Eugen\\OneDrive\\Desktop\\happy_hippo\\discord_bot\\core\\engines\\role_manager.py",
+              "RelativeToolTip": "discord_bot\\core\\engines\\role_manager.py",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.002457|",
+              "WhenOpened": "2025-10-24T19:22:55.168Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 34,
+              "Title": "translation_ui_engine.py",
+              "DocumentMoniker": "C:\\Users\\Eugen\\OneDrive\\Desktop\\happy_hippo\\discord_bot\\core\\engines\\translation_ui_engine.py",
+              "RelativeDocumentMoniker": "discord_bot\\core\\engines\\translation_ui_engine.py",
+              "ToolTip": "C:\\Users\\Eugen\\OneDrive\\Desktop\\happy_hippo\\discord_bot\\core\\engines\\translation_ui_engine.py",
+              "RelativeToolTip": "discord_bot\\core\\engines\\translation_ui_engine.py",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.002457|",
+              "WhenOpened": "2025-10-24T19:22:50.852Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 33,
+              "Title": "translation_orchestrator.py",
+              "DocumentMoniker": "C:\\Users\\Eugen\\OneDrive\\Desktop\\happy_hippo\\discord_bot\\core\\engines\\translation_orchestrator.py",
+              "RelativeDocumentMoniker": "discord_bot\\core\\engines\\translation_orchestrator.py",
+              "ToolTip": "C:\\Users\\Eugen\\OneDrive\\Desktop\\happy_hippo\\discord_bot\\core\\engines\\translation_orchestrator.py",
+              "RelativeToolTip": "discord_bot\\core\\engines\\translation_orchestrator.py",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.002457|",
+              "WhenOpened": "2025-10-24T19:22:49.435Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 35,
+              "Title": "personality_engine.py",
+              "DocumentMoniker": "C:\\Users\\Eugen\\OneDrive\\Desktop\\happy_hippo\\discord_bot\\core\\engines\\personality_engine.py",
+              "RelativeDocumentMoniker": "discord_bot\\core\\engines\\personality_engine.py",
+              "ToolTip": "C:\\Users\\Eugen\\OneDrive\\Desktop\\happy_hippo\\discord_bot\\core\\engines\\personality_engine.py",
+              "RelativeToolTip": "discord_bot\\core\\engines\\personality_engine.py",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.002457|",
+              "WhenOpened": "2025-10-24T19:22:48.13Z"
+            },
+            {
+              "$type": "Bookmark",
+              "Name": "ST:0:0:{cce594b6-0c39-4442-ba28-10c64ac7e89f}"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
