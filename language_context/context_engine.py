@@ -735,27 +735,9 @@ class ContextEngine:
             _logger.exception("_resolve_target_code: cache access failure")
             self._log_error(exc, context="_resolve_target_code")
         
-        # NEW: Check if user has language roles assigned
-        # This allows users who haven't set explicit preferences but have language roles
-        # to get translations without specifying target each time
-        if self.roles and hasattr(self.roles, "get_user_languages"):
-            try:
-                user_langs = self.roles.get_user_languages(user_id, guild_id)
-                # If it's a coroutine, we can't await here (sync method), so skip
-                if user_langs and not asyncio.iscoroutine(user_langs):
-                    if isinstance(user_langs, (list, tuple)) and len(user_langs) > 0:
-                        # Use first language role as target
-                        role_lang = user_langs[0]
-                        normalized = self._normalize_code(role_lang)
-                        _logger.debug(
-                            "Resolved target from user role for guild=%s user=%s -> %s",
-                            guild_id,
-                            user_id,
-                            normalized,
-                        )
-                        return self._apply_policy_target(normalized, policy)
-            except Exception as exc:
-                _logger.debug("Failed to get user languages from roles", exc_info=True)
+        # NOTE: get_user_languages is async but _resolve_target_code is sync
+        # Skip checking roles here to avoid unawaited coroutine warnings
+        # Callers should use async wrappers if they need role-based target resolution
         
         # Return "auto" instead of "en" to signal that no preference was found
         # This allows callers to prompt the user to specify a target

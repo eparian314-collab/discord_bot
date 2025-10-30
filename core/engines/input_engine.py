@@ -20,6 +20,8 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import logging
+import os
+import time
 from typing import Any, Dict, Optional, Set
 
 import discord
@@ -28,6 +30,7 @@ from discord.ext import commands
 from discord_bot.language_context.context_engine import ContextEngine
 from discord_bot.language_context.context_utils import safe_truncate
 from discord_bot.language_context.translation_job import TranslationJob
+from discord_bot.core.utils import find_sos_channel
 
 logger = logging.getLogger("hippo_bot.input_engine")
 
@@ -39,6 +42,9 @@ EMERGENCY_KEYWORDS: Dict[str, str] = {
 
 SOS_REACTION_EMOJI = "🆘"
 ROTATING_LIGHT = "🚨"
+
+# Rate limiting: Prevent SOS spam (one trigger per guild every 60 seconds)
+SOS_COOLDOWN_SECONDS = 60
 
 
 class InputEngine:
@@ -77,6 +83,7 @@ class InputEngine:
         self._bot_alert_channel_cache: Dict[int, Optional[int]] = {}
         self.active_mirror_pairs: Set[frozenset[int]] = set()
         self._sos_overrides: Dict[int, Dict[str, str]] = {}
+        self._sos_cooldowns: Dict[int, float] = {}  # guild_id -> last_trigger_timestamp
 
         logger.info("InputEngine initialised")
 
@@ -93,7 +100,12 @@ class InputEngine:
 
         await self._record_session_event(message, content)
 
-        # Emergency keyword detection
+        # Emergency keyword detection - but ignore if just mentioning SOS emoji
+        # Check if the message is ONLY the emoji (user explaining the feature)
+        if content == SOS_REACTION_EMOJI or content.strip() == "🆘":
+            logger.debug("Ignoring standalone SOS emoji (user explaining feature)")
+            return
+            
         emergency_payload = self._match_emergency_keyword(content, message.guild.id if message.guild else None)
         if emergency_payload:
             await self._trigger_sos(message, emergency_payload)
@@ -236,12 +248,43 @@ class InputEngine:
         return None
 
     async def _trigger_sos(self, message: discord.Message, mapped_msg: str) -> None:
+        guild_id = message.guild.id if message.guild else 0
+        if not guild_id:
+            return
+            
+        # Check cooldown to prevent spam
+        now = time.time()
+        last_trigger = self._sos_cooldowns.get(guild_id, 0)
+        if now - last_trigger < SOS_COOLDOWN_SECONDS:
+            remaining = int(SOS_COOLDOWN_SECONDS - (now - last_trigger))
+            logger.info(
+                "SOS cooldown active for guild %s (%d seconds remaining)",
+                guild_id, remaining
+            )
+            await message.channel.send(
+                f"⏳ SOS system on cooldown ({remaining}s remaining). Please wait before triggering again.",
+                delete_after=10
+            )
+            return
+        
+        # Update cooldown timestamp
+        self._sos_cooldowns[guild_id] = now
+        
         alert = f"{ROTATING_LIGHT} **SOS Triggered:** {mapped_msg}"
         try:
-            # Send alert in the channel
-            sent = await message.channel.send(alert)
-            with contextlib.suppress(Exception):
-                await sent.add_reaction(SOS_REACTION_EMOJI)
+            # Find dedicated SOS channel (or fallback to bot channel)
+            sos_channel = find_sos_channel(message.guild)
+            
+            if sos_channel:
+                # Send alert in the dedicated SOS channel
+                sent = await sos_channel.send(alert)
+                with contextlib.suppress(Exception):
+                    await sent.add_reaction(SOS_REACTION_EMOJI)
+            else:
+                # Fallback: send in trigger channel if no SOS channel found
+                sent = await message.channel.send(alert)
+                with contextlib.suppress(Exception):
+                    await sent.add_reaction(SOS_REACTION_EMOJI)
             
             # Send translated DMs to all users with language roles
             if message.guild:

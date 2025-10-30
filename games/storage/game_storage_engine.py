@@ -107,6 +107,28 @@ class GameStorageEngine:
                 UNIQUE(user_id, stat_type)
             );
             """)
+            
+            # Event reminders for Top Heroes coordination
+            self.conn.execute("""
+            CREATE TABLE IF NOT EXISTS event_reminders (
+                event_id TEXT PRIMARY KEY,
+                guild_id INTEGER NOT NULL,
+                title TEXT NOT NULL,
+                description TEXT,
+                category TEXT NOT NULL,
+                event_time_utc TEXT NOT NULL,
+                recurrence TEXT DEFAULT 'once',
+                custom_interval_hours INTEGER,
+                reminder_times TEXT,
+                channel_id INTEGER,
+                role_to_ping INTEGER,
+                created_by INTEGER,
+                is_active INTEGER DEFAULT 1,
+                auto_scraped INTEGER DEFAULT 0,
+                source_url TEXT,
+                created_at TEXT DEFAULT CURRENT_TIMESTAMP
+            );
+            """)
 
     def add_user(self, user_id: str) -> None:
         """Initialize a new user with default values."""
@@ -504,3 +526,95 @@ class GameStorageEngine:
             LIMIT ?
         """, (limit,))
         return [dict(row) for row in cursor.fetchall()]
+    
+    # Event Reminder Storage Methods
+    def store_event_reminder(self, event_data: Dict[str, Any]) -> bool:
+        """Store a new event reminder."""
+        try:
+            import json
+            with self.conn:
+                self.conn.execute("""
+                    INSERT INTO event_reminders (
+                        event_id, guild_id, title, description, category,
+                        event_time_utc, recurrence, custom_interval_hours,
+                        reminder_times, channel_id, role_to_ping, created_by,
+                        is_active, auto_scraped, source_url
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """, (
+                    event_data['event_id'],
+                    event_data['guild_id'],
+                    event_data['title'],
+                    event_data.get('description', ''),
+                    event_data['category'],
+                    event_data['event_time_utc'],
+                    event_data.get('recurrence', 'once'),
+                    event_data.get('custom_interval_hours'),
+                    json.dumps(event_data.get('reminder_times', [60, 15, 5])),
+                    event_data.get('channel_id'),
+                    event_data.get('role_to_ping'),
+                    event_data.get('created_by', 0),
+                    event_data.get('is_active', 1),
+                    event_data.get('auto_scraped', 0),
+                    event_data.get('source_url')
+                ))
+            return True
+        except Exception:
+            return False
+    
+    def update_event_reminder(self, event_id: str, updates: Dict[str, Any]) -> bool:
+        """Update an existing event reminder."""
+        try:
+            import json
+            set_clauses = []
+            values = []
+            
+            for key, value in updates.items():
+                if key == 'reminder_times' and isinstance(value, list):
+                    value = json.dumps(value)
+                set_clauses.append(f"{key} = ?")
+                values.append(value)
+            
+            if not set_clauses:
+                return False
+            
+            values.append(event_id)
+            with self.conn:
+                self.conn.execute(
+                    f"UPDATE event_reminders SET {', '.join(set_clauses)} WHERE event_id = ?",
+                    values
+                )
+            return True
+        except Exception:
+            return False
+    
+    def delete_event_reminder(self, event_id: str) -> bool:
+        """Delete an event reminder."""
+        try:
+            with self.conn:
+                self.conn.execute("DELETE FROM event_reminders WHERE event_id = ?", (event_id,))
+            return True
+        except Exception:
+            return False
+    
+    def get_event_reminders(self, guild_id: Optional[int] = None) -> List[Dict[str, Any]]:
+        """Get event reminders, optionally filtered by guild."""
+        import json
+        cursor = self.conn.cursor()
+        
+        if guild_id is not None:
+            cursor.execute("SELECT * FROM event_reminders WHERE guild_id = ?", (guild_id,))
+        else:
+            cursor.execute("SELECT * FROM event_reminders")
+        
+        results = []
+        for row in cursor.fetchall():
+            event = dict(row)
+            # Parse JSON reminder_times
+            if event.get('reminder_times'):
+                try:
+                    event['reminder_times'] = json.loads(event['reminder_times'])
+                except Exception:
+                    event['reminder_times'] = [60, 15, 5]
+            results.append(event)
+        
+        return results

@@ -66,8 +66,12 @@ class GameCog(commands.Cog):
         self.personality_engine = personality_engine
 
     async def _check_allowed_channel(self, interaction: discord.Interaction) -> bool:
-        """Check if command is used in an allowed channel."""
+        """Check if command is used in an allowed channel. Call BEFORE responding to interaction."""
         if not interaction.channel:
+            await interaction.response.send_message(
+                "🦛 I can only respond to game commands in designated channels!",
+                ephemeral=True
+            )
             return False
         
         if not is_allowed_channel(interaction.channel.id):
@@ -399,10 +403,6 @@ class GameCog(commands.Cog):
         
         # Post to followup (already deferred)
         await interaction.followup.send(embed=embed)
-        
-        # Also post to bot channel
-        if interaction.guild:
-            await self._post_to_bot_channel(interaction.guild, embed)
 
     @pokemon.command(name="catch", description="🎯 Attempt to catch a random Pokemon! (Costs 1 cookie)")
     async def catch(self, interaction: discord.Interaction) -> None:
@@ -454,15 +454,6 @@ class GameCog(commands.Cog):
                 embed.set_footer(text=f"Bonus: +{cookies} 🍪")
             
             await interaction.response.send_message(embed=embed)
-            
-            # Post public announcement to bot channel
-            if interaction.guild:
-                announcement_embed = discord.Embed(
-                    title="🎉 Pokemon Caught!",
-                    description=f"{interaction.user.mention} just caught a **{encounter.species.capitalize()}**! (Lv.{encounter.level})",
-                    color=discord.Color.green()
-                )
-                await self._post_to_bot_channel(interaction.guild, announcement_embed)
         else:
             # Failed
             if not caught:
@@ -525,15 +516,6 @@ class GameCog(commands.Cog):
                 embed.set_footer(text=f"Bonus: +{cookies} 🍪")
             
             await interaction.response.send_message(embed=embed)
-            
-            # Post public announcement to bot channel
-            if interaction.guild:
-                announcement_embed = discord.Embed(
-                    title="🎣 Pokemon Fished!",
-                    description=f"{interaction.user.mention} just fished up a **{encounter.species.capitalize()}**! (Lv.{encounter.level})",
-                    color=discord.Color.blue()
-                )
-                await self._post_to_bot_channel(interaction.guild, announcement_embed)
         else:
             count = self.storage.get_pokemon_count_by_species(user_id, encounter.species)
             if count >= 3:
@@ -593,15 +575,6 @@ class GameCog(commands.Cog):
                 embed.set_footer(text=f"Bonus: +{cookies} 🍪")
             
             await interaction.response.send_message(embed=embed)
-            
-            # Post public announcement to bot channel
-            if interaction.guild:
-                announcement_embed = discord.Embed(
-                    title="🌟 Rare Discovery!",
-                    description=f"{interaction.user.mention} discovered a rare **{encounter.species.capitalize()}**! (Lv.{encounter.level})",
-                    color=discord.Color.purple()
-                )
-                await self._post_to_bot_channel(interaction.guild, announcement_embed)
         else:
             count = self.storage.get_pokemon_count_by_species(user_id, encounter.species)
             if count >= 3:

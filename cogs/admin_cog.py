@@ -12,6 +12,7 @@ from discord_bot.core.utils import is_admin_or_helper
 if TYPE_CHECKING:
     from discord_bot.core.engines.admin_ui_engine import AdminUIEngine
     from discord_bot.games.storage.game_storage_engine import GameStorageEngine
+    from discord_bot.core.engines.cookie_manager import CookieManager
 
 
 class PermissionError(Exception):
@@ -38,11 +39,13 @@ class AdminCog(commands.Cog):
         ui_engine: Optional["AdminUIEngine"] = None,
         owners: Optional[Set[int]] = None,
         storage: Optional["GameStorageEngine"] = None,
+        cookie_manager: Optional["CookieManager"] = None,
     ) -> None:
         self.bot = bot
         self.ui = ui_engine  # retained for backwards compatibility / help text
         self.owners: Set[int] = set(owners or [])
         self.storage = storage  # For mute functionality
+        self.cookie_manager = cookie_manager  # For cookie rewards
         self._cache: Dict[int, Dict[str, str]] = {}
         self._denied = "You do not have permission to run this command."
         self.input_engine = getattr(bot, "input_engine", None)
@@ -335,11 +338,67 @@ class AdminCog(commands.Cog):
         except discord.HTTPException as e:
             await interaction.response.send_message(f"❌ Failed to unmute user: {e}", ephemeral=True)
 
+    # ------------------------------------------------------------------
+    # Admin/Helper Cookie Give Command
+    # ------------------------------------------------------------------
+    @admin.command(name="give", description="🎁 Give 1 cookie to a community member (once per day)")
+    @app_commands.describe(
+        member="The member to give a cookie to",
+        reason="Optional reason for giving the cookie"
+    )
+    async def admin_give_cookie(
+        self,
+        interaction: discord.Interaction,
+        member: discord.Member,
+        reason: Optional[str] = None
+    ) -> None:
+        """Allow admins/helpers to give a cookie to a user (once per day)."""
+        try:
+            self._ensure_permitted(interaction)
+        except PermissionError:
+            await self._deny(interaction)
+            return
+
+        if not interaction.guild:
+            await interaction.response.send_message("This command can only be used inside a server.", ephemeral=True)
+            return
+
+        # Prevent giving to self
+        if member == interaction.user:
+            await interaction.response.send_message("❌ You can't give a cookie to yourself!", ephemeral=True)
+            return
+
+        # Use cookie_manager if available, otherwise try storage directly
+        if self.cookie_manager:
+            # CookieManager doesn't have daily limits for admin giving - just award directly
+            awarded = self.cookie_manager.try_award_cookies(str(member.id), 'admin_gift', 'happy')
+            if awarded is None:
+                # Force award at least 1 cookie for admin gifts
+                awarded = 1
+                self.storage.add_cookies(str(member.id), awarded)
+            
+            reason_text = f" (Reason: {reason})" if reason else ""
+            await interaction.response.send_message(
+                f"✅ {member.mention} has received {awarded} cookie(s) from you!{reason_text}",
+                ephemeral=True
+            )
+        elif self.storage:
+            # Fallback to direct storage access
+            self.storage.add_cookies(str(member.id), 1)
+            reason_text = f" (Reason: {reason})" if reason else ""
+            await interaction.response.send_message(
+                f"✅ {member.mention} has received 1 cookie from you!{reason_text}",
+                ephemeral=True
+            )
+        else:
+            await interaction.response.send_message("❌ Cookie storage not available.", ephemeral=True)
+
 
 async def setup_admin_cog(
     bot: commands.Bot,
     ui_engine: Optional["AdminUIEngine"] = None,
     owners: Optional[Iterable[int]] = None,
     storage: Optional["GameStorageEngine"] = None,
+    cookie_manager: Optional["CookieManager"] = None,
 ) -> None:
-    await bot.add_cog(AdminCog(bot, ui_engine, set(owners or []), storage))
+    await bot.add_cog(AdminCog(bot, ui_engine, set(owners or []), storage, cookie_manager))
