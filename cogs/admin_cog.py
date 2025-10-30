@@ -12,6 +12,7 @@ from discord_bot.core.utils import is_admin_or_helper
 if TYPE_CHECKING:
     from discord_bot.core.engines.admin_ui_engine import AdminUIEngine
     from discord_bot.games.storage.game_storage_engine import GameStorageEngine
+    from discord_bot.core.engines.cookie_manager import CookieManager
 
 
 class PermissionError(Exception):
@@ -38,11 +39,13 @@ class AdminCog(commands.Cog):
         ui_engine: Optional["AdminUIEngine"] = None,
         owners: Optional[Set[int]] = None,
         storage: Optional["GameStorageEngine"] = None,
+        cookie_manager: Optional["CookieManager"] = None,
     ) -> None:
         self.bot = bot
         self.ui = ui_engine  # retained for backwards compatibility / help text
         self.owners: Set[int] = set(owners or [])
         self.storage = storage  # For mute functionality
+        self.cookie_manager = cookie_manager  # For cookie rewards
         self._cache: Dict[int, Dict[str, str]] = {}
         self._denied = "You do not have permission to run this command."
         self.input_engine = getattr(bot, "input_engine", None)
@@ -365,17 +368,23 @@ class AdminCog(commands.Cog):
             await interaction.response.send_message("❌ You can't give a cookie to yourself!", ephemeral=True)
             return
 
-        # Check daily limit (simple example, can be improved)
-        if self.storage:
-            from datetime import datetime
-            last_given = self.storage.get_last_cookie_given(str(interaction.user.id))
-            now = datetime.utcnow()
-            if last_given and (now - last_given).days < 1:
-                await interaction.response.send_message("❌ You can only give one cookie per day!", ephemeral=True)
-                return
-            # Give cookie
-            self.storage.add_cookie(str(member.id), 1)
-            self.storage.set_last_cookie_given(str(interaction.user.id), now)
+        # Use cookie_manager if available, otherwise try storage directly
+        if self.cookie_manager:
+            # CookieManager doesn't have daily limits for admin giving - just award directly
+            awarded = self.cookie_manager.try_award_cookies(str(member.id), 'admin_gift', 'happy')
+            if awarded is None:
+                # Force award at least 1 cookie for admin gifts
+                awarded = 1
+                self.storage.add_cookies(str(member.id), awarded)
+            
+            reason_text = f" (Reason: {reason})" if reason else ""
+            await interaction.response.send_message(
+                f"✅ {member.mention} has received {awarded} cookie(s) from you!{reason_text}",
+                ephemeral=True
+            )
+        elif self.storage:
+            # Fallback to direct storage access
+            self.storage.add_cookies(str(member.id), 1)
             reason_text = f" (Reason: {reason})" if reason else ""
             await interaction.response.send_message(
                 f"✅ {member.mention} has received 1 cookie from you!{reason_text}",
@@ -390,5 +399,6 @@ async def setup_admin_cog(
     ui_engine: Optional["AdminUIEngine"] = None,
     owners: Optional[Iterable[int]] = None,
     storage: Optional["GameStorageEngine"] = None,
+    cookie_manager: Optional["CookieManager"] = None,
 ) -> None:
-    await bot.add_cog(AdminCog(bot, ui_engine, set(owners or []), storage))
+    await bot.add_cog(AdminCog(bot, ui_engine, set(owners or []), storage, cookie_manager))

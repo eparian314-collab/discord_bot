@@ -21,6 +21,29 @@ def get_bot_channel_id() -> Optional[int]:
         return None
 
 
+def get_sos_channel_id() -> Optional[int]:
+    """
+    Get the configured SOS alert channel ID from environment variables.
+    Returns the first configured SOS channel if multiple are listed.
+    
+    Returns:
+        Channel ID if configured, None otherwise
+    """
+    raw = os.getenv("SOS_CHANNEL_ID", "")
+    if not raw:
+        return None
+    
+    # Handle comma-separated values, take the first one
+    first_channel = raw.split(",")[0].strip()
+    if not first_channel:
+        return None
+    
+    try:
+        return int(first_channel)
+    except ValueError:
+        return None
+
+
 def get_allowed_channel_ids() -> Set[int]:
     """
     Get all allowed interaction channel IDs from environment.
@@ -124,3 +147,42 @@ def find_bot_channel(guild: discord.Guild) -> Optional[discord.TextChannel]:
             return channel
     
     return None
+
+
+def find_sos_channel(guild: discord.Guild) -> Optional[discord.TextChannel]:
+    """
+    Find the SOS alert channel in a guild.
+    
+    Tries in order:
+    1. Configured SOS_CHANNEL_ID from environment
+    2. Channel named "sos", "sos-alerts", "emergency", or "alerts"
+    3. Falls back to bot channel
+    
+    Args:
+        guild: Discord guild to search in
+        
+    Returns:
+        TextChannel if found, None otherwise
+    """
+    me = guild.me
+
+    def can_send(channel: discord.TextChannel) -> bool:
+        perms = channel.permissions_for(me or guild.default_role)
+        return perms.send_messages
+
+    # First try configured SOS_CHANNEL_ID
+    channel_id = get_sos_channel_id()
+    if channel_id:
+        channel = guild.get_channel(channel_id)
+        if isinstance(channel, discord.TextChannel) and can_send(channel):
+            return channel
+
+    # Fallback: search by name
+    preferred_names = ("sos", "sos-alerts", "emergency", "alerts")
+    for name in preferred_names:
+        channel = discord.utils.get(guild.text_channels, name=name)
+        if channel and can_send(channel):
+            return channel
+
+    # Last fallback: use bot channel
+    return find_bot_channel(guild)

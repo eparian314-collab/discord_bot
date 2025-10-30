@@ -25,6 +25,7 @@ from typing import Optional, TYPE_CHECKING
 
 # Import GameCog to reference the shared cookies group
 from discord_bot.cogs.game_cog import GameCog
+from discord_bot.core.utils import find_bot_channel, is_allowed_channel
 
 if TYPE_CHECKING:
     from discord_bot.core.engines.relationship_manager import RelationshipManager
@@ -100,9 +101,31 @@ class EasterEggCog(commands.Cog):
         self.active_trivia = {}  # Track active trivia sessions
         self.active_riddles = {}  # Track active riddle sessions
 
+    async def _check_allowed_channel(self, interaction: discord.Interaction) -> bool:
+        """Check if command is used in bot channel only. Call BEFORE responding to interaction."""
+        if not interaction.channel:
+            await interaction.response.send_message(
+                "🦛 I can only respond to game and fun commands in the bot channel!",
+                ephemeral=True
+            )
+            return False
+        
+        if not is_allowed_channel(interaction.channel.id):
+            await interaction.response.send_message(
+                "🦛 I can only respond to game and fun commands in the bot channel! "
+                "Please use the designated bot channel.",
+                ephemeral=True
+            )
+            return False
+        return True
+
     @app_commands.command(name="easteregg", description="🎲 Trigger a random easter egg surprise!")
     async def easter_egg(self, interaction: discord.Interaction) -> None:
         """Random easter egg - could be anything!"""
+        # Check if in allowed channel
+        if not await self._check_allowed_channel(interaction):
+            return
+        
         user_id = str(interaction.user.id)
         
         # Check if user is muted (from spam detection)
@@ -228,6 +251,10 @@ class EasterEggCog(commands.Cog):
     @app_commands.describe(choice="Your choice: rock, paper, or scissors")
     async def rps(self, interaction: discord.Interaction, choice: str) -> None:
         """Play Rock-Paper-Scissors."""
+        # Check if in allowed channel
+        if not await self._check_allowed_channel(interaction):
+            return
+        
         user_id = str(interaction.user.id)
         choice = choice.lower()
         
@@ -248,32 +275,42 @@ class EasterEggCog(commands.Cog):
         user_emoji = self.RPS_EMOJIS[choice]
         bot_emoji = self.RPS_EMOJIS[bot_choice]
         
+        # RESPOND IMMEDIATELY to avoid timeout
+        if result == 'win':
+            message = f"{user_emoji} vs {bot_emoji}\n🎉 You won! *grumbles* 😒"
+        elif result == 'lose':
+            message = f"{user_emoji} vs {bot_emoji}\n😄 I won! Better luck next time!"
+        else:  # tie
+            message = f"{user_emoji} vs {bot_emoji}\n🤝 It's a tie! Let's go again!"
+        
+        await interaction.response.send_message(message)
+        
+        # Process personality/cookies AFTER responding
         if result == 'win':
             # User wins - bot gets grumpy, user gets cookies
             self.personality_engine.set_mood('grumpy')
             self.relationship_manager.record_interaction(user_id, 'rps_win')
             
             cookies = self.cookie_manager.try_award_cookies(user_id, 'rps_win', 'neutral')
-            
-            message = f"{user_emoji} vs {bot_emoji}\n🎉 You won! *grumbles* 😒"
             if cookies:
-                message += f"\n{self.personality_engine.get_cookie_reward_message(cookies, interaction.user.display_name)}"
+                cookie_msg = self.personality_engine.get_cookie_reward_message(cookies, interaction.user.display_name)
+                await interaction.followup.send(cookie_msg, ephemeral=True)
             
         elif result == 'lose':
             # Bot wins - bot gets happy
             self.personality_engine.set_mood('happy')
             self.relationship_manager.record_interaction(user_id, 'game_action')
-            message = f"{user_emoji} vs {bot_emoji}\n😄 I won! Better luck next time!"
             
         else:  # tie
             self.relationship_manager.record_interaction(user_id, 'game_action')
-            message = f"{user_emoji} vs {bot_emoji}\n🤝 It's a tie! Let's go again!"
-        
-        await interaction.response.send_message(message)
 
     @fun.command(name="joke", description="😂 Get a random joke!")
     async def joke(self, interaction: discord.Interaction) -> None:
         """Fetch a random joke."""
+        # Check if in allowed channel
+        if not await self._check_allowed_channel(interaction):
+            return
+        
         user_id = str(interaction.user.id)
         
         # Check if user is muted
@@ -317,6 +354,10 @@ class EasterEggCog(commands.Cog):
     @fun.command(name="catfact", description="🐱 Get a random cat fact!")
     async def cat_fact(self, interaction: discord.Interaction) -> None:
         """Fetch a random cat fact."""
+        # Check if in allowed channel
+        if not await self._check_allowed_channel(interaction):
+            return
+        
         user_id = str(interaction.user.id)
         
         # Check if user is muted
@@ -361,6 +402,10 @@ class EasterEggCog(commands.Cog):
     @app_commands.describe(location="City name or location")
     async def weather(self, interaction: discord.Interaction, location: str) -> None:
         """Fetch weather information."""
+        # Check if in allowed channel
+        if not await self._check_allowed_channel(interaction):
+            return
+        
         user_id = str(interaction.user.id)
         
         # Check if user is muted
@@ -405,6 +450,10 @@ class EasterEggCog(commands.Cog):
     @app_commands.describe(question="Your yes/no question")
     async def eight_ball(self, interaction: discord.Interaction, question: str) -> None:
         """Magic 8-ball responses."""
+        # Check if in allowed channel
+        if not await self._check_allowed_channel(interaction):
+            return
+        
         user_id = str(interaction.user.id)
         
         # Check if user is muted
@@ -448,6 +497,10 @@ class EasterEggCog(commands.Cog):
     @cookies.command(name="stats", description="📊 Check your cookie stats and daily limits")
     async def cookie_stats(self, interaction: discord.Interaction) -> None:
         """Display user's cookie statistics."""
+        # Check if in allowed channel
+        if not await self._check_allowed_channel(interaction):
+            return
+        
         user_id = str(interaction.user.id)
         
         # Get cookie balance
