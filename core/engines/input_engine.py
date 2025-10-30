@@ -20,6 +20,8 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import logging
+import os
+import time
 from typing import Any, Dict, Optional, Set
 
 import discord
@@ -28,6 +30,7 @@ from discord.ext import commands
 from discord_bot.language_context.context_engine import ContextEngine
 from discord_bot.language_context.context_utils import safe_truncate
 from discord_bot.language_context.translation_job import TranslationJob
+from discord_bot.core.utils import find_sos_channel
 
 logger = logging.getLogger("hippo_bot.input_engine")
 
@@ -39,6 +42,9 @@ EMERGENCY_KEYWORDS: Dict[str, str] = {
 
 SOS_REACTION_EMOJI = "🆘"
 ROTATING_LIGHT = "🚨"
+
+# Rate limiting: Prevent SOS spam (one trigger per guild every 60 seconds)
+SOS_COOLDOWN_SECONDS = 60
 
 
 class InputEngine:
@@ -77,8 +83,14 @@ class InputEngine:
         self._bot_alert_channel_cache: Dict[int, Optional[int]] = {}
         self.active_mirror_pairs: Set[frozenset[int]] = set()
         self._sos_overrides: Dict[int, Dict[str, str]] = {}
+        self._sos_cooldowns: Dict[int, float] = {}  # guild_id -> last_trigger_timestamp
+        self._processed_sos_messages: Set[int] = set()  # message_id tracking to prevent duplicates
+        self._sos_message_cleanup_task: Optional[asyncio.Task] = None
 
         logger.info("InputEngine initialised")
+        
+        # Start background task to clean up old message IDs
+        self._sos_message_cleanup_task = asyncio.create_task(self._cleanup_processed_messages())
 
     # ------------------------------------------------------------------
     # Public handlers
@@ -93,9 +105,21 @@ class InputEngine:
 
         await self._record_session_event(message, content)
 
-        # Emergency keyword detection
+        # Emergency keyword detection - but ignore if just mentioning SOS emoji
+        # Check if the message is ONLY the emoji (user explaining the feature)
+        if content == SOS_REACTION_EMOJI or content.strip() == "🆘":
+            logger.debug("Ignoring standalone SOS emoji (user explaining feature)")
+            return
+        
+        # Skip if we've already processed this message for SOS
+        if message.id in self._processed_sos_messages:
+            logger.debug("Skipping already processed message %s", message.id)
+            return
+            
         emergency_payload = self._match_emergency_keyword(content, message.guild.id if message.guild else None)
         if emergency_payload:
+            # Mark message as processed BEFORE triggering to prevent race conditions
+            self._processed_sos_messages.add(message.id)
             await self._trigger_sos(message, emergency_payload)
             return
 
@@ -236,12 +260,56 @@ class InputEngine:
         return None
 
     async def _trigger_sos(self, message: discord.Message, mapped_msg: str) -> None:
+        guild_id = message.guild.id if message.guild else 0
+        if not guild_id:
+            return
+            
+        # Check cooldown to prevent spam
+        now = time.time()
+        last_trigger = self._sos_cooldowns.get(guild_id, 0)
+        if now - last_trigger < SOS_COOLDOWN_SECONDS:
+            remaining = int(SOS_COOLDOWN_SECONDS - (now - last_trigger))
+            logger.info(
+                "SOS cooldown active for guild %s (%d seconds remaining)",
+                guild_id, remaining
+            )
+            # Send cooldown message to trigger channel
+            await message.channel.send(
+                f"⏳ SOS system on cooldown ({remaining}s remaining). Please wait before triggering again.",
+                delete_after=10
+            )
+            return
+        
+        # Update cooldown timestamp
+        self._sos_cooldowns[guild_id] = now
+        
         alert = f"{ROTATING_LIGHT} **SOS Triggered:** {mapped_msg}"
         try:
-            # Send alert in the channel
-            sent = await message.channel.send(alert)
-            with contextlib.suppress(Exception):
-                await sent.add_reaction(SOS_REACTION_EMOJI)
+            # Find dedicated SOS/bot channel (NEVER use trigger channel)
+            sos_channel = find_sos_channel(message.guild)
+            
+            if sos_channel:
+                # Send alert in the dedicated SOS/bot channel
+                logger.info(
+                    "Sending SOS alert to channel '%s' (ID: %s) in guild %s",
+                    sos_channel.name, sos_channel.id, guild_id
+                )
+                sent = await sos_channel.send(alert)
+                with contextlib.suppress(Exception):
+                    await sent.add_reaction(SOS_REACTION_EMOJI)
+            else:
+                # No bot channel found - log error and notify in trigger channel
+                logger.error(
+                    "No SOS/bot channel found for guild %s - cannot send alert! "
+                    "Please configure a 'bot-channel', 'sos', or 'alerts' channel.",
+                    guild_id
+                )
+                await message.channel.send(
+                    f"{ROTATING_LIGHT} **SOS Alert Error:** No bot channel configured! "
+                    "Please create a channel named 'bot-channel', 'sos', or 'alerts'.",
+                    delete_after=15
+                )
+                return
             
             # Send translated DMs to all users with language roles
             if message.guild:
@@ -360,6 +428,28 @@ class InputEngine:
     # ------------------------------------------------------------------
     # Session tracking
     # ------------------------------------------------------------------
+    async def _cleanup_processed_messages(self) -> None:
+        """
+        Background task to periodically clean up old message IDs from the tracking set.
+        Keeps memory usage bounded by removing IDs older than the cooldown period.
+        """
+        while True:
+            try:
+                await asyncio.sleep(300)  # Clean up every 5 minutes
+                
+                # Clear all message IDs since they're now outside cooldown window
+                # (messages are only tracked during active cooldown period)
+                if self._processed_sos_messages:
+                    count = len(self._processed_sos_messages)
+                    self._processed_sos_messages.clear()
+                    logger.debug("Cleaned up %d processed message IDs", count)
+            except asyncio.CancelledError:
+                logger.info("SOS message cleanup task cancelled")
+                break
+            except Exception as exc:
+                logger.exception("Error in cleanup task: %s", exc)
+                await asyncio.sleep(60)  # Wait a bit before retrying
+
     async def _record_session_event(self, message: discord.Message, content: str) -> None:
         if not self.session_memory:
             return
