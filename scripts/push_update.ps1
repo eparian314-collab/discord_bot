@@ -13,7 +13,8 @@ if (Test-Path $venvPath) {
     Write-Host "⚠️  No virtual environment found at $venvPath"
 }
 
-# Stage all changes
+# Stage all changes                      RUN WITH ---> .\data\scripts\push_update.ps1
+
 git add .
 
 # Create timestamped commit message

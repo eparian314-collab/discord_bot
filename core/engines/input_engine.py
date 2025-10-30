@@ -314,8 +314,49 @@ class InputEngine:
             # Send translated DMs to all users with language roles
             if message.guild:
                 await self._send_sos_dms(message.guild, mapped_msg, message.author)
+
+            # Delete the triggering message to prevent retriggers
+            try:
+                await message.delete()
+                logger.info(f"Deleted SOS-triggering message {message.id} in guild {guild_id}.")
+            except Exception as exc:
+                logger.warning(f"Failed to delete SOS-triggering message {message.id}: {exc}")
+
+            # Log to modlog channel if configured
+            import os
+            modlog_channel_id = os.getenv("MODLOG_CHANNEL_ID")
+            if modlog_channel_id:
+                modlog_channel = None
+                try:
+                    modlog_channel = message.guild.get_channel(int(modlog_channel_id))
+                except Exception:
+                    modlog_channel = None
+                if modlog_channel:
+                    log_msg = (
+                        f"🛡️ [MODLOG] Deleted SOS-triggering message from {message.author.mention} in #{message.channel.name} (ID: {message.id}).\n"
+                        f"Content: {message.content}"
+                    )
+                    await modlog_channel.send(log_msg)
+                else:
+                    logger.warning(f"MODLOG_CHANNEL_ID set but channel not found in guild {guild_id}.")
+
+            # Explicitly clear SOS-related context/cache after completion
+            self._clear_sos_context(guild_id)
+            logger.info(f"Cleared SOS context for guild {guild_id} after SOS completion.")
         except Exception as exc:
             await self._log_error(exc, context="trigger_sos")
+    def _clear_sos_context(self, guild_id: int) -> None:
+        """Clear SOS-related cache/context for a guild."""
+        # Clear overrides
+        if guild_id in self._sos_overrides:
+            del self._sos_overrides[guild_id]
+        # Clear cooldown
+        if guild_id in self._sos_cooldowns:
+            del self._sos_cooldowns[guild_id]
+        # Clear processed messages
+        if hasattr(self, '_processed_sos_messages'):
+            self._processed_sos_messages.clear()
+        logger.info(f"SOS context cleared for guild {guild_id} (overrides, cooldowns, processed messages)")
 
     async def _send_sos_dms(
         self, guild: discord.Guild, sos_message: str, sender: discord.User
@@ -420,7 +461,13 @@ class InputEngine:
     # SOS configuration (managed by SOSPhraseCog)
     # ------------------------------------------------------------------
     def set_sos_mapping(self, guild_id: int, mapping: Dict[str, str]) -> None:
-        self._sos_overrides[guild_id] = {k.lower(): v for k, v in mapping.items()}
+        if not mapping:
+            # If mapping is empty, clear all SOS context for this guild
+            self._clear_sos_context(guild_id)
+            logger.info(f"SOS mapping cleared for guild {guild_id} via set_sos_mapping.")
+        else:
+            self._sos_overrides[guild_id] = {k.lower(): v for k, v in mapping.items()}
+            logger.info(f"SOS mapping set for guild {guild_id}: {self._sos_overrides[guild_id]}")
 
     def get_sos_mapping(self, guild_id: int) -> Dict[str, str]:
         return dict(self._sos_overrides.get(guild_id, {}))
