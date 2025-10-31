@@ -1,14 +1,3 @@
-"""
-HippoBot entry point.
-
-Environment:
-    set DISCORD_TOKEN=...
-    set OWNER_IDS=1234567890,9876543210  (optional)
-    set TEST_GUILDS=111222222222         (optional)
-
-Run:
-    python -m discord_bot.main
-"""
 from __future__ import annotations
 
 import asyncio

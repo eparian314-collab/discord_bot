@@ -5,20 +5,26 @@ from typing import Optional, Set
 import discord
 
 
-def get_bot_channel_id() -> Optional[int]:
+def get_bot_channel_ids() -> Set[int]:
     """
-    Get the configured bot channel ID from environment variables.
+    Get the configured bot channel IDs from environment variables.
     
     Returns:
-        Channel ID if configured, None otherwise
+        A set of channel IDs if configured, an empty set otherwise.
     """
     raw = os.getenv("BOT_CHANNEL_ID", "")
     if not raw:
-        return None
-    try:
-        return int(raw.strip())
-    except ValueError:
-        return None
+        return set()
+    
+    channel_ids = set()
+    for token in raw.split(","):
+        token = token.strip()
+        if token:
+            try:
+                channel_ids.add(int(token))
+            except ValueError:
+                pass  # Ignore invalid entries
+    return channel_ids
 
 
 def get_sos_channel_id() -> Optional[int]:
@@ -71,21 +77,20 @@ def get_allowed_channel_ids() -> Set[int]:
                     pass
         return allowed_ids
     
-    # Fallback: read individual channel IDs for backwards compatibility
-    for env_key in ["GENERAL_CHANNEL_ID", "MEMBERSHIP_CHANNEL_ID"]:
-        raw = os.getenv(env_key, "")
-        if raw:
-            try:
-                allowed_ids.add(int(raw.strip()))
-            except ValueError:
-                pass
-    
+    # New fallback: check for specific channel names
+    guild = discord.utils.get(discord.Client().guilds)  # Get the first guild (adjust as needed)
+    if guild:
+        for name in ["bot-channel", "fun-games-with-our-bot-friend"]:
+            channel = discord.utils.get(guild.text_channels, name=name)
+            if channel:
+                allowed_ids.add(channel.id)
+
     return allowed_ids
 
 
 def is_allowed_channel(channel_id: int) -> bool:
     """
-    Check if a channel is in the allowed channels list.
+    Check if a channel is in the allowed channels list to use / commands in.
     
     If no allowed channels are configured, returns True (allow all channels).
     
@@ -106,7 +111,7 @@ def find_bot_channel(guild: discord.Guild) -> Optional[discord.TextChannel]:
     Find the bot announcement channel in a guild.
     
     Tries in order:
-    1. Configured BOT_CHANNEL_ID from environment
+    1. Configured BOT_CHANNEL_ID(s) from environment
     2. Channel named "bot", "bots", "bot-commands", or "commands"
     3. System channel
     4. First available text channel with send permissions
@@ -123,9 +128,9 @@ def find_bot_channel(guild: discord.Guild) -> Optional[discord.TextChannel]:
         perms = channel.permissions_for(me or guild.default_role)
         return perms.send_messages
 
-    # First try configured BOT_CHANNEL_ID
-    channel_id = get_bot_channel_id()
-    if channel_id:
+    # First try configured BOT_CHANNEL_ID(s)
+    channel_ids = get_bot_channel_ids()
+    for channel_id in channel_ids:
         channel = guild.get_channel(channel_id)
         if isinstance(channel, discord.TextChannel) and can_send(channel):
             return channel
@@ -148,41 +153,11 @@ def find_bot_channel(guild: discord.Guild) -> Optional[discord.TextChannel]:
     
     return None
 
-
 def find_sos_channel(guild: discord.Guild) -> Optional[discord.TextChannel]:
     """
-    Find the SOS alert channel in a guild.
-    
-    Tries in order:
-    1. Configured SOS_CHANNEL_ID from environment
-    2. Channel named "sos", "sos-alerts", "emergency", or "alerts"
-    3. Falls back to bot channel
-    
-    Args:
-        guild: Discord guild to search in
-        
-    Returns:
-        TextChannel if found, None otherwise
+    Temporarily route SOS alerts to the bot channel for testing.
     """
-    me = guild.me
+    return find_bot_channel(guild)    
+    
 
-    def can_send(channel: discord.TextChannel) -> bool:
-        perms = channel.permissions_for(me or guild.default_role)
-        return perms.send_messages
-
-    # First try configured SOS_CHANNEL_ID
-    channel_id = get_sos_channel_id()
-    if channel_id:
-        channel = guild.get_channel(channel_id)
-        if isinstance(channel, discord.TextChannel) and can_send(channel):
-            return channel
-
-    # Fallback: search by name
-    preferred_names = ("sos", "sos-alerts", "emergency", "alerts")
-    for name in preferred_names:
-        channel = discord.utils.get(guild.text_channels, name=name)
-        if channel and can_send(channel):
-            return channel
-
-    # Last fallback: use bot channel
-    return find_bot_channel(guild)
+    
