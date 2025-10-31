@@ -9,9 +9,7 @@ from .role_utils import (
 )
 from .channel_utils import (
     get_bot_channel_ids,  # Updated from get_bot_channel_id
-    get_sos_channel_id,
     find_bot_channel,
-    find_sos_channel,
     get_allowed_channel_ids,
     is_allowed_channel,
 )
@@ -23,9 +21,7 @@ __all__ = [
     "is_admin_or_helper",
     "get_helper_role_id",
     "get_bot_channel_ids",  # Updated from get_bot_channel_id
-    "get_sos_channel_id",
     "find_bot_channel",
-    "find_sos_channel",
     "get_allowed_channel_ids",
     "is_allowed_channel",
 ]

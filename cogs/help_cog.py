@@ -7,14 +7,13 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 
-from discord_bot.core.utils import is_admin_or_helper
+from discord_bot.core.utils import find_bot_channel, is_admin_or_helper
 
 
 class HelpCog(commands.Cog):
     def __init__(self, bot: commands.Bot) -> None:
         self.bot = bot
         self._welcome_channel_overrides = self._load_channel_overrides()
-        self._default_welcome_channel = self._load_default_channel()
 
     # -----------------
     # Internal helpers
@@ -159,19 +158,6 @@ class HelpCog(commands.Cog):
         return embed
 
     @staticmethod
-    def _load_default_channel() -> Optional[int]:
-        # Try BOT_CHANNEL_ID first, fallback to WELCOME_CHANNEL_ID
-        raw = os.getenv("BOT_CHANNEL_ID", "")
-        if not raw:
-            raw = os.getenv("WELCOME_CHANNEL_ID", "")
-        if not raw:
-            return None
-        try:
-            return int(raw.strip())
-        except ValueError:
-            return None
-
-    @staticmethod
     def _load_channel_overrides() -> dict[int, int]:
         raw = os.getenv("WELCOME_CHANNEL_IDS", "")
         overrides: dict[int, int] = {}
@@ -202,8 +188,6 @@ class HelpCog(commands.Cog):
 
         # First try configured BOT_CHANNEL_ID
         channel_id = self._welcome_channel_overrides.get(guild.id)
-        if channel_id is None:
-            channel_id = self._default_welcome_channel
         if channel_id:
             channel = guild.get_channel(channel_id)
             if isinstance(channel, discord.TextChannel) and can_send(channel):
@@ -216,13 +200,7 @@ class HelpCog(commands.Cog):
             if channel and can_send(channel):
                 return channel
 
-        if guild.system_channel and can_send(guild.system_channel):
-            return guild.system_channel
-
-        for channel in guild.text_channels:
-            if can_send(channel):
-                return channel
-        return None
+        return find_bot_channel(guild)
 
     async def _send_welcome(self, guild: discord.Guild, *, mention: Optional[discord.abc.User] = None) -> bool:
         channel = self._find_bot_channel(guild)

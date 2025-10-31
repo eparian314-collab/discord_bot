@@ -1,11 +1,13 @@
 import discord
 from discord.ext import commands
-from discord_bot.core.storage.storage_engine import StorageEngine
+
+from discord_bot.games.storage.game_storage_engine import GameStorageEngine
+
 
 class TrainingCog(commands.Cog):
-    def __init__(self, bot):
+    def __init__(self, bot: commands.Bot, storage: GameStorageEngine | None = None):
         self.bot = bot
-        self.storage = StorageEngine()
+        self.storage = storage or getattr(bot, "game_storage", GameStorageEngine())
 
     @commands.slash_command(name="train", description="Train your Pokémon by feeding cookies.")
     async def train(self, ctx, pokemon_name: str):

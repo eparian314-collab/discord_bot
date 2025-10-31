@@ -48,7 +48,7 @@ class CookieManager:
     STAMINA_COSTS = {
         'catch': 1,         # Catching Pokemon - basic action
         'fish': 1,          # Fishing for Pokemon - basic action
-        'explore': 1,       # Exploring for rare Pokemon - expensive
+        'explore': 3,       # Exploring for rare Pokemon - expensive
         'train': 2,         # Training Pokemon - medium cost
         'battle': 2,        # Pokemon battles - expensive (future)
         'evolve': 5,        # Evolution - most expensive

@@ -1,53 +1,37 @@
 """Utility functions for Discord channel management."""
 
+import logging
 import os
-from typing import Optional, Set
+from typing import List, Optional, Set
 import discord
 
 
-def get_bot_channel_ids() -> Set[int]:
+def get_bot_channel_ids() -> List[int]:
     """
-    Get the configured bot channel IDs from environment variables.
+    Get bot channel IDs in priority order as configured in environment variables.
     
     Returns:
-        A set of channel IDs if configured, an empty set otherwise.
+        Ordered list of channel IDs (first entry treated as primary).
     """
     raw = os.getenv("BOT_CHANNEL_ID", "")
     if not raw:
-        return set()
+        return []
     
-    channel_ids = set()
-    for token in raw.split(","):
+    channel_ids: List[int] = []
+    seen: Set[int] = set()
+    for token in raw.replace(";", ",").split(","):
         token = token.strip()
-        if token:
-            try:
-                channel_ids.add(int(token))
-            except ValueError:
-                pass  # Ignore invalid entries
+        if not token:
+            continue
+        try:
+            channel_id = int(token)
+        except ValueError:
+            continue
+        if channel_id in seen:
+            continue
+        channel_ids.append(channel_id)
+        seen.add(channel_id)
     return channel_ids
-
-
-def get_sos_channel_id() -> Optional[int]:
-    """
-    Get the configured SOS alert channel ID from environment variables.
-    Returns the first configured SOS channel if multiple are listed.
-    
-    Returns:
-        Channel ID if configured, None otherwise
-    """
-    raw = os.getenv("SOS_CHANNEL_ID", "")
-    if not raw:
-        return None
-    
-    # Handle comma-separated values, take the first one
-    first_channel = raw.split(",")[0].strip()
-    if not first_channel:
-        return None
-    
-    try:
-        return int(first_channel)
-    except ValueError:
-        return None
 
 
 def get_allowed_channel_ids() -> Set[int]:
@@ -130,34 +114,50 @@ def find_bot_channel(guild: discord.Guild) -> Optional[discord.TextChannel]:
 
     # First try configured BOT_CHANNEL_ID(s)
     channel_ids = get_bot_channel_ids()
+    candidates: List[str] = []
     for channel_id in channel_ids:
         channel = guild.get_channel(channel_id)
-        if isinstance(channel, discord.TextChannel) and can_send(channel):
-            return channel
+        if isinstance(channel, discord.TextChannel):
+            if can_send(channel):
+                return channel
+            candidates.append(f"#{channel.name}")
+        else:
+            candidates.append(str(channel_id))
 
     # Fallback: search by name
     preferred_names = ("bot", "bots", "bot-commands", "commands")
     for name in preferred_names:
         channel = discord.utils.get(guild.text_channels, name=name)
-        if channel and can_send(channel):
-            return channel
+        if channel:
+            if can_send(channel):
+                return channel
+            candidates.append(f"#{channel.name}")
+        else:
+            candidates.append(name)
 
     # System channel fallback
-    if guild.system_channel and can_send(guild.system_channel):
-        return guild.system_channel
+    if guild.system_channel:
+        if can_send(guild.system_channel):
+            return guild.system_channel
+        candidates.append(f"#{guild.system_channel.name}")
 
     # Last resort: first available channel
     for channel in guild.text_channels:
         if can_send(channel):
             return channel
     
+    if not candidates:
+        logging.warning(
+            "find_bot_channel: no candidate channels found in guild %s (%s)",
+            guild.id,
+            guild.name,
+        )
+    else:
+        logging.warning(
+            "find_bot_channel: no send permissions for candidates %s in guild %s (%s)",
+            ", ".join(candidates),
+            guild.id,
+            guild.name,
+        )
+
     return None
-
-def find_sos_channel(guild: discord.Guild) -> Optional[discord.TextChannel]:
-    """
-    Temporarily route SOS alerts to the bot channel for testing.
-    """
-    return find_bot_channel(guild)    
-    
-
-    

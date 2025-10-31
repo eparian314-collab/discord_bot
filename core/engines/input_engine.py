@@ -30,7 +30,7 @@ from discord.ext import commands
 from discord_bot.language_context.context_engine import ContextEngine
 from discord_bot.language_context.context_utils import safe_truncate
 from discord_bot.language_context.translation_job import TranslationJob
-from discord_bot.core.utils import find_sos_channel
+from discord_bot.core.utils import find_bot_channel
 
 logger = logging.getLogger("hippo_bot.input_engine")
 
@@ -89,13 +89,27 @@ class InputEngine:
 
         logger.info("InputEngine initialised")
         
-        # Start background task to clean up old message IDs
-        self._sos_message_cleanup_task = asyncio.create_task(self._cleanup_processed_messages())
+        # Start background task to clean up old message IDs (if an event loop is running)
+        self._ensure_cleanup_task()
 
     # ------------------------------------------------------------------
     # Public handlers
     # ------------------------------------------------------------------
+    def _ensure_cleanup_task(self) -> None:
+        """Start the SOS cleanup task when an event loop is available."""
+        if self._sos_message_cleanup_task and not self._sos_message_cleanup_task.done():
+            return
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            # No running loop (e.g. during unit tests) - defer startup until later
+            return
+        self._sos_message_cleanup_task = loop.create_task(self._cleanup_processed_messages())
+
     async def handle_message(self, message: discord.Message) -> None:
+        # Ensure deferred cleanup task starts once we are inside an event loop
+        self._ensure_cleanup_task()
+
         if message.author.bot:
             return
 
@@ -133,6 +147,8 @@ class InputEngine:
 
     async def handle_raw_reaction_add(self, payload: discord.RawReactionActionEvent) -> None:
         """Optional hook invoked when bot listens to reaction events."""
+        self._ensure_cleanup_task()
+
         if str(payload.emoji) != SOS_REACTION_EMOJI:
             return
         channel = self.bot.get_channel(payload.channel_id)
@@ -260,8 +276,14 @@ class InputEngine:
         return None
 
     async def _trigger_sos(self, message: discord.Message, mapped_msg: str) -> None:
-        guild_id = message.guild.id if message.guild else 0
+        guild = message.guild
+        guild_id = guild.id if guild else None
         if not guild_id:
+            # No guild context (e.g. DM) - still acknowledge the SOS locally
+            try:
+                await message.channel.send(f"{ROTATING_LIGHT} **SOS Triggered:** {mapped_msg}")
+            except Exception as exc:
+                logger.warning("Failed to send SOS alert in DM context: %s", exc)
             return
             
         # Check cooldown to prevent spam
@@ -285,16 +307,16 @@ class InputEngine:
         
         alert = f"{ROTATING_LIGHT} **SOS Triggered:** {mapped_msg}"
         try:
-            # Find dedicated SOS/bot channel (NEVER use trigger channel)
-            sos_channel = find_sos_channel(message.guild)
-            
-            if sos_channel:
-                # Send alert in the dedicated SOS/bot channel
+            # Route alerts through the configured bot channel
+            bot_channel = find_bot_channel(guild)
+
+            if bot_channel:
+                # Send alert in the bot channel
                 logger.info(
                     "Sending SOS alert to channel '%s' (ID: %s) in guild %s",
-                    sos_channel.name, sos_channel.id, guild_id
+                    bot_channel.name, bot_channel.id, guild_id
                 )
-                sent = await sos_channel.send(alert)
+                sent = await bot_channel.send(alert)
                 with contextlib.suppress(Exception):
                     await sent.add_reaction(SOS_REACTION_EMOJI)
             else:
@@ -312,8 +334,8 @@ class InputEngine:
                 return
             
             # Send translated DMs to all users with language roles
-            if message.guild:
-                await self._send_sos_dms(message.guild, mapped_msg, message.author)
+            if guild:
+                await self._send_sos_dms(guild, mapped_msg, message.author)
 
             # Delete the triggering message to prevent retriggers
             try:
@@ -328,7 +350,7 @@ class InputEngine:
             if modlog_channel_id:
                 modlog_channel = None
                 try:
-                    modlog_channel = message.guild.get_channel(int(modlog_channel_id))
+                    modlog_channel = guild.get_channel(int(modlog_channel_id)) if guild else None
                 except Exception:
                     modlog_channel = None
                 if modlog_channel:
@@ -340,23 +362,31 @@ class InputEngine:
                 else:
                     logger.warning(f"MODLOG_CHANNEL_ID set but channel not found in guild {guild_id}.")
 
-            # Explicitly clear SOS-related context/cache after completion
-            self._clear_sos_context(guild_id)
-            logger.info(f"Cleared SOS context for guild {guild_id} after SOS completion.")
         except Exception as exc:
             await self._log_error(exc, context="trigger_sos")
-    def _clear_sos_context(self, guild_id: int) -> None:
+
+    def _clear_sos_context(
+        self,
+        guild_id: int,
+        *,
+        reset_keywords: bool = True,
+        reset_cooldown: bool = True,
+        reset_processed_messages: bool = False,
+    ) -> None:
         """Clear SOS-related cache/context for a guild."""
-        # Clear overrides
-        if guild_id in self._sos_overrides:
+        if reset_keywords and guild_id in self._sos_overrides:
             del self._sos_overrides[guild_id]
-        # Clear cooldown
-        if guild_id in self._sos_cooldowns:
+        if reset_cooldown and guild_id in self._sos_cooldowns:
             del self._sos_cooldowns[guild_id]
-        # Clear processed messages
-        if hasattr(self, '_processed_sos_messages'):
+        if reset_processed_messages and self._processed_sos_messages:
             self._processed_sos_messages.clear()
-        logger.info(f"SOS context cleared for guild {guild_id} (overrides, cooldowns, processed messages)")
+        logger.info(
+            "SOS context cleared for guild %s (keywords=%s, cooldown=%s, processed=%s)",
+            guild_id,
+            reset_keywords,
+            reset_cooldown,
+            reset_processed_messages,
+        )
 
     async def _send_sos_dms(
         self, guild: discord.Guild, sos_message: str, sender: discord.User
@@ -463,7 +493,7 @@ class InputEngine:
     def set_sos_mapping(self, guild_id: int, mapping: Dict[str, str]) -> None:
         if not mapping:
             # If mapping is empty, clear all SOS context for this guild
-            self._clear_sos_context(guild_id)
+            self._clear_sos_context(guild_id, reset_processed_messages=True)
             logger.info(f"SOS mapping cleared for guild {guild_id} via set_sos_mapping.")
         else:
             self._sos_overrides[guild_id] = {k.lower(): v for k, v in mapping.items()}

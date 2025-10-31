@@ -1,6 +1,8 @@
 import sqlite3
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Optional, List, Dict, Any
+
+from discord_bot.core.engines.screenshot_processor import RankingData, StageType, RankingCategory
 
 class GameStorageEngine:
     def __init__(self, db_path="game_data.db"):
@@ -127,6 +129,60 @@ class GameStorageEngine:
                 auto_scraped INTEGER DEFAULT 0,
                 source_url TEXT,
                 created_at TEXT DEFAULT CURRENT_TIMESTAMP
+            );
+            """)
+
+            # Event rankings for Top Heroes coordination
+            self.conn.execute("""
+            CREATE TABLE IF NOT EXISTS event_rankings (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id TEXT NOT NULL,
+                username TEXT NOT NULL,
+                guild_id TEXT,
+                guild_tag TEXT,
+                player_name TEXT,
+                event_week TEXT NOT NULL,
+                stage_type TEXT NOT NULL,
+                day_number INTEGER,
+                category TEXT NOT NULL,
+                rank INTEGER NOT NULL,
+                score INTEGER NOT NULL,
+                submitted_at TEXT NOT NULL,
+                screenshot_url TEXT,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(user_id, guild_id, event_week, stage_type, day_number)
+            );
+            """)
+
+            # Indexes for fast ranking lookups
+            self.conn.execute("""
+            CREATE INDEX IF NOT EXISTS idx_rankings_user 
+            ON event_rankings(user_id, guild_id);
+            """)
+            self.conn.execute("""
+            CREATE INDEX IF NOT EXISTS idx_rankings_guild_stage 
+            ON event_rankings(guild_id, stage_type, day_number);
+            """)
+            self.conn.execute("""
+            CREATE INDEX IF NOT EXISTS idx_rankings_guild_tag 
+            ON event_rankings(guild_tag);
+            """)
+            self.conn.execute("""
+            CREATE INDEX IF NOT EXISTS idx_rankings_event_week 
+            ON event_rankings(event_week, guild_id);
+            """)
+
+            # Submission log for ranking processing
+            self.conn.execute("""
+            CREATE TABLE IF NOT EXISTS event_submissions (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id TEXT NOT NULL,
+                guild_id TEXT,
+                submitted_at TEXT NOT NULL,
+                status TEXT NOT NULL,
+                error_message TEXT,
+                ranking_id INTEGER,
+                FOREIGN KEY(ranking_id) REFERENCES event_rankings(id)
             );
             """)
 
@@ -618,3 +674,273 @@ class GameStorageEngine:
             results.append(event)
         
         return results
+
+    # Event Rankings Management
+    def save_event_ranking(self, ranking: RankingData) -> int:
+        """Persist a ranking entry and return its row ID."""
+        with self.conn:
+            cursor = self.conn.execute(
+                """
+                INSERT INTO event_rankings (
+                    user_id, username, guild_id, guild_tag, player_name,
+                    event_week, stage_type, day_number, category,
+                    rank, score, submitted_at, screenshot_url
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    ranking.user_id,
+                    ranking.username,
+                    ranking.guild_id,
+                    ranking.guild_tag,
+                    ranking.player_name,
+                    ranking.event_week,
+                    ranking.stage_type.value,
+                    ranking.day_number,
+                    ranking.category.value,
+                    ranking.rank,
+                    ranking.score,
+                    ranking.submitted_at.isoformat(),
+                    ranking.screenshot_url,
+                ),
+            )
+        return cursor.lastrowid
+
+    def check_duplicate_event_submission(
+        self,
+        user_id: str,
+        guild_id: str,
+        event_week: str,
+        stage_type: StageType,
+        day_number: int,
+    ) -> Optional[Dict[str, Any]]:
+        """Return existing ranking if user already submitted for the same slot."""
+        cursor = self.conn.cursor()
+        cursor.execute(
+            """
+            SELECT * FROM event_rankings
+            WHERE user_id = ? AND guild_id = ? AND event_week = ?
+              AND stage_type = ? AND day_number = ?
+            LIMIT 1
+            """,
+            (user_id, guild_id, event_week, stage_type.value, day_number),
+        )
+        row = cursor.fetchone()
+        return dict(row) if row else None
+
+    def update_event_ranking(
+        self,
+        ranking_id: int,
+        rank: int,
+        score: int,
+        screenshot_url: Optional[str] = None,
+    ) -> bool:
+        """Update rank/score metadata for an existing ranking."""
+        with self.conn:
+            cursor = self.conn.execute(
+                """
+                UPDATE event_rankings
+                   SET rank = ?, score = ?, screenshot_url = ?, submitted_at = ?
+                 WHERE id = ?
+                """,
+                (rank, score, screenshot_url, datetime.utcnow().isoformat(), ranking_id),
+            )
+        return cursor.rowcount > 0
+
+    def get_user_event_rankings(
+        self,
+        user_id: str,
+        guild_id: Optional[str] = None,
+        limit: int = 10,
+    ) -> List[Dict[str, Any]]:
+        """Fetch most recent rankings for a user."""
+        query = """
+            SELECT * FROM event_rankings
+             WHERE user_id = ?
+        """
+        params: List[Any] = [user_id]
+        if guild_id:
+            query += " AND guild_id = ?"
+            params.append(guild_id)
+        query += " ORDER BY submitted_at DESC LIMIT ?"
+        params.append(limit)
+
+        cursor = self.conn.cursor()
+        cursor.execute(query, params)
+        return [dict(row) for row in cursor.fetchall()]
+
+    def get_guild_event_leaderboard(
+        self,
+        guild_id: str,
+        event_week: Optional[str] = None,
+        stage_type: Optional[StageType] = None,
+        day_number: Optional[int] = None,
+        category: Optional[RankingCategory] = None,
+        guild_tag: Optional[str] = None,
+        limit: int = 20,
+    ) -> List[Dict[str, Any]]:
+        """Summarise best rankings per user for a guild."""
+        query = """
+            SELECT 
+                user_id,
+                username,
+                guild_tag,
+                player_name,
+                event_week,
+                MIN(rank) AS best_rank,
+                MAX(score) AS highest_score,
+                stage_type,
+                day_number,
+                category,
+                MAX(submitted_at) AS last_submission
+            FROM event_rankings
+            WHERE guild_id = ?
+        """
+        params: List[Any] = [guild_id]
+        if event_week:
+            query += " AND event_week = ?"
+            params.append(event_week)
+        if stage_type:
+            query += " AND stage_type = ?"
+            params.append(stage_type.value)
+        if day_number:
+            query += " AND day_number = ?"
+            params.append(day_number)
+        if category:
+            query += " AND category = ?"
+            params.append(category.value)
+        if guild_tag:
+            query += " AND guild_tag = ?"
+            params.append(guild_tag)
+
+        query += """
+            GROUP BY user_id
+            ORDER BY best_rank ASC, highest_score DESC
+            LIMIT ?
+        """
+        params.append(limit)
+
+        cursor = self.conn.cursor()
+        cursor.execute(query, params)
+        return [dict(row) for row in cursor.fetchall()]
+
+    def get_current_event_week(self) -> str:
+        """Return the current event week identifier."""
+        from discord_bot.core.engines.screenshot_processor import ScreenshotProcessor
+
+        processor = ScreenshotProcessor()
+        return processor._get_current_event_week()
+
+    def prune_event_weeks(self, weeks_to_keep: int = 4) -> int:
+        """Remove ranking data older than the specified number of weeks."""
+        cursor = self.conn.cursor()
+        cursor.execute(
+            """
+            SELECT DISTINCT event_week
+              FROM event_rankings
+             ORDER BY event_week DESC
+            """
+        )
+        all_weeks = [row["event_week"] for row in cursor.fetchall()]
+        if len(all_weeks) <= weeks_to_keep:
+            return 0
+
+        weeks_to_delete = all_weeks[weeks_to_keep:]
+        placeholders = ", ".join("?" for _ in weeks_to_delete)
+        with self.conn:
+            cursor = self.conn.execute(
+                f"""
+                DELETE FROM event_rankings
+                      WHERE event_week IN ({placeholders})
+                """,
+                weeks_to_delete,
+            )
+        return cursor.rowcount
+
+    def get_event_ranking_history(
+        self,
+        user_id: str,
+        guild_id: Optional[str] = None,
+        days: int = 7,
+    ) -> List[Dict[str, Any]]:
+        """Return chronological ranking history for a user."""
+        cutoff = datetime.utcnow() - timedelta(days=days)
+        query = """
+            SELECT * FROM event_rankings
+             WHERE user_id = ? AND submitted_at >= ?
+        """
+        params: List[Any] = [user_id, cutoff.isoformat()]
+        if guild_id:
+            query += " AND guild_id = ?"
+            params.append(guild_id)
+        query += " ORDER BY submitted_at ASC"
+
+        cursor = self.conn.cursor()
+        cursor.execute(query, params)
+        return [dict(row) for row in cursor.fetchall()]
+
+    def log_event_submission(
+        self,
+        user_id: str,
+        guild_id: Optional[str],
+        status: str,
+        error_message: Optional[str] = None,
+        ranking_id: Optional[int] = None,
+    ) -> None:
+        """Record a submission attempt outcome."""
+        with self.conn:
+            self.conn.execute(
+                """
+                INSERT INTO event_submissions (
+                    user_id, guild_id, submitted_at, status, error_message, ranking_id
+                )
+                VALUES (?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    user_id,
+                    guild_id,
+                    datetime.utcnow().isoformat(),
+                    status,
+                    error_message,
+                    ranking_id,
+                ),
+            )
+
+    def get_event_submission_stats(
+        self,
+        guild_id: Optional[str] = None,
+        days: int = 7,
+    ) -> Dict[str, Any]:
+        """Return submission summary metrics."""
+        cutoff = datetime.utcnow() - timedelta(days=days)
+        query = """
+            SELECT
+                COUNT(*) AS total_submissions,
+                SUM(CASE WHEN status = 'success' THEN 1 ELSE 0 END) AS successful,
+                SUM(CASE WHEN status = 'failed' THEN 1 ELSE 0 END) AS failed,
+                COUNT(DISTINCT user_id) AS unique_users
+            FROM event_submissions
+            WHERE submitted_at >= ?
+        """
+        params: List[Any] = [cutoff.isoformat()]
+        if guild_id:
+            query += " AND guild_id = ?"
+            params.append(guild_id)
+
+        cursor = self.conn.cursor()
+        cursor.execute(query, params)
+        row = cursor.fetchone()
+        return dict(row) if row else {}
+
+    def delete_old_event_rankings(self, days: int = 30) -> int:
+        """Delete ranking entries older than the given number of days."""
+        cutoff = datetime.utcnow() - timedelta(days=days)
+        with self.conn:
+            cursor = self.conn.execute(
+                """
+                DELETE FROM event_rankings
+                WHERE submitted_at < ?
+                """,
+                (cutoff.isoformat(),),
+            )
+        return cursor.rowcount

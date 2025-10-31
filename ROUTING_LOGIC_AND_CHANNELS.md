@@ -7,9 +7,8 @@
 - Helper: `find_bot_channel(guild)` locates the bot channel by ID, name, or fallback.
 
 ## SOS Alerts
-- Sent to dedicated SOS channel(s).
-- Channel IDs are set via `SOS_CHANNEL_ID` in `.env` (comma-separated for multiple).
-- Helper: `find_sos_channel(guild)` locates the SOS channel by ID, name, or falls back to bot channel.
+- Routed through the same bot channel logic.
+- Uses `find_bot_channel(guild)` to resolve the target from `BOT_CHANNEL_ID` or name fallbacks.
 
 ## Translation
 - No channel restrictions; works in all channels.
@@ -17,14 +16,13 @@
 ## Configuration Example (.env)
 ```
 BOT_CHANNEL_ID=123456789012345678
-SOS_CHANNEL_ID=234567890123456789
 ALLOWED_CHANNELS=123456789012345678
 ```
 
 ## Fallback/Edge Case Handling
 - If no channel ID is set, bot searches for preferred channel names.
 - If no preferred channel is found, bot uses system channel or first available channel with send permissions.
-- SOS alerts fallback to bot channel if no dedicated SOS channel is found.
+- SOS alerts fallback to bot channel if no preferred channel is found.
 
 ## Monitoring & Maintenance
 - Periodically review channel IDs and permissions after server changes.
@@ -33,7 +31,7 @@ ALLOWED_CHANNELS=123456789012345678
 
 ## Audit Confidence
 - Game/fun command routing: 90% (robust, but review after major changes)
-- SOS channel routing: 85% (dedicated, but monitor for naming/ID changes)
+- SOS routing: 85% (shared with bot channel logic; monitor channel permissions)
 - Translation: 100% (no restrictions)
 
 ---

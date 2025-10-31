@@ -6,28 +6,46 @@ Handles database operations for storing and retrieving event rankings.
 
 from __future__ import annotations
 import sqlite3
-from typing import Optional, List, Dict, Any
+from typing import Optional, List, Dict, Any, TYPE_CHECKING
 from datetime import datetime, timedelta
 from pathlib import Path
 
 from discord_bot.core.engines.screenshot_processor import RankingData, StageType, RankingCategory
 
+if TYPE_CHECKING:
+    from discord_bot.games.storage.game_storage_engine import GameStorageEngine
+
 
 class RankingStorageEngine:
     """Manages storage of Top Heroes event rankings."""
     
-    def __init__(self, db_path: str = "event_rankings.db"):
+    def __init__(
+        self,
+        db_path: str = "event_rankings.db",
+        storage: Optional["GameStorageEngine"] = None,
+    ):
         self.db_path = db_path
+        self.storage = storage
         self._ensure_tables()
     
     def _get_connection(self) -> sqlite3.Connection:
         """Get database connection."""
+        if self.storage:
+            return self.storage.conn  # type: ignore[attr-defined]
         conn = sqlite3.connect(self.db_path)
         conn.row_factory = sqlite3.Row
         return conn
+
+    def _maybe_close(self, conn: sqlite3.Connection) -> None:
+        """Close connection when operating in standalone mode."""
+        if not self.storage:
+            conn.close()
     
     def _ensure_tables(self):
         """Create tables if they don't exist."""
+        if self.storage:
+            # GameStorageEngine handles schema migrations centrally.
+            return
         conn = self._get_connection()
         try:
             conn.execute("""
@@ -93,7 +111,7 @@ class RankingStorageEngine:
             
             conn.commit()
         finally:
-            conn.close()
+            self._maybe_close(conn)
     
     def save_ranking(self, ranking: RankingData) -> int:
         """
@@ -102,6 +120,8 @@ class RankingStorageEngine:
         Returns:
             ID of saved ranking
         """
+        if self.storage:
+            return self.storage.save_event_ranking(ranking)  # type: ignore[attr-defined]
         conn = self._get_connection()
         try:
             cursor = conn.execute("""
@@ -127,7 +147,7 @@ class RankingStorageEngine:
             conn.commit()
             return cursor.lastrowid
         finally:
-            conn.close()
+            self._maybe_close(conn)
     
     def check_duplicate_submission(
         self,
@@ -143,6 +163,10 @@ class RankingStorageEngine:
         Returns:
             Existing ranking dict if duplicate, None if no duplicate
         """
+        if self.storage:
+            return self.storage.check_duplicate_event_submission(
+                user_id, guild_id, event_week, stage_type, day_number  # type: ignore[attr-defined]
+            )
         conn = self._get_connection()
         try:
             cursor = conn.execute("""
@@ -155,7 +179,7 @@ class RankingStorageEngine:
             row = cursor.fetchone()
             return dict(row) if row else None
         finally:
-            conn.close()
+            self._maybe_close(conn)
     
     def update_ranking(
         self,
@@ -170,6 +194,13 @@ class RankingStorageEngine:
         Returns:
             True if updated, False if not found
         """
+        if self.storage:
+            return self.storage.update_event_ranking(  # type: ignore[attr-defined]
+                ranking_id,
+                rank,
+                score,
+                screenshot_url,
+            )
         conn = self._get_connection()
         try:
             cursor = conn.execute("""
@@ -180,7 +211,7 @@ class RankingStorageEngine:
             conn.commit()
             return cursor.rowcount > 0
         finally:
-            conn.close()
+            self._maybe_close(conn)
     
     def get_user_rankings(
         self,
@@ -189,6 +220,10 @@ class RankingStorageEngine:
         limit: int = 10
     ) -> List[Dict[str, Any]]:
         """Get recent rankings for a user."""
+        if self.storage:
+            return self.storage.get_user_event_rankings(  # type: ignore[attr-defined]
+                user_id, guild_id=guild_id, limit=limit
+            )
         conn = self._get_connection()
         try:
             query = """
@@ -207,7 +242,7 @@ class RankingStorageEngine:
             cursor = conn.execute(query, params)
             return [dict(row) for row in cursor.fetchall()]
         finally:
-            conn.close()
+            self._maybe_close(conn)
     
     def get_guild_leaderboard(
         self,
@@ -233,6 +268,16 @@ class RankingStorageEngine:
             guild_tag: Filter by in-game guild tag (e.g., "TAO")
             limit: Max results to return
         """
+        if self.storage:
+            return self.storage.get_guild_event_leaderboard(  # type: ignore[attr-defined]
+                guild_id,
+                event_week=event_week,
+                stage_type=stage_type,
+                day_number=day_number,
+                category=category,
+                guild_tag=guild_tag,
+                limit=limit,
+            )
         conn = self._get_connection()
         try:
             query = """
@@ -283,10 +328,12 @@ class RankingStorageEngine:
             cursor = conn.execute(query, params)
             return [dict(row) for row in cursor.fetchall()]
         finally:
-            conn.close()
+            self._maybe_close(conn)
     
     def get_current_event_week(self) -> str:
         """Get current event week in YYYY-WW format."""
+        if self.storage:
+            return self.storage.get_current_event_week()  # type: ignore[attr-defined]
         from discord_bot.core.engines.screenshot_processor import ScreenshotProcessor
         processor = ScreenshotProcessor()
         return processor._get_current_event_week()
@@ -301,6 +348,8 @@ class RankingStorageEngine:
         Returns:
             Number of rankings deleted
         """
+        if self.storage:
+            return self.storage.prune_event_weeks(weeks_to_keep)  # type: ignore[attr-defined]
         conn = self._get_connection()
         try:
             # Get all unique event weeks
@@ -326,7 +375,7 @@ class RankingStorageEngine:
             conn.commit()
             return cursor.rowcount
         finally:
-            conn.close()
+            self._maybe_close(conn)
     
     def get_ranking_history(
         self,
@@ -335,6 +384,10 @@ class RankingStorageEngine:
         days: int = 7
     ) -> List[Dict[str, Any]]:
         """Get ranking history for a user over time."""
+        if self.storage:
+            return self.storage.get_event_ranking_history(  # type: ignore[attr-defined]
+                user_id, guild_id=guild_id, days=days
+            )
         conn = self._get_connection()
         try:
             cutoff = datetime.utcnow() - timedelta(days=days)
@@ -354,7 +407,7 @@ class RankingStorageEngine:
             cursor = conn.execute(query, params)
             return [dict(row) for row in cursor.fetchall()]
         finally:
-            conn.close()
+            self._maybe_close(conn)
     
     def log_submission(
         self,
@@ -365,6 +418,15 @@ class RankingStorageEngine:
         ranking_id: Optional[int] = None
     ):
         """Log a submission attempt."""
+        if self.storage:
+            self.storage.log_event_submission(  # type: ignore[attr-defined]
+                user_id,
+                guild_id,
+                status,
+                error_message=error_message,
+                ranking_id=ranking_id,
+            )
+            return
         conn = self._get_connection()
         try:
             conn.execute("""
@@ -381,7 +443,7 @@ class RankingStorageEngine:
             ))
             conn.commit()
         finally:
-            conn.close()
+            self._maybe_close(conn)
     
     def get_submission_stats(
         self,
@@ -389,6 +451,10 @@ class RankingStorageEngine:
         days: int = 7
     ) -> Dict[str, Any]:
         """Get submission statistics."""
+        if self.storage:
+            return self.storage.get_event_submission_stats(  # type: ignore[attr-defined]
+                guild_id=guild_id, days=days
+            )
         conn = self._get_connection()
         try:
             cutoff = datetime.utcnow() - timedelta(days=days)
@@ -412,10 +478,12 @@ class RankingStorageEngine:
             row = cursor.fetchone()
             return dict(row) if row else {}
         finally:
-            conn.close()
+            self._maybe_close(conn)
     
     def delete_old_rankings(self, days: int = 30) -> int:
         """Delete rankings older than specified days."""
+        if self.storage:
+            return self.storage.delete_old_event_rankings(days)  # type: ignore[attr-defined]
         conn = self._get_connection()
         try:
             cutoff = datetime.utcnow() - timedelta(days=days)
@@ -426,4 +494,4 @@ class RankingStorageEngine:
             conn.commit()
             return cursor.rowcount
         finally:
-            conn.close()
+            self._maybe_close(conn)

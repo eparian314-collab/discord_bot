@@ -69,6 +69,9 @@ MANIFEST
 .github/workflows/__pycache__/
 .gitignore.bak
 
+# Ignore WSL virtual environment
+.wslvenv/
+
 # ──────────────────────────────
 # END OF FILE
 # ──────────────────────────────

@@ -525,7 +525,7 @@ class GameCog(commands.Cog):
             
             await interaction.response.send_message(msg)
 
-    @pokemon.command(name="explore", description="🔍 Explore for rare Pokemon! (Costs 1 cookie)")
+    @pokemon.command(name="explore", description="🔍 Explore for rare Pokemon! (Costs 3 cookies)")
     async def explore(self, interaction: discord.Interaction) -> None:
         """Explore for rare Pokemon."""
         if not await self._check_allowed_channel(interaction):
@@ -538,7 +538,7 @@ class GameCog(commands.Cog):
         # Check stamina
         if not self.cookie_manager.can_afford(user_id, 'explore'):
             await interaction.response.send_message(
-                "🦛 You don't have enough cookies! Need 1 🍪 to explore.",
+                "🦛 You don't have enough cookies! Need 3 🍪 to explore.",
                 ephemeral=True
             )
             return

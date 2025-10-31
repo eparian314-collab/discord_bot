@@ -783,9 +783,10 @@ async def setup(
     if processor is None:
         from discord_bot.core.engines.screenshot_processor import ScreenshotProcessor
         processor = ScreenshotProcessor()
-    
+
     if storage is None:
         from discord_bot.core.engines.ranking_storage_engine import RankingStorageEngine
-        storage = RankingStorageEngine()
+        game_storage = getattr(bot, "game_storage", None)
+        storage = RankingStorageEngine(storage=game_storage)
     
     await bot.add_cog(RankingCog(bot, processor, storage))

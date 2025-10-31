@@ -7,9 +7,7 @@ openai
 aiosqlite
 pytest-asyncio
 cachetools
-pokeapi
-graphql-pokemon
-pokemon-showdown
+requests
 deep-translator
 
 # OCR for ranking screenshot processing

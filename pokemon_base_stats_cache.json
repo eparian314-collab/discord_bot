@@ -1,20 +1,4 @@
 {
-<<<<<<< HEAD
-=======
-  "pidgey": {
-    "species": "pidgey",
-    "hp": 40,
-    "attack": 45,
-    "defense": 40,
-    "special_attack": 35,
-    "special_defense": 35,
-    "speed": 56,
-    "types": [
-      "normal",
-      "flying"
-    ]
-  },
->>>>>>> 0f91be467954dc8dab10150bdd6deb981d5dafab
   "pikachu": {
     "species": "pikachu",
     "hp": 35,
@@ -27,22 +11,6 @@
       "electric"
     ]
   },
-<<<<<<< HEAD
-=======
-  "gyarados": {
-    "species": "gyarados",
-    "hp": 95,
-    "attack": 125,
-    "defense": 79,
-    "special_attack": 60,
-    "special_defense": 100,
-    "speed": 81,
-    "types": [
-      "water",
-      "flying"
-    ]
-  },
->>>>>>> 0f91be467954dc8dab10150bdd6deb981d5dafab
   "charmander": {
     "species": "charmander",
     "hp": 39,
@@ -66,7 +34,6 @@
     "types": [
       "water"
     ]
-<<<<<<< HEAD
   },
   "pidgey": {
     "species": "pidgey",
@@ -93,32 +60,5 @@
       "water",
       "flying"
     ]
-  },
-  "weedle": {
-    "species": "weedle",
-    "hp": 40,
-    "attack": 35,
-    "defense": 30,
-    "special_attack": 20,
-    "special_defense": 20,
-    "speed": 50,
-    "types": [
-      "bug",
-      "poison"
-    ]
-  },
-  "magikarp": {
-    "species": "magikarp",
-    "hp": 20,
-    "attack": 10,
-    "defense": 55,
-    "special_attack": 15,
-    "special_defense": 20,
-    "speed": 80,
-    "types": [
-      "water"
-    ]
-=======
->>>>>>> 0f91be467954dc8dab10150bdd6deb981d5dafab
   }
 }

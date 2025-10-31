@@ -7,13 +7,25 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 def iter_py_files(base: Path):
-    for p in base.rglob("*.py"):
-        # skip virtual envs or hidden
-        if any(part.startswith('.') for part in p.parts):
+    stack = [base]
+    while stack:
+        current = stack.pop()
+        try:
+            entries = list(current.iterdir())
+        except (OSError, PermissionError):
+            # Skip directories we cannot access (e.g. platform-specific venv folders)
             continue
-        if 'tests' in p.parts:
-            continue
-        yield p
+
+        for entry in entries:
+            if entry.name.startswith('.'):
+                continue
+            if entry.is_dir():
+                if entry.name == "tests":
+                    continue
+                stack.append(entry)
+                continue
+            if entry.suffix == ".py":
+                yield entry
 
 
 LITERAL_TOPICS = {
