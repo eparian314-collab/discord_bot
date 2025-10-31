@@ -202,6 +202,8 @@ class IntegrationLoader:
             storage=self.game_storage,
             relationship_manager=self.relationship_manager
         )
+        if hasattr(self.personality_engine, "set_relationship_manager"):
+            self.personality_engine.set_relationship_manager(self.relationship_manager)
         # Initialize PokemonDataManager with configurable cache path
         self.pokemon_data_manager = PokemonDataManager(cache_file="pokemon_base_stats_cache.json")
         self.pokemon_game = PokemonGame(
@@ -349,6 +351,9 @@ class IntegrationLoader:
             if self.mymemory_adapter and hasattr(self.processing_engine, "add_adapter"):
                 self.processing_engine.add_adapter(self.mymemory_adapter, provider_id="mymemory", priority=20, timeout=6.0)  # type: ignore[attr-defined]
                 self.registry.inject("mymemory_adapter", self.mymemory_adapter)
+            if self.google_adapter and hasattr(self.processing_engine, "add_adapter"):
+                self.processing_engine.add_adapter(self.google_adapter, provider_id="google", priority=30, timeout=6.0)  # type: ignore[attr-defined]
+                self.registry.inject("google_adapter", self.google_adapter)
             if self.openai_adapter:
                 self.registry.inject("openai_adapter", self.openai_adapter)
         except Exception:

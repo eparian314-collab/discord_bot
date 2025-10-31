@@ -235,7 +235,7 @@ class EasterEggCog(commands.Cog):
             user_id, self.personality_engine.get_mood()
         )
         if cookies:
-            reward_msg = self.personality_engine.get_cookie_reward_message(cookies, interaction.user.display_name)
+            reward_msg = self.personality_engine.get_cookie_reward_message(cookies, interaction.user.display_name, str(interaction.user.id))
             
             # Show progress toward daily limit
             _, cookies_today = self.cookie_manager.check_easter_egg_limit(user_id)
@@ -293,7 +293,7 @@ class EasterEggCog(commands.Cog):
             
             cookies = self.cookie_manager.try_award_cookies(user_id, 'rps_win', 'neutral')
             if cookies:
-                cookie_msg = self.personality_engine.get_cookie_reward_message(cookies, interaction.user.display_name)
+                cookie_msg = self.personality_engine.get_cookie_reward_message(cookies, interaction.user.display_name, str(interaction.user.id))
                 await interaction.followup.send(cookie_msg, ephemeral=True)
             
         elif result == 'lose':
@@ -344,7 +344,7 @@ class EasterEggCog(commands.Cog):
         # Try cookie reward with limit
         cookies = self.cookie_manager.try_award_easter_egg_cookies(user_id, self.personality_engine.get_mood())
         if cookies:
-            reward_msg = self.personality_engine.get_cookie_reward_message(cookies, interaction.user.display_name)
+            reward_msg = self.personality_engine.get_cookie_reward_message(cookies, interaction.user.display_name, str(interaction.user.id))
             _, cookies_today = self.cookie_manager.check_easter_egg_limit(user_id)
             progress = f" ({cookies_today}/{self.cookie_manager.MAX_DAILY_EASTER_EGG_COOKIES} daily cookies)"
             await interaction.followup.send(reward_msg + progress, ephemeral=True)
@@ -391,7 +391,7 @@ class EasterEggCog(commands.Cog):
         # Try cookie reward with limit
         cookies = self.cookie_manager.try_award_easter_egg_cookies(user_id, self.personality_engine.get_mood())
         if cookies:
-            reward_msg = self.personality_engine.get_cookie_reward_message(cookies, interaction.user.display_name)
+            reward_msg = self.personality_engine.get_cookie_reward_message(cookies, interaction.user.display_name, str(interaction.user.id))
             _, cookies_today = self.cookie_manager.check_easter_egg_limit(user_id)
             progress = f" ({cookies_today}/{self.cookie_manager.MAX_DAILY_EASTER_EGG_COOKIES} daily cookies)"
             await interaction.followup.send(reward_msg + progress, ephemeral=True)
@@ -439,7 +439,7 @@ class EasterEggCog(commands.Cog):
         # Try cookie reward with limit
         cookies = self.cookie_manager.try_award_easter_egg_cookies(user_id, self.personality_engine.get_mood())
         if cookies:
-            reward_msg = self.personality_engine.get_cookie_reward_message(cookies, interaction.user.display_name)
+            reward_msg = self.personality_engine.get_cookie_reward_message(cookies, interaction.user.display_name, str(interaction.user.id))
             _, cookies_today = self.cookie_manager.check_easter_egg_limit(user_id)
             progress = f" ({cookies_today}/{self.cookie_manager.MAX_DAILY_EASTER_EGG_COOKIES} daily cookies)"
             await interaction.followup.send(reward_msg + progress, ephemeral=True)
@@ -487,7 +487,7 @@ class EasterEggCog(commands.Cog):
         # Try cookie reward with limit
         cookies = self.cookie_manager.try_award_easter_egg_cookies(user_id, self.personality_engine.get_mood())
         if cookies:
-            reward_msg = self.personality_engine.get_cookie_reward_message(cookies, interaction.user.display_name)
+            reward_msg = self.personality_engine.get_cookie_reward_message(cookies, interaction.user.display_name, str(interaction.user.id))
             _, cookies_today = self.cookie_manager.check_easter_egg_limit(user_id)
             progress = f" ({cookies_today}/{self.cookie_manager.MAX_DAILY_EASTER_EGG_COOKIES} daily cookies)"
             await interaction.followup.send(reward_msg + progress, ephemeral=True)
@@ -679,7 +679,7 @@ class EasterEggCog(commands.Cog):
                 cookies = self.cookie_manager.try_award_cookies(user_id, 'trivia_correct', self.personality_engine.get_mood())
                 response = "🎉 Correct! Great job!"
                 if cookies:
-                    response += f"\n{self.personality_engine.get_cookie_reward_message(cookies, message.author.display_name)}"
+                    response += f"\n{self.personality_engine.get_cookie_reward_message(cookies, message.author.display_name, str(message.author.id))}"
                 
                 await message.channel.send(response)
                 return
@@ -696,7 +696,7 @@ class EasterEggCog(commands.Cog):
                 cookies = self.cookie_manager.try_award_cookies(user_id, 'riddle_correct', self.personality_engine.get_mood())
                 response = "🎉 You got it! Well done!"
                 if cookies:
-                    response += f"\n{self.personality_engine.get_cookie_reward_message(cookies, message.author.display_name)}"
+                    response += f"\n{self.personality_engine.get_cookie_reward_message(cookies, message.author.display_name, str(message.author.id))}"
                 
                 await message.channel.send(response)
                 return
@@ -709,13 +709,13 @@ class EasterEggCog(commands.Cog):
             self.personality_engine.random_mood_shift()
             
             # Generate response
-            greeting = self.personality_engine.greeting(message.author.display_name)
+            greeting = self.personality_engine.greeting(message.author.display_name, str(message.author.id))
             await message.channel.send(f"{greeting} Use `/easteregg` for a surprise!")
             
             # Try cookie reward
             cookies = self.cookie_manager.try_award_cookies(user_id, 'mention', self.personality_engine.get_mood())
             if cookies:
-                reward_msg = self.personality_engine.get_cookie_reward_message(cookies, message.author.display_name)
+                reward_msg = self.personality_engine.get_cookie_reward_message(cookies, message.author.display_name, str(message.author.id))
                 await message.channel.send(reward_msg)
 
 

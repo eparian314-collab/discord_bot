@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import inspect
 import time
 from typing import Any, Dict, List, Optional, Union
 
@@ -97,8 +98,14 @@ class ProcessingEngine:
         Returns raw adapter return value or raises exception.
         """
         effective_timeout = float(timeout) if timeout is not None else self.default_timeout
-
         try:
+            translate_async = getattr(adapter, "translate_async", None)
+            if callable(translate_async):
+                maybe = translate_async(text, src, tgt)
+                if inspect.isawaitable(maybe):
+                    return await asyncio.wait_for(maybe, timeout=effective_timeout)
+                return maybe
+
             translate_fn = getattr(adapter, "translate", None)
             call = translate_fn if callable(translate_fn) else adapter
 

@@ -27,7 +27,7 @@ class CookieManager:
     - Amount influenced by relationship and bot mood
     - Stamina costs for game actions
     - Rewards for successful interactions
-    - Daily easter egg limits (max 5 cookies per day)
+    - Daily easter egg limits (max 15 cookies per day)
     - Progressive spam penalties
     """
     
@@ -62,7 +62,8 @@ class CookieManager:
     }
     
     # Easter egg limits
-    MAX_DAILY_EASTER_EGG_COOKIES = 5
+    MAX_DAILY_EASTER_EGG_COOKIES = 15
+    ADMIN_DAILY_GIFT_POOL = 10
     SPAM_PENALTY_COOKIE_AMOUNT = 1
     BASE_MUTE_CHANCE = 0.01  # 1%
     MUTE_CHANCE_INCREMENT = 0.10  # 10% per spam attempt
@@ -206,7 +207,26 @@ class CookieManager:
         for action, cost in sorted(self.STAMINA_COSTS.items()):
             lines.append(f"• `/{action}`: {cost} 🍪")
         return "\n".join(lines)
-    
+
+    # Admin/helper gift utilities
+    def get_admin_gift_remaining(self, user_id: str) -> int:
+        """Return remaining gift cookies the admin/helper can distribute today."""
+        return self.storage.get_admin_gift_remaining(user_id, self.ADMIN_DAILY_GIFT_POOL)
+
+    def give_admin_gift(self, giver_id: str, recipient_id: str, amount: int) -> int:
+        """
+        Distribute gift cookies from an admin/helper allowance.
+        Returns number of cookies actually gifted (0 if allowance exceeded).
+        """
+        if amount <= 0:
+            return 0
+
+        if not self.storage.consume_admin_gift_allowance(giver_id, amount, self.ADMIN_DAILY_GIFT_POOL):
+            return 0
+
+        self.storage.add_gift_cookies(recipient_id, amount)
+        return amount
+
     # Easter Egg Daily Limit System
     def check_easter_egg_limit(self, user_id: str) -> tuple[bool, int]:
         """

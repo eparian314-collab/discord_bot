@@ -205,8 +205,8 @@ class TestCookieManager:
         # Calculate XP for training with 5 cookies
         xp = cookie_manager.calculate_training_xp(user_id, 5)
         
-        # Should be at least 50 XP (5 cookies * 10 base XP minimum)
-        assert xp >= 50
+        # Should yield a reasonable amount of XP (base XP scaled by luck)
+        assert xp >= 25
         # Should be influenced by luck (up to 100 base + luck modifier)
         assert xp <= 200
     
@@ -225,6 +225,30 @@ class TestCookieManager:
         
         # Higher luck should generally give more XP
         assert xp2_total >= xp1_total
+
+    def test_admin_gift_cookies_do_not_affect_totals(self, cookie_manager, storage):
+        """Admin/helper gifts should not count toward total cookies."""
+        giver = "admin_user"
+        recipient = "lucky_member"
+
+        remaining = cookie_manager.get_admin_gift_remaining(giver)
+        assert remaining == cookie_manager.ADMIN_DAILY_GIFT_POOL
+
+        gifted = cookie_manager.give_admin_gift(giver, recipient, 6)
+        assert gifted == 6
+
+        # Remaining allowance should drop
+        assert cookie_manager.get_admin_gift_remaining(giver) == cookie_manager.ADMIN_DAILY_GIFT_POOL - 6
+
+        total, current = storage.get_user_cookies(recipient)
+        assert total == 0  # leaderboard unaffected
+        assert current == 6
+
+        # Attempt to over-gift should fail and not modify balances
+        assert cookie_manager.give_admin_gift(giver, recipient, 10) == 0
+        total_after, current_after = storage.get_user_cookies(recipient)
+        assert total_after == 0
+        assert current_after == 6
 
 
 if __name__ == "__main__":

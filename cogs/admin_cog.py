@@ -341,18 +341,20 @@ class AdminCog(commands.Cog):
     # ------------------------------------------------------------------
     # Admin/Helper Cookie Give Command
     # ------------------------------------------------------------------
-    @admin.command(name="give", description="🎁 Give 1 cookie to a community member (once per day)")
+    @admin.command(name="give", description="🎁 Share your daily helper cookies with a community member")
     @app_commands.describe(
-        member="The member to give a cookie to",
-        reason="Optional reason for giving the cookie"
+        member="The member to give cookies to",
+        quantity="Number of cookies to give (defaults to 1, max 10)",
+        reason="Optional reason for giving the cookies"
     )
     async def admin_give_cookie(
         self,
         interaction: discord.Interaction,
         member: discord.Member,
+        quantity: app_commands.Range[int, 1, 10] = 1,
         reason: Optional[str] = None
     ) -> None:
-        """Allow admins/helpers to give a cookie to a user (once per day)."""
+        """Allow admins/helpers to share their daily cookie allowance."""
         try:
             self._ensure_permitted(interaction)
         except PermissionError:
@@ -368,30 +370,37 @@ class AdminCog(commands.Cog):
             await interaction.response.send_message("❌ You can't give a cookie to yourself!", ephemeral=True)
             return
 
-        # Use cookie_manager if available, otherwise try storage directly
-        if self.cookie_manager:
-            # CookieManager doesn't have daily limits for admin giving - just award directly
-            awarded = self.cookie_manager.try_award_cookies(str(member.id), 'admin_gift', 'happy')
-            if awarded is None:
-                # Force award at least 1 cookie for admin gifts
-                awarded = 1
-                self.storage.add_cookies(str(member.id), awarded)
-            
-            reason_text = f" (Reason: {reason})" if reason else ""
-            await interaction.response.send_message(
-                f"✅ {member.mention} has received {awarded} cookie(s) from you!{reason_text}",
-                ephemeral=True
-            )
-        elif self.storage:
-            # Fallback to direct storage access
-            self.storage.add_cookies(str(member.id), 1)
-            reason_text = f" (Reason: {reason})" if reason else ""
-            await interaction.response.send_message(
-                f"✅ {member.mention} has received 1 cookie from you!{reason_text}",
-                ephemeral=True
-            )
-        else:
+        if not self.cookie_manager or not self.storage:
             await interaction.response.send_message("❌ Cookie storage not available.", ephemeral=True)
+            return
+
+        giver_id = str(interaction.user.id)
+        recipient_id = str(member.id)
+
+        remaining = self.cookie_manager.get_admin_gift_remaining(giver_id)
+        if remaining <= 0:
+            await interaction.response.send_message(
+                "🍪 You're out of helper cookies for today. Come back tomorrow!",
+                ephemeral=True,
+            )
+            return
+
+        amount = min(quantity, remaining, self.cookie_manager.ADMIN_DAILY_GIFT_POOL)
+        gifted = self.cookie_manager.give_admin_gift(giver_id, recipient_id, amount)
+        if gifted <= 0:
+            await interaction.response.send_message(
+                "🍪 You don't have enough helper cookies left to share that amount.",
+                ephemeral=True,
+            )
+            return
+
+        remaining_after = self.cookie_manager.get_admin_gift_remaining(giver_id)
+        reason_text = f" (Reason: {reason})" if reason else ""
+        await interaction.response.send_message(
+            f"🎉 {member.mention} received {gifted} helper cookie(s)! "
+            f"You have {remaining_after} left today.{reason_text}",
+            ephemeral=True,
+        )
 
 
 async def setup_admin_cog(

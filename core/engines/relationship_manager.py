@@ -7,12 +7,16 @@ Relationship index (0-100) affects cookie drops, luck, and bot personality towar
 
 from __future__ import annotations
 
+import logging
 import random
-from datetime import datetime, timedelta
-from typing import TYPE_CHECKING, Optional
+from datetime import datetime, timedelta, date
+from typing import TYPE_CHECKING, Optional, Set
 
 if TYPE_CHECKING:
     from discord_bot.games.storage.game_storage_engine import GameStorageEngine
+
+
+logger = logging.getLogger("hippo_bot.relationship_manager")
 
 
 class RelationshipManager:
@@ -44,6 +48,10 @@ class RelationshipManager:
     
     def __init__(self, storage: GameStorageEngine):
         self.storage = storage
+        self._best_friend_date: Optional[date] = None
+        self._best_friend_user: Optional[str] = None
+        self._best_friend_seen: Set[str] = set()
+        self._best_friend_unique_count: int = 0
     
     def record_interaction(self, user_id: str, interaction_type: str, 
                           cookies_earned: int = 0) -> int:
@@ -63,9 +71,10 @@ class RelationshipManager:
         
         # Calculate relationship gain
         base_gain = self.INTERACTION_VALUES.get(interaction_type, 1)
-        # Add small random bonus (0-2)
-        gain = base_gain + random.randint(0, 2)
-        
+        # Tougher scaling: reduce base gain and keep variance small
+        adjusted_base = max(1, base_gain - 2)
+        gain = adjusted_base + random.randint(0, 1)
+
         # Update relationship (cap at 100)
         new_relationship = min(100, current_relationship + gain)
         
@@ -75,7 +84,8 @@ class RelationshipManager:
         # Update storage
         self.storage.update_relationship(user_id, new_relationship, daily_streak)
         self.storage.increment_interactions(user_id, interaction_type, cookies_earned)
-        
+        self._update_best_friend(user_id)
+
         return new_relationship
     
     def get_relationship_index(self, user_id: str) -> int:
@@ -100,16 +110,16 @@ class RelationshipManager:
         Higher relationship = better luck for cookie rewards and XP gains.
         """
         relationship = self.get_relationship_index(user_id)
-        # Map 0-100 relationship to 0.5-1.5 luck multiplier
-        return 0.5 + (relationship / 100.0)
+        # Map 0-100 relationship to a narrower 0.5-1.2 range
+        return 0.5 + (relationship / 140.0)
     
     def get_cookie_drop_bonus(self, user_id: str) -> float:
         """
         Get cookie drop rate bonus based on relationship (0% to +50%).
         """
         relationship = self.get_relationship_index(user_id)
-        # Map 0-100 relationship to 0-0.5 bonus drop rate
-        return relationship / 200.0
+        # Map 0-100 relationship to 0-0.4 bonus drop rate
+        return relationship / 250.0
     
     def _check_daily_streak(self, user_data: dict) -> int:
         """Check and update daily login streak."""
@@ -174,3 +184,35 @@ class RelationshipManager:
             return "Acquaintances 👋"
         else:
             return "Strangers 🤝"
+    # ------------------------------------------------------------------
+    # Daily best friend tracking
+    # ------------------------------------------------------------------
+    def _update_best_friend(self, user_id: str) -> None:
+        """Reservoir-sample a best friend of the day from active speakers."""
+        today = datetime.utcnow().date()
+
+        if self._best_friend_date != today:
+            self._best_friend_date = today
+            self._best_friend_user = user_id
+            self._best_friend_seen = {user_id}
+            self._best_friend_unique_count = 1
+            logger.debug("Daily best friend reset to %s", user_id)
+            return
+
+        if user_id in self._best_friend_seen:
+            return
+
+        self._best_friend_seen.add(user_id)
+        self._best_friend_unique_count += 1
+
+        if random.randint(1, self._best_friend_unique_count) == 1:
+            self._best_friend_user = user_id
+            logger.debug("Daily best friend updated to %s", user_id)
+
+    def get_best_friend_of_day(self) -> Optional[str]:
+        """Return the current best friend of the day (user_id) if set."""
+        today = datetime.utcnow().date()
+        if self._best_friend_date != today:
+            return None
+        return self._best_friend_user
+

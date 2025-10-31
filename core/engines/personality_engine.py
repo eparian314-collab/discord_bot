@@ -6,6 +6,7 @@ from typing import Any, Optional, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from openai import AsyncOpenAI
+    from discord_bot.core.engines.relationship_manager import RelationshipManager
 
 
 class PersonalityEngine:
@@ -37,7 +38,25 @@ class PersonalityEngine:
             "Fine, fine, hello {user}... 🙄"
         ]
     }
-    
+
+    BEST_FRIEND_GREETINGS = {
+        'happy': [
+            "Heyyyy {user}! \U0001f31f I saved a cozy spot just for you!",
+            "{user}! You're here! Let's make today extra fun! \U0001f389",
+            "Guess who I was hoping to see? You, {user}! \U0001f308"
+        ],
+        'neutral': [
+            "Oh! {user}, glad you dropped by-I've got something brewing. \U00002615\ufe0f",
+            "Nice timing, {user}. I was just thinking about you! \U0001f642",
+            "Welcome back, {user}. I kept things warm for you. \U0001f506"
+        ],
+        'grumpy': [
+            "Hmm... it's {user}. You get a rare smile today. Maybe. \U0001f60f",
+            "{user}, I'm not saying I missed you... but here's a fresh cushion. \U0001f6cb\ufe0f",
+            "If anyone gets a warm welcome today, it's you, {user}. Don't tell. \U0001f92b"
+        ]
+    }
+
     CONFIRMATIONS = {
         'happy': [
             "✅ Done! That was fun! 🎉",
@@ -75,12 +94,12 @@ class PersonalityEngine:
     EASTER_EGG_LIMIT_MESSAGES = {
         'happy': {
             1: [
-                "Hey {user}! You've already gotten all your cookies for today (5/5)! 🍪✨ Come back tomorrow for more fun! 🦛💖",
-                "Aww {user}, you've reached your daily cookie limit! 🍪 Save some for tomorrow! 😊",
+                "Hey {user}! You've already gotten all your cookies for today! 🍪✨ Come back tomorrow for more fun! 🦛💖",
+                "Aww {user}, you've reached your today's cookie limit! 🍪 Save some for tomorrow! 😊",
             ],
             2: [
                 "{user}, I already told you - no more cookies today! 🙅‍♀️ Please don't keep asking! 🦛",
-                "C'mon {user}, you know the rules! 5 cookies max per day! Stop trying! 😅",
+                "C'mon {user}, you know the rules! No more cookies today! Stop trying! 😅",
             ],
             3: [
                 "{user}! Stop bugging me! 😤 I said no more cookies today! You're pushing it...",
@@ -93,12 +112,12 @@ class PersonalityEngine:
         },
         'neutral': {
             1: [
-                "{user}, you've reached your daily limit of 5 cookies. Try again tomorrow. 🍪",
+                "{user}, you've reached your daily cookie limit. Try again tomorrow. 🍪",
                 "Daily cookie limit reached, {user}. Come back tomorrow for more. 🦛",
             ],
             2: [
                 "{user}, I already said no more cookies today. Please stop asking.",
-                "Stop spamming, {user}. You've had your 5 cookies. That's it.",
+                "Stop spamming, {user}. You've had your cookies. That's it.",
             ],
             3: [
                 "{user}, this is getting annoying. Stop trying to bug me for more cookies. 😒",
@@ -111,7 +130,7 @@ class PersonalityEngine:
         },
         'grumpy': {
             1: [
-                "Ugh, {user}... You already got your 5 cookies. Go away. 😒",
+                "Ugh, {user}... You already got your cookies. Go away. 😒",
                 "*grumbles* {user}, stop bothering me. No more cookies today. 🙄",
             ],
             2: [
@@ -143,6 +162,24 @@ class PersonalityEngine:
             "Serve you right, {user}! -{amount} cookie! Maybe NOW you'll stop! 😤",
         ]
     }
+
+    BEST_FRIEND_COOKIE_MESSAGES = {
+        'happy': [
+            "✨ Surprise treat time! {user_name}, enjoy these {amount} cookies with extra sprinkles! 🍪💖",
+            "Woo! {amount} VIP cookies just for you, {user_name}! Don't tell the others~ 🤫🎉",
+            "I packed {amount} cookies with the fluffiest frosting for you, {user_name}! 🍪🌟"
+        ],
+        'neutral': [
+            "{user_name}, I set aside {amount} warm cookies for you. Hope they make you smile. 🍪🙂",
+            "Special delivery: {amount} fresh cookies heading your way, {user_name}! 🍪🚀",
+            "I saved the best batch for you, {user_name}. Enjoy these {amount} cookies! 🍪✨"
+        ],
+        'grumpy': [
+            "Don't get used to it, {user_name}... but here's {amount} secretly delicious cookies. 🍪😑",
+            "I guess you earned these {amount} cookies, {user_name}. Try not to brag. 🍪🙄",
+            "Fine. {amount} cookies, just for you, {user_name}. They might be my best batch. Maybe. 🍪😏"
+        ],
+    }
     
     MUTE_WARNING_MESSAGES = {
         'happy': [
@@ -164,6 +201,7 @@ class PersonalityEngine:
         self.ai_adapter = ai_adapter
         self.current_mood = 'neutral'
         self._openai_client: Optional[AsyncOpenAI] = None
+        self.relationship_manager: Optional["RelationshipManager"] = None
         self._initialize_openai()
     
     def _initialize_openai(self) -> None:
@@ -175,6 +213,10 @@ class PersonalityEngine:
                 self._openai_client = AsyncOpenAI(api_key=api_key)
             except ImportError:
                 pass  # OpenAI not installed or import failed
+
+    def set_relationship_manager(self, relationship_manager: "RelationshipManager") -> None:
+        """Link the relationship manager for contextual messaging."""
+        self.relationship_manager = relationship_manager
 
     def set_mood(self, mood: str) -> None:
         """Set the bot's current mood (happy, neutral, grumpy)."""
@@ -204,9 +246,18 @@ class PersonalityEngine:
         """Inject or replace the AI adapter used for personality embellishments."""
         self.ai_adapter = adapter
 
-    def greeting(self, user_name: str) -> str:
+    def greeting(self, user_name: str, user_id: Optional[str] = None) -> str:
         """Get a greeting based on current mood."""
-        templates = self.GREETINGS[self.current_mood]
+        is_secret_favorite = False
+        if user_id and self.relationship_manager:
+            best_friend_id = self.relationship_manager.get_best_friend_of_day()
+            if best_friend_id and str(best_friend_id) == str(user_id):
+                is_secret_favorite = True
+
+        if is_secret_favorite:
+            templates = self.BEST_FRIEND_GREETINGS[self.current_mood]
+        else:
+            templates = self.GREETINGS[self.current_mood]
         return random.choice(templates).format(user=user_name)
 
     def confirmation(self, text: str) -> str:
@@ -260,26 +311,41 @@ class PersonalityEngine:
         except Exception:
             return None  # Fallback to static responses
     
-    def get_cookie_reward_message(self, amount: int, user_name: str) -> str:
+    def get_cookie_reward_message(
+        self,
+        amount: int,
+        user_name: str,
+        user_id: Optional[str] = None
+    ) -> str:
         """Get a message for cookie rewards based on mood."""
+        is_secret_favorite = False
+        if user_id and self.relationship_manager:
+            best_friend_id = self.relationship_manager.get_best_friend_of_day()
+            if best_friend_id and str(best_friend_id) == str(user_id):
+                is_secret_favorite = True
+
+        if is_secret_favorite:
+            templates = self.BEST_FRIEND_COOKIE_MESSAGES[self.current_mood]
+            return random.choice(templates).format(amount=amount, user_name=user_name)
+
         messages = {
             'happy': [
-                f"🍪✨ Here's {amount} cookies for you, {user_name}! You're amazing! 🦛💖",
-                f"🍪 Yay! {amount} cookies coming your way! Keep being awesome! 🎉",
-                f"🍪 {amount} fresh cookies just for you, {user_name}! 🌟"
+                "🍪✨ Here's {amount} cookies for you, {user_name}! You're amazing! 🦛💖",
+                "🍪 Yay! {amount} cookies coming your way! Keep being awesome! 🎉",
+                "🍪 {amount} fresh cookies just for you, {user_name}! 🌟"
             ],
             'neutral': [
-                f"🍪 You earned {amount} cookies, {user_name}!",
-                f"🍪 Nice! Here's {amount} cookies for you.",
-                f"🍪 {amount} cookies added to your collection!"
+                "🍪 You earned {amount} cookies, {user_name}!",
+                "🍪 Nice! Here's {amount} cookies for you.",
+                "🍪 {amount} cookies added to your collection!"
             ],
             'grumpy': [
-                f"🍪 Fine, take {amount} cookies... 😒",
-                f"🍪 Here, {amount} cookies. Don't spend them all at once...",
-                f"🍪 *grumbles* {amount} cookies for {user_name}..."
+                "🍪 Fine, take {amount} cookies... 😒",
+                "🍪 Here, {amount} cookies. Don't spend them all at once...",
+                "🍪 *grumbles* {amount} cookies for {user_name}..."
             ]
         }
-        return random.choice(messages[self.current_mood])
+        return random.choice(messages[self.current_mood]).format(amount=amount, user_name=user_name)
     
     def get_easter_egg_limit_message(self, user_name: str, aggravation_level: int) -> str:
         """Get a message when user hits easter egg limit based on mood and aggravation."""

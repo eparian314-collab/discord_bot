@@ -15,7 +15,8 @@ from __future__ import annotations
 
 import random
 import json
-from typing import Optional, Dict, List, Tuple, TYPE_CHECKING
+from typing import Optional, Dict, List, Tuple, TYPE_CHECKING, Any
+from collections import defaultdict
 from dataclasses import dataclass
 
 from discord_bot.games.pokemon_data_manager import PokemonDataManager
@@ -358,6 +359,34 @@ class PokemonGame:
                 updated_pokemon = self.storage.get_pokemon_by_id(pokemon_id)
         
         return (True, updated_pokemon)
+
+    def _resolve_evolution_targets(
+        self, user_id: str, pokemon_id: int
+    ) -> Tuple[Optional[Dict[str, Any]], List[Dict[str, Any]]]:
+        """
+        Determine the primary Pokemon to evolve and available duplicates.
+
+        Returns:
+            (main_pokemon, duplicate_pokemon_list)
+        """
+        target = self.storage.get_pokemon_by_id(pokemon_id)
+        if not target:
+            return None, []
+
+        species = target['species'].lower()
+        user_pokemon = self.storage.get_user_pokemon(user_id)
+
+        species_group = [
+            poke for poke in user_pokemon if poke['species'].lower() == species
+        ]
+
+        if not species_group:
+            return None, []
+
+        species_group.sort(key=lambda p: ((p.get('caught_date') or ''), p['pokemon_id']))
+        main_pokemon = species_group[0]
+        duplicates = [p for p in species_group if p['pokemon_id'] != main_pokemon['pokemon_id']]
+        return main_pokemon, duplicates
     
     def can_evolve(self, user_id: str, pokemon_id: int) -> Tuple[bool, Optional[str], int, Optional[str]]:
         """
@@ -366,15 +395,8 @@ class PokemonGame:
         Returns:
             (can_evolve, evolution_name or None, cookie_cost, reason_if_cannot)
         """
-        # Get Pokemon data
-        user_pokemon = self.storage.get_user_pokemon(user_id)
-        target_pokemon = None
-        
-        for poke in user_pokemon:
-            if poke['pokemon_id'] == pokemon_id:
-                target_pokemon = poke
-                break
-        
+        target_pokemon, duplicates = self._resolve_evolution_targets(user_id, pokemon_id)
+
         if not target_pokemon:
             return (False, None, 0, "Pokemon not found")
         
@@ -398,14 +420,53 @@ class PokemonGame:
                     f"Not enough cookies (need {cookie_cost} cookies to evolve)")
         
         # Check if user has a duplicate to consume
-        species_count = self.storage.get_pokemon_count_by_species(user_id, species)
-        if species_count < 2:
+        if not duplicates:
             return (False, evolved_form, cookie_cost,
                     f"Need a duplicate {species.title()} to evolve")
         
         return (True, evolved_form, cookie_cost, None)
-    
-    def evolve_pokemon(self, user_id: str, pokemon_id: int, duplicate_id: int) -> Tuple[bool, Optional[Dict], Optional[str]]:
+
+    def get_evolution_candidates(self, user_id: str) -> List[Dict[str, Any]]:
+        """
+        Return a summary of Pokemon that could evolve along with their IDs.
+        """
+        candidates: List[Dict[str, Any]] = []
+        user_pokemon = self.storage.get_user_pokemon(user_id)
+        species_groups: Dict[str, List[Dict[str, Any]]] = defaultdict(list)
+
+        for poke in user_pokemon:
+            species_groups[poke['species'].lower()].append(poke)
+
+        for species, pokes in species_groups.items():
+            if species not in self.EVOLUTIONS or len(pokes) < 2:
+                continue
+
+            pokes.sort(key=lambda p: ((p.get('caught_date') or ''), p['pokemon_id']))
+            main = pokes[0]
+            duplicates = [p for p in pokes if p['pokemon_id'] != main['pokemon_id']]
+
+            can_evolve, evolved_form, cost, reason = self.can_evolve(user_id, main['pokemon_id'])
+            candidates.append(
+                {
+                    "species": species,
+                    "main_id": main['pokemon_id'],
+                    "main_level": main.get('level', 1),
+                    "next_form": evolved_form,
+                    "cookie_cost": cost,
+                    "ready": can_evolve,
+                    "reason": reason,
+                    "duplicate_ids": [p['pokemon_id'] for p in duplicates],
+                }
+            )
+
+        return sorted(candidates, key=lambda c: c["species"])
+
+    def evolve_pokemon(
+        self,
+        user_id: str,
+        pokemon_id: int,
+        duplicate_id: Optional[int] = None
+    ) -> Tuple[bool, Optional[Dict], Optional[str]]:
         """
         Evolve a Pokemon using a duplicate and cookies.
         Maintains IVs and nature from original Pokemon.
@@ -413,30 +474,40 @@ class PokemonGame:
         Args:
             user_id: User evolving
             pokemon_id: Pokemon to evolve
-            duplicate_id: Duplicate Pokemon to consume
+            duplicate_id: Duplicate Pokemon to consume (optional - auto-selects newest)
         
         Returns:
             (success, evolved_pokemon_data or None, error_message or None)
         """
-        can_evolve_result = self.can_evolve(user_id, pokemon_id)
+        target_pokemon, duplicates = self._resolve_evolution_targets(user_id, pokemon_id)
+
+        if not target_pokemon:
+            return (False, None, "Pokemon not found")
+
+        primary_id = target_pokemon['pokemon_id']
+
+        can_evolve_result = self.can_evolve(user_id, primary_id)
         can_evolve, evolved_form, cookie_cost, reason = can_evolve_result
         
         if not can_evolve or not evolved_form:
             return (False, None, reason)
+
+        if duplicate_id:
+            duplicate = next((p for p in duplicates if p['pokemon_id'] == duplicate_id), None)
+            if not duplicate:
+                return (False, None, "Duplicate Pokemon not found")
+        else:
+            if not duplicates:
+                return (False, None, "Need a duplicate to evolve")
+            duplicate = duplicates[-1]  # newest capture becomes the sacrifice
         
         # Spend cookies
         success, _ = self.cookie_manager.spend_stamina(user_id, 'evolve')
         if not success:
             return (False, None, "Failed to spend cookies")
         
-        # Get original Pokemon data
-        target_pokemon = self.storage.get_pokemon_by_id(pokemon_id)
-        
-        if not target_pokemon:
-            return (False, None, "Pokemon not found")
-        
         # Remove duplicate
-        if not self.storage.remove_pokemon(duplicate_id):
+        if not self.storage.remove_pokemon(duplicate['pokemon_id']):
             return (False, None, "Failed to consume duplicate Pokemon")
         
         # Keep current level (no level boost)
@@ -494,7 +565,7 @@ class PokemonGame:
                 )
         
         # Remove old Pokemon
-        self.storage.remove_pokemon(pokemon_id)
+        self.storage.remove_pokemon(primary_id)
         
         # Add evolved Pokemon with maintained IVs
         new_pokemon_id = self.storage.add_pokemon(
@@ -518,8 +589,11 @@ class PokemonGame:
         )
         
         if new_pokemon_id:
-            # Get the new Pokemon data
-            return (True, self.storage.get_pokemon_by_id(new_pokemon_id), None)
+            evolved_data = self.storage.get_pokemon_by_id(new_pokemon_id)
+            if evolved_data is not None:
+                evolved_data['consumed_duplicate_id'] = duplicate['pokemon_id']
+                evolved_data['consumed_duplicate_nickname'] = duplicate.get('nickname')
+            return (True, evolved_data, None)
         
         return (False, None, "Failed to create evolved Pokemon")
     

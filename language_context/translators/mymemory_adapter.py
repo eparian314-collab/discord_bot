@@ -150,7 +150,7 @@ class MyMemoryAdapter:
     async def translate_async(self, text: str, src: Optional[str], tgt: str) -> Optional[str]:
         """
         Translate text asynchronously.
-        
+
         Args:
             text: Text to translate
             src: Source language code (or None for auto-detect)
@@ -174,6 +174,16 @@ class MyMemoryAdapter:
         if result_dict.get("ok"):
             return result_dict.get("text")
         return None
+
+    def translate(self, text: str, src: Optional[str], tgt: str) -> Optional[str]:
+        """
+        Synchronous helper to keep compatibility with engines that expect a blocking call.
+        Should be invoked from non-async contexts (e.g., worker threads).
+        """
+        try:
+            return asyncio.run(self.translate_async(text, src, tgt))
+        except RuntimeError as exc:  # pragma: no cover - defensive guard for unexpected contexts
+            raise RuntimeError("MyMemoryAdapter.translate requires a non-running event loop context") from exc
     
     async def __call__(self, job: Any) -> TranslationDict:
         """

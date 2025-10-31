@@ -682,9 +682,17 @@ class GameCog(commands.Cog):
         
         await interaction.response.send_message(embed=embed)
 
-    @pokemon.command(name="evolve", description="✨ Evolve a Pokemon using a duplicate")
-    @app_commands.describe(pokemon_id="Pokemon to evolve", duplicate_id="Duplicate Pokemon to consume")
-    async def evolve(self, interaction: discord.Interaction, pokemon_id: int, duplicate_id: int) -> None:
+    @pokemon.command(name="evolve", description="✨ Evolve a Pokemon using your duplicates")
+    @app_commands.describe(
+        pokemon_id="ID of the Pokemon to evolve (oldest capture stays as main)",
+        duplicate_id="Optional duplicate ID to consume (auto-selects newest if omitted)"
+    )
+    async def evolve(
+        self,
+        interaction: discord.Interaction,
+        pokemon_id: int,
+        duplicate_id: Optional[int] = None
+    ) -> None:
         """Evolve a Pokemon."""
         if not await self._check_allowed_channel(interaction):
             return
@@ -712,7 +720,9 @@ class GameCog(commands.Cog):
             return
         
         # Evolve
-        success, evolved_pokemon, error_msg = self.pokemon_game.evolve_pokemon(user_id, pokemon_id, duplicate_id)
+        success, evolved_pokemon, error_msg = self.pokemon_game.evolve_pokemon(
+            user_id, pokemon_id, duplicate_id
+        )
         
         if not success or not evolved_pokemon:
             error_text = error_msg or "Check your Pokemon IDs and cookies."
@@ -738,9 +748,65 @@ class GameCog(commands.Cog):
         else:
             embed.add_field(name="Evolution", value="✨ Final Form!", inline=False)
         
-        embed.set_footer(text=f"Evolution cost: {cookie_cost} 🍪 + 1 duplicate consumed")
+        consumed_id = evolved_pokemon.get('consumed_duplicate_id')
+        consumed_name = evolved_pokemon.get('consumed_duplicate_nickname') or "duplicate"
+        if consumed_id:
+            footer = f"Evolution cost: {cookie_cost} 🍪 + {consumed_name} (ID:{consumed_id}) consumed"
+        else:
+            footer = f"Evolution cost: {cookie_cost} 🍪"
+        embed.set_footer(text=footer)
         
         await interaction.response.send_message(embed=embed)
+
+    @pokemon.command(name="evolve_list", description="📜 View your evolution-ready Pokemon IDs")
+    async def evolve_list(self, interaction: discord.Interaction) -> None:
+        """List Pokemon eligible for evolution with their IDs."""
+        if not await self._check_allowed_channel(interaction):
+            return
+        if not await self._check_game_unlocked(interaction):
+            return
+
+        user_id = str(interaction.user.id)
+        candidates = self.pokemon_game.get_evolution_candidates(user_id)
+
+        if not candidates:
+            await interaction.response.send_message(
+                "🦛 You don't have any evolution-ready Pokemon yet.",
+                ephemeral=True
+            )
+            return
+
+        embed = discord.Embed(
+            title="📜 Evolution Candidates",
+            description="Oldest capture is treated as your main Pokemon for evolution.",
+            color=discord.Color.gold()
+        )
+
+        for candidate in candidates[:10]:
+            duplicates = ", ".join(str(d) for d in candidate["duplicate_ids"]) or "None"
+            next_form = candidate["next_form"].capitalize() if candidate["next_form"] else "Unknown"
+            if candidate["ready"]:
+                status = "✅ Ready"
+            else:
+                reason = candidate["reason"] or "Not ready"
+                status = f"❌ {reason}"
+            embed.add_field(
+                name=f"{candidate['species'].capitalize()} ➜ {next_form}",
+                value=(
+                    f"Main ID: {candidate['main_id']} (Lv.{candidate['main_level']})\n"
+                    f"Duplicates: {duplicates}\n"
+                    f"Cost: {candidate['cookie_cost']} 🍪\n"
+                    f"Status: {status}"
+                ),
+                inline=False,
+            )
+
+        if len(candidates) > 10:
+            embed.set_footer(text=f"Showing first 10 of {len(candidates)} options.")
+        else:
+            embed.set_footer(text="Oldest capture remains your main partner today.")
+
+        await interaction.response.send_message(embed=embed, ephemeral=True)
 
     @pokemon.command(name="info", description="ℹ️ Get detailed information about any Pokemon")
     @app_commands.describe(pokemon_name="Name of the Pokemon")

@@ -96,6 +96,15 @@ class GameStorageEngine:
                 UNIQUE(user_id, date)
             );
             """)
+
+            # Admin/helper daily gift allowances
+            self.conn.execute("""
+            CREATE TABLE IF NOT EXISTS admin_cookie_allowances (
+                user_id TEXT PRIMARY KEY,
+                last_date TEXT,
+                remaining INTEGER DEFAULT 0
+            );
+            """)
             
             # Game statistics tracking
             self.conn.execute("""
@@ -232,6 +241,19 @@ class GameStorageEngine:
         self.update_cookies(user_id, new_total, new_current)
         return (new_total, new_current)
 
+    def add_gift_cookies(self, user_id: str, amount: int) -> tuple[int, int]:
+        """
+        Add cookies that should not count toward leaderboard totals.
+        Increases current balance but leaves total_cookies unchanged.
+        """
+        if amount <= 0:
+            return self.get_user_cookies(user_id)
+        self.add_user(user_id)
+        total, current = self.get_user_cookies(user_id)
+        new_current = current + amount
+        self.update_cookies(user_id, cookies_left=new_current)
+        return (total, new_current)
+
     def spend_cookies(self, user_id: str, amount: int) -> bool:
         """Spend cookies if user has enough. Returns True if successful."""
         _, current = self.get_user_cookies(user_id)
@@ -239,6 +261,68 @@ class GameStorageEngine:
             return False
         self.update_cookies(user_id, cookies_left=current - amount)
         return True
+
+    def get_admin_gift_remaining(self, user_id: str, daily_limit: int) -> int:
+        """Return how many gift cookies the admin/helper has left today."""
+        return self._ensure_admin_gift_record(user_id, daily_limit)
+
+    def consume_admin_gift_allowance(self, user_id: str, amount: int, daily_limit: int) -> bool:
+        """Consume from the user's daily gift allowance if possible."""
+        if amount <= 0:
+            return False
+
+        remaining = self._ensure_admin_gift_record(user_id, daily_limit)
+        if amount > remaining:
+            return False
+
+        new_remaining = remaining - amount
+        today = datetime.utcnow().date().isoformat()
+        with self.conn:
+            self.conn.execute(
+                """
+                UPDATE admin_cookie_allowances
+                SET remaining = ?, last_date = ?
+                WHERE user_id = ?
+                """,
+                (new_remaining, today, user_id),
+            )
+        return True
+
+    def _ensure_admin_gift_record(self, user_id: str, daily_limit: int) -> int:
+        """Ensure an allowance record exists for today and return remaining amount."""
+        today = datetime.utcnow().date().isoformat()
+        cursor = self.conn.cursor()
+        cursor.execute(
+            "SELECT last_date, remaining FROM admin_cookie_allowances WHERE user_id = ?",
+            (user_id,),
+        )
+        row = cursor.fetchone()
+        if not row:
+            with self.conn:
+                self.conn.execute(
+                    """
+                    INSERT OR REPLACE INTO admin_cookie_allowances (user_id, last_date, remaining)
+                    VALUES (?, ?, ?)
+                    """,
+                    (user_id, today, daily_limit),
+                )
+            return daily_limit
+
+        last_date = row["last_date"]
+        remaining = row["remaining"]
+        if last_date != today:
+            with self.conn:
+                self.conn.execute(
+                    """
+                    UPDATE admin_cookie_allowances
+                    SET last_date = ?, remaining = ?
+                    WHERE user_id = ?
+                    """,
+                    (today, daily_limit, user_id),
+                )
+            return daily_limit
+
+        return remaining
 
     # Relationship Management
     def update_relationship(self, user_id: str, relationship_index: int, 
