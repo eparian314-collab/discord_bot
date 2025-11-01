@@ -75,5 +75,7 @@ if ! python "${PROJECT_DIR}/scripts/simulation_test.py"; then
 fi
 
 log "Launching HippoBot"
-exec python "${PROJECT_DIR}/main.py"
+# Change to parent directory to run bot as module
+cd "$(dirname "${PROJECT_DIR}")"
+exec python -m discord_bot
 
