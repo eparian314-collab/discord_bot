@@ -478,7 +478,11 @@ class GameCog(commands.Cog):
                     result_info = f"\U0001f99b A **{pokemon_name}** (Lv.{encounter.level}) appeared... but it got away! \U0001f614"
 
                 miss_msg = self.personality_engine.get_pokemon_catch_fail(user_name, pokemon_name)
-                await interaction.response.send_message(f"{miss_msg}\n{result_info}")
+                await safe_send_interaction_response(
+                    interaction,
+                    content=f"{miss_msg}\n{result_info}",
+                    ephemeral=False,
+                )
 
     @pokemon.command(name="fish", description="🎣 Fish for water-type Pokemon! (Costs 1 cookie)")
     async def fish(self, interaction: discord.Interaction) -> None:
@@ -612,8 +616,11 @@ class GameCog(commands.Cog):
                 result_info = f"🌟 A **{pokemon_name}** (Lv.{encounter.level}) fled... 😔"
 
             miss_msg = self.personality_engine.get_pokemon_catch_fail(user_name, pokemon_name)
-            await interaction.response.send_message(f"{miss_msg}
-{result_info}")
+            await safe_send_interaction_response(
+                interaction,
+                content=f"{miss_msg}\n{result_info}",
+                ephemeral=False,
+            )
 
     @pokemon.command(name="collection", description="📋 View your Pokemon collection")
     async def collection(self, interaction: discord.Interaction) -> None:
