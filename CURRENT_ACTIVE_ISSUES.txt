@@ -46,3 +46,14 @@ Need: Add unified logging or per-engine debug tags to trace event → cache → 
 - Add guard flags for async tasks to prevent infinite loops.
 - Add diagnostic logging to trace triggers.
 - Re-verify channel routing post-cleanup.
+
+Solution Summary: 
+consolidated all gaming aspects of the bot to the appropriate gaming storage engine and cache system.
+Due to the cross entanglement of sos propmts and translation functions that were mean to send translated dms 
+to users with assigned language roles I began realizing how much easier life would bave been if I made 2 
+separate bots and realized the issue is most likely me trying to keep my cookie ranking data in my main storage and caching ststem
+Added additional safe guards to sos to prevent random misfires and removed default sos key words that were use in earlier phases
+
+
+Synopsis: here this debug session taught me the importance of seperation of concernces of intertwine systems in my project
+
