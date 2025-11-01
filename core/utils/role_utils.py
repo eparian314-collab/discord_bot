@@ -48,7 +48,9 @@ def is_server_owner(user: discord.Member, guild: discord.Guild) -> bool:
     Returns:
         True if user owns the server, False otherwise
     """
-    return guild.owner_id == user.id
+    owner_id = getattr(guild, "owner_id", None)
+    user_id = getattr(user, "id", None)
+    return owner_id is not None and user_id is not None and owner_id == user_id
 
 
 def is_bot_owner(user: discord.User | discord.Member) -> bool:
@@ -90,8 +92,15 @@ def has_helper_role(user: discord.Member) -> bool:
     helper_role_id = get_helper_role_id()
     if helper_role_id is None:
         return False
-    
-    return any(role.id == helper_role_id for role in user.roles)
+
+    roles = getattr(user, "roles", None)
+    if not roles:
+        return False
+
+    try:
+        return any(getattr(role, "id", None) == helper_role_id for role in roles)
+    except TypeError:
+        return False
 
 
 def is_admin_or_helper(user: discord.Member, guild: discord.Guild) -> bool:

@@ -12,16 +12,18 @@ from __future__ import annotations
 import discord
 from discord import app_commands
 from discord.ext import commands
-from typing import Optional, TYPE_CHECKING
+from typing import Optional, TYPE_CHECKING, List, Dict, Any
 import aiohttp
 import os
 
-from discord_bot.core.utils import find_bot_channel
+from discord_bot.core.engines.screenshot_processor import StageType
+from discord_bot.core.utils import find_bot_channel, is_admin_or_helper
 from discord_bot.core import ui_groups
 
 if TYPE_CHECKING:
-    from discord_bot.core.engines.screenshot_processor import ScreenshotProcessor, StageType, RankingCategory
+    from discord_bot.core.engines.screenshot_processor import ScreenshotProcessor, StageType
     from discord_bot.core.engines.ranking_storage_engine import RankingStorageEngine
+    from discord_bot.core.engines.kvk_tracker import KVKRun
 
 
 class RankingCog(commands.Cog):
@@ -34,12 +36,20 @@ class RankingCog(commands.Cog):
         self,
         bot: commands.Bot,
         processor: ScreenshotProcessor,
-        storage: RankingStorageEngine
+        storage: RankingStorageEngine,
+        kvk_tracker=None
     ):
         self.bot = bot
         self.processor = processor
         self.storage = storage
         self._rankings_channel_id = self._get_rankings_channel_id()
+        self.kvk_tracker = kvk_tracker or getattr(bot, "kvk_tracker", None)
+
+    def __getattribute__(self, name: str):
+        value = object.__getattribute__(self, name)
+        if isinstance(value, app_commands.Command):
+            return value.callback.__get__(self, type(self))
+        return value
     
     def _get_rankings_channel_id(self) -> Optional[int]:
         """Get the dedicated rankings channel ID from environment."""
@@ -67,6 +77,105 @@ class RankingCog(commands.Cog):
                 await modlog.send(embed=embed)
             except:
                 pass  # Silently fail if can't post
+
+    def _resolve_kvk_run(self, interaction: discord.Interaction) -> tuple[Optional["KVKRun"], bool]:
+        if not interaction.guild or not self.kvk_tracker:
+            return None, False
+        run = self.kvk_tracker.get_active_run(interaction.guild.id, include_tests=True)
+        if run:
+            return run, run.is_active
+        runs = self.kvk_tracker.list_runs(interaction.guild.id, include_tests=True)
+        if runs:
+            return runs[0], False
+        return None, False
+
+    def _format_event_week_label(self, kvk_run: Optional["KVKRun"]) -> str:
+        if not kvk_run:
+            return self.storage.get_current_event_week()
+        if getattr(kvk_run, "is_test", False):
+            return f"KVK-TEST-{kvk_run.id}"
+        if getattr(kvk_run, "run_number", None):
+            return f"KVK-{int(kvk_run.run_number):02d}"
+        return f"KVK-{kvk_run.id}"
+
+    def _normalize_day(self, stage_type: "StageType", day: int) -> int:
+        if stage_type == StageType.WAR:
+            return 6
+        return day
+
+    def _format_day_label(self, day: int, stage_type: "StageType") -> str:
+        if day == 6:
+            return "War Stage"
+        if day == -1:
+            return "Prep Stage Total"
+        if stage_type == StageType.PREP:
+            mapping = {
+                1: "Construction Day",
+                2: "Research Day",
+                3: "Resource & Mob Day",
+                4: "Hero Day",
+                5: "Troop Training Day",
+            }
+            return mapping.get(day, f"Day {day}")
+        return f"Day {day}"
+
+    def _aggregate_entries(self, entries: List[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+        if not entries:
+            return None
+        scores = [row.get("score", 0) for row in entries]
+        ranks = [row.get("rank") for row in entries if row.get("rank") is not None]
+        return {
+            "score": sum(scores),
+            "rank": min(ranks) if ranks else None,
+            "samples": len(entries),
+        }
+
+    def _format_run_header(self, kvk_run: "KVKRun") -> str:
+        run_label = "Test run" if kvk_run.is_test else f"Run #{kvk_run.run_number}"
+        window = f"{kvk_run.started_at.strftime('%Y-%m-%d %H:%M UTC')} - {kvk_run.ends_at.strftime('%Y-%m-%d %H:%M UTC')}"
+        status = "active" if kvk_run.is_active else "closed"
+        return f"{run_label} | {window} | {status}"
+
+    def _validate_day_argument(self, day: Optional[int]) -> Optional[int]:
+        if day is None:
+            return None
+        if day < 1 or day > 6:
+            raise ValueError("Day must be between 1 and 6")
+        return day
+
+    def _fetch_user_stat(self, run_id: int, user_id: int, day: Optional[int]) -> Optional[Dict[str, Any]]:
+        if not self.kvk_tracker:
+            return None
+        if day is not None:
+            entries = self.kvk_tracker.fetch_user_entries(
+                run_id=run_id,
+                user_id=user_id,
+                day_number=day,
+            )
+            if not entries:
+                return None
+            entry = dict(entries[0])
+            entry.setdefault("kvk_day", day)
+            return entry
+        entries = self.kvk_tracker.fetch_user_entries(
+            run_id=run_id,
+            user_id=user_id,
+        )
+        aggregated = self._aggregate_entries(entries)
+        if not aggregated:
+            return None
+        aggregated["kvk_day"] = None
+        aggregated["entries"] = entries
+        return aggregated
+
+    def _fetch_peers(self, run_id: int, day: Optional[int], limit: int = 100) -> List[Dict[str, Any]]:
+        if not self.kvk_tracker:
+            return []
+        return self.kvk_tracker.fetch_leaderboard(
+            run_id=run_id,
+            day_number=day,
+            limit=limit,
+        )
     
     async def _check_rankings_channel(self, interaction: discord.Interaction) -> bool:
         """Check if command is used in the dedicated rankings channel."""
@@ -98,11 +207,11 @@ class RankingCog(commands.Cog):
     
     @ranking.command(
         name="submit",
-        description="📊 Submit a screenshot of your Top Heroes event ranking"
+        description="Submit a screenshot of your Top Heroes event ranking"
     )
     @app_commands.describe(
         screenshot="Upload your ranking screenshot",
-        day="Which day is this for? (1-5)",
+        day="Which day is this for? (1-5 for prep, ignored for war)",
         stage="Which stage? (Prep or War)"
     )
     async def submit_ranking(
@@ -113,247 +222,196 @@ class RankingCog(commands.Cog):
         stage: str
     ):
         """Submit an event ranking screenshot."""
-        # Check if in rankings channel
         if not await self._check_rankings_channel(interaction):
             return
-        
+
+        kvk_run, run_is_active = self._resolve_kvk_run(interaction)
+        is_admin = is_admin_or_helper(interaction.user, interaction.guild)
+        if not kvk_run:
+            await interaction.response.send_message(
+                "No tracked KVK window is currently open. Please wait for the next KVK reminder.",
+                ephemeral=True,
+            )
+            return
+
+        if not run_is_active and not is_admin:
+            closed_at = kvk_run.ends_at.strftime('%Y-%m-%d %H:%M UTC')
+            await interaction.response.send_message(
+                f"The KVK submission window closed on {closed_at}. Only admins or helpers can submit late updates.",
+                ephemeral=True,
+            )
+            return
+
         await interaction.response.defer(ephemeral=True)
-        
-        try:
-            # Validate inputs
+
+        stage_lower = stage.lower()
+        if stage_lower not in ("prep", "war"):
+            await interaction.followup.send(
+                "Stage must be 'Prep' or 'War'.",
+                ephemeral=True,
+            )
+            return
+        stage_type = StageType.PREP if stage_lower == "prep" else StageType.WAR
+
+        if stage_type == StageType.PREP:
             if day < 1 or day > 5:
                 await interaction.followup.send(
-                    "❌ Day must be between 1 and 5!\n"
-                    "• Day 1 = Construction\n"
-                    "• Day 2 = Research\n"
-                    "• Day 3 = Resource & Mob\n"
-                    "• Day 4 = Hero\n"
-                    "• Day 5 = Troop Training",
-                    ephemeral=True
+                    "Day must be between 1 and 5 for the prep stage.",
+                    ephemeral=True,
                 )
                 return
-            
-            stage_lower = stage.lower()
-            if stage_lower not in ['prep', 'war']:
-                await interaction.followup.send(
-                    "❌ Stage must be 'Prep' or 'War'!",
-                    ephemeral=True
-                )
-                return
-            
-            # Parse stage type
-            from discord_bot.core.engines.screenshot_processor import StageType
-            stage_type = StageType.PREP if stage_lower == 'prep' else StageType.WAR
-            
-            # Validate attachment
-            if not screenshot.content_type or not screenshot.content_type.startswith('image/'):
-                await interaction.followup.send(
-                    "❌ Please upload an image file (PNG, JPG, etc.)!",
-                    ephemeral=True
-                )
-                return
-            
-            if screenshot.size > 10 * 1024 * 1024:  # 10MB limit
-                await interaction.followup.send(
-                    "❌ Image too large! Please upload a screenshot under 10MB.",
-                    ephemeral=True
-                )
-                return
-            
-            # Get current event week
-            current_week = self.storage.get_current_event_week()
-            
-            # Check for duplicate submission
-            existing = self.storage.check_duplicate_submission(
-                str(interaction.user.id),
-                str(interaction.guild_id) if interaction.guild else "0",
-                current_week,
-                stage_type,
-                day
+        else:
+            day = 6  # War stage is treated as the sixth slot
+
+        if not screenshot.content_type or not screenshot.content_type.startswith('image/'):
+            await interaction.followup.send(
+                "Please upload an image file (PNG, JPG, etc.).",
+                ephemeral=True,
             )
-            
-            if existing:
-                # User already submitted - replace it
-                await interaction.followup.send(
-                    f"ℹ️ You already submitted Day {day} {stage.title()} Stage this week.\n"
-                    f"This will replace your previous submission...",
-                    ephemeral=True
-                )
-            
-            # Download image
-            image_data = await screenshot.read()
-            
-            # Validate screenshot
-            is_valid, error_msg = await self.processor.validate_screenshot(image_data)
-            if not is_valid:
-                self.storage.log_submission(
-                    str(interaction.user.id),
-                    str(interaction.guild_id) if interaction.guild else None,
-                    "failed",
-                    error_message=error_msg
-                )
-                await interaction.followup.send(
-                    f"❌ **Screenshot validation failed:**\n{error_msg}\n\n"
-                    f"**Please make sure your screenshot shows:**\n"
-                    f"• Stage type (Prep/War Stage button)\n"
-                    f"• Day number (1-5 buttons with one highlighted)\n"
-                    f"• Your rank (e.g., #10435)\n"
-                    f"• Your score (e.g., 28,200,103 points)\n"
-                    f"• Your player name with guild tag (e.g., [TAO] Mars)",
-                    ephemeral=True
-                )
-                return
-            
-            # Process screenshot
-            ranking = await self.processor.process_screenshot(
-                image_data,
-                str(interaction.user.id),
-                interaction.user.name,
-                str(interaction.guild_id) if interaction.guild else None
+            return
+
+        if screenshot.size > 10 * 1024 * 1024:
+            await interaction.followup.send(
+                "Image too large. Please upload a screenshot under 10MB.",
+                ephemeral=True,
             )
-            
-            if not ranking:
-                self.storage.log_submission(
-                    str(interaction.user.id),
-                    str(interaction.guild_id) if interaction.guild else None,
-                    "failed",
-                    error_message="Could not extract ranking data from image"
-                )
-                await interaction.followup.send(
-                    "❌ **Could not read ranking data from screenshot.**\n\n"
-                    "**The screenshot must clearly show:**\n"
-                    "• Stage type button (Prep Stage / War Stage)\n"
-                    "• Day number buttons (1-5)\n"
-                    "• Your overall rank (e.g., #10435)\n"
-                    "• Your score/points (e.g., 28,200,103)\n"
-                    "• Your player name with guild tag (e.g., #10435 [TAO] Mars)\n\n"
-                    "**Tips for better results:**\n"
-                    "✅ Take screenshot in good lighting\n"
-                    "✅ Make sure text is not blurry\n"
-                    "✅ Use high resolution\n"
-                    "✅ Don't crop too much - show the whole ranking screen",
-                    ephemeral=True
-                )
-                return
-            
-            # Validate extracted data matches user input
-            if ranking.day_number != day:
-                await interaction.followup.send(
-                    f"⚠️ **Data mismatch!**\n"
-                    f"You selected Day {day}, but the screenshot appears to show Day {ranking.day_number}.\n"
-                    f"Please check your screenshot and try again.",
-                    ephemeral=True
-                )
-                return
-            
-            if ranking.stage_type != stage_type:
-                await interaction.followup.send(
-                    f"⚠️ **Data mismatch!**\n"
-                    f"You selected {stage.title()} Stage, but the screenshot appears to show {ranking.stage_type.value}.\n"
-                    f"Please check your screenshot and try again.",
-                    ephemeral=True
-                )
-                return
-            
-            # Save to database (or update if duplicate)
-            ranking.screenshot_url = screenshot.url
-            
-            if existing:
-                # Update existing entry
-                success = self.storage.update_ranking(
-                    existing['id'],
-                    ranking.rank,
-                    ranking.score,
-                    screenshot.url
-                )
-                action = "Updated"
-            else:
-                # New submission
-                ranking_id = self.storage.save_ranking(ranking)
-                action = "Submitted"
-            
-            self.storage.log_submission(
-                str(interaction.user.id),
-                str(interaction.guild_id) if interaction.guild else None,
-                "success",
-                ranking_id=existing['id'] if existing else None
+            return
+
+        event_week = self._format_event_week_label(kvk_run)
+        normalized_day = self._normalize_day(stage_type, day)
+
+        existing = self.storage.check_duplicate_submission(
+            str(interaction.user.id),
+            str(interaction.guild_id) if interaction.guild else "0",
+            event_week,
+            stage_type,
+            normalized_day,
+            kvk_run_id=kvk_run.id,
+        )
+
+        if existing:
+            await interaction.followup.send(
+                "You already submitted data for this run and day. The previous entry will be replaced.",
+                ephemeral=True,
             )
-            
-            # Create response embed
-            embed = discord.Embed(
-                title=f"✅ Ranking {action}!",
-                description=f"Event Week: **{ranking.event_week}**",
-                color=discord.Color.green(),
-                timestamp=ranking.submitted_at
-            )
-            
-            # Data stored
-            embed.add_field(
-                name="📊 Data Stored",
-                value=(
-                    f"**Guild Tag:** {ranking.guild_tag or 'N/A'}\n"
-                    f"**Player:** {ranking.player_name or interaction.user.name}\n"
-                    f"**Category:** Day {ranking.day_number} - {ranking.category.value}\n"
-                    f"**Rank:** #{ranking.rank:,}\n"
-                    f"**Score:** {ranking.score:,} points\n"
-                    f"**Week:** {ranking.event_week}"
-                ),
-                inline=False
-            )
-            
-            embed.set_thumbnail(url=screenshot.url)
-            embed.set_footer(text=f"Submitted by {interaction.user.name}")
-            
-            await interaction.followup.send(embed=embed, ephemeral=True)
-            
-            # Send to modlog for admin tracking
-            if interaction.guild:
-                modlog_embed = discord.Embed(
-                    title=f"📊 Ranking {action}",
-                    description=f"**User:** {interaction.user.mention} ({interaction.user.name})",
-                    color=discord.Color.blue(),
-                    timestamp=ranking.submitted_at
-                )
-                modlog_embed.add_field(
-                    name="Data Submitted",
-                    value=(
-                        f"**Guild Tag:** [{ranking.guild_tag or 'N/A'}]\n"
-                        f"**Player Name:** {ranking.player_name or 'N/A'}\n"
-                        f"**Category:** Day {ranking.day_number} - {ranking.category.value}\n"
-                        f"**Rank:** #{ranking.rank:,}\n"
-                        f"**Score:** {ranking.score:,} points\n"
-                        f"**Event Week:** {ranking.event_week}"
-                    ),
-                    inline=False
-                )
-                modlog_embed.set_thumbnail(url=screenshot.url)
-                
-                await self._send_to_modlog(interaction.guild, modlog_embed)
-            
-            # Post to bot channel
-            if interaction.guild:
-                bot_channel = find_bot_channel(interaction.guild)
-                if bot_channel:
-                    public_embed = embed.copy()
-                    public_embed.title = f"📊 {action} Ranking - {interaction.user.name}"
-                    try:
-                        await bot_channel.send(embed=public_embed)
-                    except:
-                        pass  # Silently fail if can't post
-            
-        except Exception as e:
+
+        image_data = await screenshot.read()
+        is_valid, error_msg = await self.processor.validate_screenshot(image_data)
+        if not is_valid:
             self.storage.log_submission(
                 str(interaction.user.id),
                 str(interaction.guild_id) if interaction.guild else None,
                 "failed",
-                error_message=str(e)
+                error_message=error_msg,
             )
             await interaction.followup.send(
-                f"❌ An error occurred while processing your screenshot:\n```{str(e)}```\n"
-                f"Please try again or contact a server admin if the issue persists.",
-                ephemeral=True
+                f"Screenshot validation failed: {error_msg}",
+                ephemeral=True,
             )
-    
+            return
+
+        ranking = await self.processor.process_screenshot(
+            image_data,
+            str(interaction.user.id),
+            interaction.user.name,
+            str(interaction.guild_id) if interaction.guild else None,
+        )
+
+        if not ranking:
+            self.storage.log_submission(
+                str(interaction.user.id),
+                str(interaction.guild_id) if interaction.guild else None,
+                "failed",
+                error_message="Could not extract ranking data from image",
+            )
+            await interaction.followup.send(
+                "Could not read ranking data from the screenshot. Please ensure all required information is visible.",
+                ephemeral=True,
+            )
+            return
+
+        detected_stage = ranking.stage_type
+        if stage_type == StageType.PREP and ranking.day_number and ranking.day_number != normalized_day:
+            await interaction.followup.send(
+                "The highlighted day in the screenshot does not match the selected day.",
+                ephemeral=True,
+            )
+            return
+
+        if detected_stage not in (StageType.UNKNOWN, stage_type):
+            await interaction.followup.send(
+                "The screenshot appears to show a different stage than selected.",
+                ephemeral=True,
+            )
+            return
+
+        ranking.stage_type = stage_type
+        ranking.day_number = normalized_day
+        ranking.screenshot_url = screenshot.url
+        ranking.event_week = event_week
+        ranking.kvk_run_id = kvk_run.id
+        ranking.is_test_run = kvk_run.is_test
+
+        if existing:
+            self.storage.update_ranking(
+                existing["id"],
+                ranking.rank,
+                ranking.score,
+                screenshot.url,
+            )
+            target_ranking_id = existing["id"]
+            action = "Updated"
+        else:
+            target_ranking_id = self.storage.save_ranking(ranking)
+            action = "Submitted"
+
+        if self.kvk_tracker:
+            self.kvk_tracker.record_submission(
+                kvk_run_id=kvk_run.id,
+                ranking_id=target_ranking_id,
+                user_id=interaction.user.id,
+                day_number=normalized_day,
+                stage_type=ranking.stage_type.value,
+                is_test=kvk_run.is_test,
+            )
+
+        self.storage.log_submission(
+            str(interaction.user.id),
+            str(interaction.guild_id) if interaction.guild else None,
+            "success",
+            ranking_id=target_ranking_id,
+        )
+
+        embed = discord.Embed(
+            title=f"{action} ranking entry",
+            description=f"Tracking label: {ranking.event_week}",
+            color=discord.Color.green(),
+            timestamp=ranking.submitted_at,
+        )
+        embed.add_field(
+            name="Stored data",
+            value=(
+                f"Guild tag: {ranking.guild_tag or 'N/A'}\n"
+                f"Player: {ranking.player_name or interaction.user.name}\n"
+                f"Day: {self._format_day_label(normalized_day, stage_type)}\n"
+                f"Rank: #{ranking.rank}\n"
+                f"Score: {ranking.score:,}"
+            ),
+            inline=False,
+        )
+        run_label = "Test run" if kvk_run.is_test else f"Run #{kvk_run.run_number}"
+        window_text = f"{kvk_run.started_at.strftime('%Y-%m-%d %H:%M UTC')} - {kvk_run.ends_at.strftime('%Y-%m-%d %H:%M UTC')}"
+        status_text = "active" if run_is_active else "closed (admin update)"
+        embed.add_field(
+            name="KVK window",
+            value=f"{run_label}\nPeriod: {window_text}\nStatus: {status_text}",
+            inline=False,
+        )
+        embed.set_thumbnail(url=screenshot.url)
+        embed.set_footer(text="Data saved to rankings database")
+
+        await interaction.followup.send(embed=embed, ephemeral=True)
+
     @ranking.command(
         name="view",
         description="📋 View your ranking submission history"
@@ -774,6 +832,298 @@ class RankingCog(commands.Cog):
         await interaction.followup.send(embed=embed, ephemeral=True)
 
 
+    @app_commands.command(name="rankings", description="View your KVK results for a specific run")
+    @app_commands.describe(
+        run="KVK run number (starting at 1)",
+        day="Optional day (1-6; 6 represents the war stage total)"
+    )
+    async def rankings(self, interaction: discord.Interaction, run: int, day: Optional[int] = None):
+        """Retrieve stored KVK data for the requesting user."""
+        if not interaction.guild:
+            await interaction.response.send_message("This command can only be used inside a server.", ephemeral=True)
+            return
+        if not self.kvk_tracker:
+            await interaction.response.send_message("KVK tracking is not configured for this bot.", ephemeral=True)
+            return
+        if run < 1:
+            await interaction.response.send_message("Run number must be at least 1.", ephemeral=True)
+            return
+        try:
+            day = self._validate_day_argument(day)
+        except ValueError as exc:
+            await interaction.response.send_message(str(exc), ephemeral=True)
+            return
+
+        kvk_run = self.kvk_tracker.get_run_by_number(interaction.guild.id, run)
+        if not kvk_run:
+            await interaction.response.send_message(f"KVK run #{run} has not been tracked yet.", ephemeral=True)
+            return
+
+        user_stat = self._fetch_user_stat(kvk_run.id, interaction.user.id, day)
+        if not user_stat:
+            label = f"day {day}" if day else "this run"
+            await interaction.response.send_message(f"No submission found for {label}.", ephemeral=True)
+            return
+
+        embed = discord.Embed(
+            title=f"KVK results for {interaction.user.display_name}",
+            description=self._format_run_header(kvk_run),
+            color=discord.Color.blue(),
+        )
+
+        if day is None:
+            entries = user_stat.get("entries", [])
+            overall = self._aggregate_entries(entries) or {"score": 0, "rank": None, "samples": 0}
+            overall_rank = overall.get("rank")
+            rank_text = f"#{overall_rank:,}" if isinstance(overall_rank, int) else "N/A"
+            embed.add_field(
+                name="Summary",
+                value=(
+                    f"Total score: {overall.get('score', 0):,}\\n"
+                    f"Best rank: {rank_text}"
+                ),
+                inline=False,
+            )
+            for entry in entries:
+                kvk_day = entry.get("kvk_day") or entry.get("day_number") or 6
+                stage_value = entry.get("stage_type", "Prep Stage")
+                stage_enum = StageType.PREP if str(stage_value).lower().startswith("prep") else StageType.WAR
+                label = self._format_day_label(int(kvk_day), stage_enum)
+                rank_value = entry.get("rank")
+                rank_line = f"#{rank_value:,}" if isinstance(rank_value, int) else "N/A"
+                embed.add_field(
+                    name=label,
+                    value=(
+                        f"Rank: {rank_line}\\n"
+                        f"Score: {entry.get('score', 0):,}"
+                    ),
+                    inline=True,
+                )
+        else:
+            stage_value = user_stat.get("stage_type", "Prep Stage")
+            stage_enum = StageType.PREP if str(stage_value).lower().startswith("prep") else StageType.WAR
+            label = self._format_day_label(day, stage_enum)
+            rank_value = user_stat.get("rank")
+            rank_line = f"#{rank_value:,}" if isinstance(rank_value, int) else "N/A"
+            embed.add_field(
+                name=label,
+                value=(
+                    f"Rank: {rank_line}\\n"
+                    f"Score: {user_stat.get('score', 0):,}"
+                ),
+                inline=False,
+            )
+
+        screenshot_url = user_stat.get("screenshot_url")
+        if screenshot_url:
+            embed.set_thumbnail(url=screenshot_url)
+
+        await interaction.response.send_message(embed=embed, ephemeral=True)
+
+    @app_commands.command(name="ranking_compare_me", description="Compare your performance between two KVK runs")
+    @app_commands.describe(
+        first_run="Earlier KVK run number",
+        second_run="Later KVK run number",
+        day="Optional day (1-6; omit for overall run)"
+    )
+    async def ranking_compare_me(
+        self,
+        interaction: discord.Interaction,
+        first_run: int,
+        second_run: int,
+        day: Optional[int] = None
+    ):
+        if not interaction.guild:
+            await interaction.response.send_message("This command can only be used inside a server.", ephemeral=True)
+            return
+        if not self.kvk_tracker:
+            await interaction.response.send_message("KVK tracking is not configured for this bot.", ephemeral=True)
+            return
+        if first_run < 1 or second_run < 1:
+            await interaction.response.send_message("Run numbers must be at least 1.", ephemeral=True)
+            return
+        try:
+            day = self._validate_day_argument(day)
+        except ValueError as exc:
+            await interaction.response.send_message(str(exc), ephemeral=True)
+            return
+
+        run_a = self.kvk_tracker.get_run_by_number(interaction.guild.id, first_run)
+        run_b = self.kvk_tracker.get_run_by_number(interaction.guild.id, second_run)
+        if not run_a or not run_b:
+            await interaction.response.send_message("One of the requested runs could not be found.", ephemeral=True)
+            return
+
+        stat_a = self._fetch_user_stat(run_a.id, interaction.user.id, day)
+        stat_b = self._fetch_user_stat(run_b.id, interaction.user.id, day)
+        if not stat_a or not stat_b:
+            await interaction.response.send_message("Missing submissions for one of the runs.", ephemeral=True)
+            return
+
+        score_a = stat_a.get("score", 0)
+        score_b = stat_b.get("score", 0)
+        score_diff = score_b - score_a
+        percent_change = (score_diff / score_a * 100) if score_a else None
+
+        rank_a = stat_a.get("rank")
+        rank_b = stat_b.get("rank")
+        if isinstance(rank_a, int) and isinstance(rank_b, int):
+            rank_text = f"#{rank_a:,} → #{rank_b:,}"
+            if rank_a > rank_b:
+                rank_text += " (improved)"
+            elif rank_a < rank_b:
+                rank_text += " (declined)"
+        else:
+            rank_text = "N/A"
+
+        label = "Overall run" if day is None else self._format_day_label(
+            day,
+            StageType.PREP if day <= 5 else StageType.WAR,
+        )
+
+        embed = discord.Embed(
+            title=f"KVK comparison for {interaction.user.display_name}",
+            description=f"Target: {label}",
+            color=discord.Color.gold(),
+        )
+        embed.add_field(
+            name=f"Run #{first_run}",
+            value=(
+                f"Score: {score_a:,}\n"
+                f"Rank: {f'#{rank_a:,}' if isinstance(rank_a, int) else 'N/A'}\n"
+                f"{self._format_run_header(run_a)}"
+            ),
+            inline=False,
+        )
+        embed.add_field(
+            name=f"Run #{second_run}",
+            value=(
+                f"Score: {score_b:,}\n"
+                f"Rank: {f'#{rank_b:,}' if isinstance(rank_b, int) else 'N/A'}\n"
+                f"{self._format_run_header(run_b)}"
+            ),
+            inline=False,
+        )
+        change_lines = [f"Score change: {score_diff:+,}"]
+        if percent_change is not None:
+            change_lines.append(f"Percent change: {percent_change:+.2f}%")
+        change_lines.append(f"Rank change: {rank_text}")
+        embed.add_field(name="Summary", value="\n".join(change_lines), inline=False)
+
+        await interaction.response.send_message(embed=embed, ephemeral=True)
+
+    @app_commands.command(name="ranking_compare_others", description="Compare your KVK results against peers or a friend")
+    @app_commands.describe(
+        run="KVK run number",
+        day="Optional day (1-6; omit for overall run)",
+        friend="Friend to compare against when using friend mode"
+    )
+    @app_commands.choices(
+        mode=[
+            app_commands.Choice(name="Power ±5% cohort", value="power"),
+            app_commands.Choice(name="Compare with friend", value="friend"),
+        ]
+    )
+    async def ranking_compare_others(
+        self,
+        interaction: discord.Interaction,
+        run: int,
+        mode: app_commands.Choice[str],
+        day: Optional[int] = None,
+        friend: Optional[discord.Member] = None
+    ):
+        if not interaction.guild:
+            await interaction.response.send_message("This command can only be used inside a server.", ephemeral=True)
+            return
+        if not self.kvk_tracker:
+            await interaction.response.send_message("KVK tracking is not configured for this bot.", ephemeral=True)
+            return
+        if run < 1:
+            await interaction.response.send_message("Run number must be at least 1.", ephemeral=True)
+            return
+        try:
+            day = self._validate_day_argument(day)
+        except ValueError as exc:
+            await interaction.response.send_message(str(exc), ephemeral=True)
+            return
+
+        kvk_run = self.kvk_tracker.get_run_by_number(interaction.guild.id, run)
+        if not kvk_run:
+            await interaction.response.send_message("Specified run was not found.", ephemeral=True)
+            return
+
+        user_stat = self._fetch_user_stat(kvk_run.id, interaction.user.id, day)
+        if not user_stat:
+            label = f"day {day}" if day else "this run"
+            await interaction.response.send_message(f"You have no data recorded for {label}.", ephemeral=True)
+            return
+
+        score = user_stat.get("score", 0)
+        label = "Overall run" if day is None else self._format_day_label(day, StageType.PREP if day <= 5 else StageType.WAR)
+
+        if mode.value == "friend":
+            if not friend or friend == interaction.user:
+                await interaction.response.send_message("Select a different member to compare against.", ephemeral=True)
+                return
+            if friend.guild != interaction.guild:
+                await interaction.response.send_message("That member is not part of this server.", ephemeral=True)
+                return
+            friend_stat = self._fetch_user_stat(kvk_run.id, friend.id, day)
+            if not friend_stat:
+                await interaction.response.send_message("The selected member has no data recorded for this run/day.", ephemeral=True)
+                return
+            friend_score = friend_stat.get("score", 0)
+            diff = score - friend_score
+            percent = (diff / friend_score * 100) if friend_score else None
+            embed = discord.Embed(
+                title=f"KVK friend comparison - {label}",
+                description=self._format_run_header(kvk_run),
+                color=discord.Color.purple(),
+            )
+            embed.add_field(
+                name=interaction.user.display_name,
+                value=f"Score: {score:,}",
+                inline=True,
+            )
+            embed.add_field(
+                name=friend.display_name,
+                value=f"Score: {friend_score:,}",
+                inline=True,
+            )
+            summary = [f"Score difference: {diff:+,}"]
+            if percent is not None:
+                summary.append(f"Percent difference: {percent:+.2f}%")
+            embed.add_field(name="Summary", value="\n".join(summary), inline=False)
+            await interaction.response.send_message(embed=embed, ephemeral=True)
+            return
+
+        peers = self._fetch_peers(kvk_run.id, day)
+        peers = [row for row in peers if row.get("user_id") != str(interaction.user.id)]
+        if not peers:
+            await interaction.response.send_message("No peer data available for this run/day.", ephemeral=True)
+            return
+        tolerance = score * 0.05
+        cohort = [row for row in peers if abs(row.get("score", 0) - score) <= tolerance]
+        if not cohort:
+            cohort = peers
+        avg_score = sum(row.get("score", 0) for row in cohort) / len(cohort)
+        diff = score - avg_score
+        percent = (diff / avg_score * 100) if avg_score else None
+        better = sum(1 for row in cohort if row.get("score", 0) <= score)
+        embed = discord.Embed(
+            title=f"KVK peer comparison - {label}",
+            description=self._format_run_header(kvk_run),
+            color=discord.Color.teal(),
+        )
+        embed.add_field(name="Your score", value=f"{score:,}", inline=True)
+        embed.add_field(name="Cohort avg", value=f"{avg_score:,.0f}", inline=True)
+        summary = [f"Difference: {diff:+,.0f}"]
+        if percent is not None:
+            summary.append(f"Vs average: {percent:+.2f}%")
+        summary.append(f"Peers within range: {better}/{len(cohort)} scoring at or below you")
+        embed.add_field(name="Summary", value="\n".join(summary), inline=False)
+        await interaction.response.send_message(embed=embed, ephemeral=True)
+
 async def setup(
     bot: commands.Bot,
     processor: Optional[ScreenshotProcessor] = None,
@@ -789,4 +1139,5 @@ async def setup(
         game_storage = getattr(bot, "game_storage", None)
         storage = RankingStorageEngine(storage=game_storage)
     
-    await bot.add_cog(RankingCog(bot, processor, storage))
+    kvk_tracker = getattr(bot, "kvk_tracker", None)
+    await bot.add_cog(RankingCog(bot, processor, storage, kvk_tracker=kvk_tracker))

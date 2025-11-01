@@ -110,8 +110,18 @@ class RankingStorageEngine:
             """)
             
             conn.commit()
+            self._ensure_event_ranking_columns(conn)
         finally:
             self._maybe_close(conn)
+    
+    def _ensure_event_ranking_columns(self, conn: sqlite3.Connection) -> None:
+        """Ensure new KVK-related columns exist when running standalone."""
+        cursor = conn.execute("PRAGMA table_info(event_rankings)")
+        columns = {row["name"] for row in cursor.fetchall()}
+        if "kvk_run_id" not in columns:
+            conn.execute("ALTER TABLE event_rankings ADD COLUMN kvk_run_id INTEGER")
+        if "is_test_run" not in columns:
+            conn.execute("ALTER TABLE event_rankings ADD COLUMN is_test_run INTEGER DEFAULT 0")
     
     def save_ranking(self, ranking: RankingData) -> int:
         """
@@ -127,8 +137,9 @@ class RankingStorageEngine:
             cursor = conn.execute("""
                 INSERT INTO event_rankings 
                 (user_id, username, guild_id, guild_tag, player_name, event_week, 
-                 stage_type, day_number, category, rank, score, submitted_at, screenshot_url)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                 stage_type, day_number, category, rank, score, submitted_at, screenshot_url,
+                 kvk_run_id, is_test_run)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, (
                 ranking.user_id,
                 ranking.username,
@@ -142,7 +153,9 @@ class RankingStorageEngine:
                 ranking.rank,
                 ranking.score,
                 ranking.submitted_at.isoformat(),
-                ranking.screenshot_url
+                ranking.screenshot_url,
+                ranking.kvk_run_id,
+                1 if ranking.is_test_run else 0
             ))
             conn.commit()
             return cursor.lastrowid
@@ -155,7 +168,8 @@ class RankingStorageEngine:
         guild_id: str,
         event_week: str,
         stage_type: StageType,
-        day_number: int
+        day_number: int,
+        kvk_run_id: Optional[int] = None
     ) -> Optional[Dict[str, Any]]:
         """
         Check if user already submitted for this event week/stage/day.
@@ -165,16 +179,24 @@ class RankingStorageEngine:
         """
         if self.storage:
             return self.storage.check_duplicate_event_submission(
-                user_id, guild_id, event_week, stage_type, day_number  # type: ignore[attr-defined]
+                user_id, guild_id, event_week, stage_type, day_number, kvk_run_id  # type: ignore[attr-defined]
             )
         conn = self._get_connection()
         try:
-            cursor = conn.execute("""
-                SELECT * FROM event_rankings
-                WHERE user_id = ? AND guild_id = ? AND event_week = ? 
-                AND stage_type = ? AND day_number = ?
-                LIMIT 1
-            """, (user_id, guild_id, event_week, stage_type.value, day_number))
+            if kvk_run_id is not None:
+                cursor = conn.execute("""
+                    SELECT * FROM event_rankings
+                    WHERE user_id = ? AND guild_id = ? AND kvk_run_id = ? 
+                      AND stage_type = ? AND day_number = ?
+                    LIMIT 1
+                """, (user_id, guild_id, kvk_run_id, stage_type.value, day_number))
+            else:
+                cursor = conn.execute("""
+                    SELECT * FROM event_rankings
+                    WHERE user_id = ? AND guild_id = ? AND event_week = ? 
+                    AND stage_type = ? AND day_number = ?
+                    LIMIT 1
+                """, (user_id, guild_id, event_week, stage_type.value, day_number))
             
             row = cursor.fetchone()
             return dict(row) if row else None

@@ -198,6 +198,43 @@ class GameStorageEngine:
             );
             """)
 
+            # KVK run lifecycle tracking
+            self.conn.execute("""
+            CREATE TABLE IF NOT EXISTS kvk_runs (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                guild_id TEXT NOT NULL,
+                title TEXT NOT NULL,
+                initiated_by TEXT,
+                event_id TEXT,
+                channel_id INTEGER,
+                run_number INTEGER,
+                is_test INTEGER DEFAULT 0,
+                started_at TEXT NOT NULL,
+                ends_at TEXT NOT NULL,
+                closed_at TEXT,
+                status TEXT NOT NULL DEFAULT 'active',
+                UNIQUE(guild_id, run_number) 
+            );
+            """)
+
+            self.conn.execute("""
+            CREATE TABLE IF NOT EXISTS kvk_submissions (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                kvk_run_id INTEGER NOT NULL,
+                ranking_id INTEGER NOT NULL,
+                user_id TEXT NOT NULL,
+                day_number INTEGER NOT NULL,
+                stage_type TEXT NOT NULL,
+                submitted_at TEXT NOT NULL,
+                is_test INTEGER DEFAULT 0,
+                FOREIGN KEY(kvk_run_id) REFERENCES kvk_runs(id),
+                FOREIGN KEY(ranking_id) REFERENCES event_rankings(id),
+                UNIQUE(kvk_run_id, user_id, day_number, stage_type)
+            );
+            """)
+
+            self._ensure_event_ranking_columns()
+
     def _ensure_user_aux_columns(self) -> None:
         """Ensure auxiliary tracking columns exist on the users table."""
         cursor = self.conn.cursor()
@@ -207,6 +244,16 @@ class GameStorageEngine:
             self.conn.execute("ALTER TABLE users ADD COLUMN relationship_anchor_at TEXT")
         if "aggravation_updated_at" not in columns:
             self.conn.execute("ALTER TABLE users ADD COLUMN aggravation_updated_at TEXT")
+    
+    def _ensure_event_ranking_columns(self) -> None:
+        """Ensure new KVK-related columns exist on the event_rankings table."""
+        cursor = self.conn.cursor()
+        cursor.execute("PRAGMA table_info(event_rankings)")
+        columns = {row["name"] for row in cursor.fetchall()}
+        if "kvk_run_id" not in columns:
+            self.conn.execute("ALTER TABLE event_rankings ADD COLUMN kvk_run_id INTEGER")
+        if "is_test_run" not in columns:
+            self.conn.execute("ALTER TABLE event_rankings ADD COLUMN is_test_run INTEGER DEFAULT 0")
 
     def add_user(self, user_id: str) -> None:
         """Initialize a new user with default values."""
@@ -844,9 +891,10 @@ class GameStorageEngine:
                 INSERT INTO event_rankings (
                     user_id, username, guild_id, guild_tag, player_name,
                     event_week, stage_type, day_number, category,
-                    rank, score, submitted_at, screenshot_url
+                    rank, score, submitted_at, screenshot_url,
+                    kvk_run_id, is_test_run
                 )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     ranking.user_id,
@@ -862,6 +910,8 @@ class GameStorageEngine:
                     ranking.score,
                     ranking.submitted_at.isoformat(),
                     ranking.screenshot_url,
+                    ranking.kvk_run_id,
+                    1 if ranking.is_test_run else 0,
                 ),
             )
         return cursor.lastrowid
@@ -873,18 +923,30 @@ class GameStorageEngine:
         event_week: str,
         stage_type: StageType,
         day_number: int,
+        kvk_run_id: Optional[int] = None,
     ) -> Optional[Dict[str, Any]]:
         """Return existing ranking if user already submitted for the same slot."""
         cursor = self.conn.cursor()
-        cursor.execute(
-            """
-            SELECT * FROM event_rankings
-            WHERE user_id = ? AND guild_id = ? AND event_week = ?
-              AND stage_type = ? AND day_number = ?
-            LIMIT 1
-            """,
-            (user_id, guild_id, event_week, stage_type.value, day_number),
-        )
+        if kvk_run_id is not None:
+            cursor.execute(
+                """
+                SELECT * FROM event_rankings
+                WHERE user_id = ? AND guild_id = ? AND kvk_run_id = ?
+                  AND stage_type = ? AND day_number = ?
+                LIMIT 1
+                """,
+                (user_id, guild_id, kvk_run_id, stage_type.value, day_number),
+            )
+        else:
+            cursor.execute(
+                """
+                SELECT * FROM event_rankings
+                WHERE user_id = ? AND guild_id = ? AND event_week = ?
+                  AND stage_type = ? AND day_number = ?
+                LIMIT 1
+                """,
+                (user_id, guild_id, event_week, stage_type.value, day_number),
+            )
         row = cursor.fetchone()
         return dict(row) if row else None
 
@@ -928,6 +990,61 @@ class GameStorageEngine:
         cursor = self.conn.cursor()
         cursor.execute(query, params)
         return [dict(row) for row in cursor.fetchall()]
+
+    # ------------------------------------------------------------------ #
+    # Compatibility wrappers used by ranking cog
+    # ------------------------------------------------------------------ #
+    def check_duplicate_submission(
+        self,
+        user_id: str,
+        guild_id: str,
+        event_week: str,
+        stage_type: StageType,
+        day_number: int,
+        *,
+        kvk_run_id: Optional[int] = None,
+    ) -> Optional[Dict[str, Any]]:
+        """Backward-compatible alias for ranking duplicate checks."""
+        return self.check_duplicate_event_submission(
+            user_id,
+            guild_id,
+            event_week,
+            stage_type,
+            day_number,
+            kvk_run_id=kvk_run_id,
+        )
+
+    def save_ranking(self, ranking: RankingData) -> int:
+        """Alias to maintain the legacy save_ranking API."""
+        return self.save_event_ranking(ranking)
+
+    def update_ranking(
+        self,
+        ranking_id: int,
+        rank: int,
+        score: int,
+        screenshot_url: Optional[str] = None,
+    ) -> bool:
+        """Alias to maintain the legacy update_ranking API."""
+        return self.update_event_ranking(ranking_id, rank, score, screenshot_url)
+
+    def log_submission(
+        self,
+        user_id: str,
+        guild_id: Optional[str],
+        status: str,
+        *,
+        error_message: Optional[str] = None,
+        ranking_id: Optional[int] = None,
+    ) -> None:
+        """Alias for logging submission outcomes."""
+        self.log_event_submission(
+            user_id,
+            guild_id,
+            status,
+            error_message=error_message,
+            ranking_id=ranking_id,
+        )
 
     def get_guild_event_leaderboard(
         self,

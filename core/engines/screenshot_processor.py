@@ -66,6 +66,8 @@ class RankingData:
     submitted_at: datetime
     screenshot_url: Optional[str] = None
     guild_id: Optional[str] = None
+    kvk_run_id: Optional[int] = None
+    is_test_run: bool = False
     
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for storage."""
@@ -82,7 +84,9 @@ class RankingData:
             'player_name': self.player_name,
             'submitted_at': self.submitted_at.isoformat(),
             'screenshot_url': self.screenshot_url,
-            'guild_id': self.guild_id
+            'guild_id': self.guild_id,
+            'kvk_run_id': self.kvk_run_id,
+            'is_test_run': int(self.is_test_run),
         }
 
 

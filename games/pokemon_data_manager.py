@@ -18,6 +18,7 @@ from typing import Dict, Optional, Tuple, Any
 from dataclasses import dataclass, asdict
 
 import requests
+from pathlib import Path
 
 
 @dataclass
@@ -91,15 +92,33 @@ class PokemonDataManager:
     
     POKEAPI_BASE = "https://pokeapi.co/api/v2/"
     
-    def __init__(self, cache_file: str = "pokemon_base_stats_cache.json"):
-        self.cache_file = cache_file
+    def __init__(self, cache_file: str | Path | None = None):
+        self._cache_file_raw = str(cache_file) if cache_file is not None else "pokemon_base_stats_cache.json"
+        self.cache_path = self._resolve_cache_path(cache_file)
         self.base_stats_cache: Dict[str, PokemonBaseStats] = {}
         self._load_cache()
+
+    def _resolve_cache_path(self, cache_file: str | Path | None) -> Path:
+        root_dir = Path(__file__).resolve().parent.parent
+        data_dir = root_dir / "data"
+
+        if cache_file is None:
+            candidate = data_dir / "pokemon_base_stats_cache.json"
+        else:
+            candidate = Path(cache_file)
+            if not candidate.is_absolute():
+                if (data_dir / candidate.name).exists():
+                    candidate = data_dir / candidate.name
+                else:
+                    candidate = (root_dir / candidate).resolve()
+
+        candidate.parent.mkdir(parents=True, exist_ok=True)
+        return candidate
     
     def _load_cache(self) -> None:
         """Load cached base stats from file."""
         try:
-            with open(self.cache_file, 'r') as f:
+            with open(self.cache_path, 'r', encoding='utf-8') as f:
                 data = json.load(f)
                 for species, stats_dict in data.items():
                     self.base_stats_cache[species] = PokemonBaseStats(**stats_dict)
@@ -110,10 +129,23 @@ class PokemonDataManager:
         """Save base stats cache to file."""
         try:
             data = {species: stats.to_dict() for species, stats in self.base_stats_cache.items()}
-            with open(self.cache_file, 'w') as f:
+            with open(self.cache_path, 'w', encoding='utf-8') as f:
                 json.dump(data, f, indent=2)
         except Exception:
             pass
+
+    @property
+    def cache_file(self) -> str:
+        """Compatibility accessor for legacy attribute name."""
+        return self._cache_file_raw
+
+    @cache_file.setter
+    def cache_file(self, value: str | Path) -> None:
+        """Allow external callers/tests to update the cache file location."""
+        self._cache_file_raw = str(value)
+        self.cache_path = self._resolve_cache_path(value)
+        self.base_stats_cache.clear()
+        self._load_cache()
     
     def get_base_stats(self, species: str) -> Optional[PokemonBaseStats]:
         """

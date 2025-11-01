@@ -12,6 +12,7 @@ from discord_bot.core.engines.base.logging_utils import get_logger
 from discord_bot.core.engines.cache_manager import CacheManager
 from discord_bot.core.engines.error_engine import GuardianErrorEngine
 from discord_bot.core.engines.event_reminder_engine import EventReminderEngine
+from discord_bot.core.engines.kvk_tracker import KVKTracker
 from discord_bot.core.engines.input_engine import InputEngine
 from discord_bot.core.engines.output_engine import OutputEngine
 from discord_bot.core.engines.personality_engine import PersonalityEngine
@@ -218,6 +219,9 @@ class IntegrationLoader:
         # Event reminder engine for Top Heroes events
         self.event_reminder_engine = EventReminderEngine(storage_engine=self.game_storage)
         logger.debug("Event reminder engine initialized")
+        self.kvk_tracker = KVKTracker(storage=self.game_storage)
+        logger.debug("KVK tracker initialized")
+        self.event_reminder_engine.kvk_tracker = self.kvk_tracker
 
         self.ambiguity_resolver = (
             AmbiguityResolver(
@@ -379,6 +383,8 @@ class IntegrationLoader:
             test_guild_ids=test_guilds,
             help_command=None,
         )
+        self.event_reminder_engine.set_bot(self.bot)
+        self.kvk_tracker.set_bot(self.bot)
 
         logger.info("🛠️ Preparing engines and integrations")
 
@@ -422,6 +428,7 @@ class IntegrationLoader:
         self.registry.inject("pokemon_game", self.pokemon_game)
         self.registry.inject("pokemon_api", self.pokemon_api)
         self.registry.inject("event_reminder_engine", self.event_reminder_engine)
+        self.registry.inject("kvk_tracker", self.kvk_tracker)
         logger.debug("Game system engines registered")
 
         self._expose_bot_attributes()
@@ -436,6 +443,11 @@ class IntegrationLoader:
             await self._mount_cogs(owners)
 
         self.bot.add_post_setup_hook(mount_cogs)
+
+        async def resume_kvk_runs() -> None:
+            await self.kvk_tracker.on_ready()
+
+        self.bot.add_post_setup_hook(resume_kvk_runs)
 
         if self._guardian_auto_disable:
             logger.warning("Guardian SAFE MODE auto-disable is ENABLED (GUARDIAN_SAFE_MODE=1)")
@@ -480,6 +492,7 @@ class IntegrationLoader:
             "pokemon_game": self.pokemon_game,
             "pokemon_api": self.pokemon_api,
             "event_reminder_engine": self.event_reminder_engine,
+            "kvk_tracker": self.kvk_tracker,
         }
 
         orchestrator = getattr(self.processing_engine, "orchestrator", None) or self.orchestrator
