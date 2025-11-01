@@ -37,6 +37,7 @@ test_cases = [
     ("tagalog", "tl"),
     ("Tagalog", "tl"),
     ("TAGALOG", "tl"),
+    ("tag", "tl"),
     ("filipino", "tl"),
     ("Filipino", "tl"),
     ("fil", "tl"),
