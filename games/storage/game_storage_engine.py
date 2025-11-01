@@ -25,9 +25,12 @@ class GameStorageEngine:
                 total_interactions INTEGER DEFAULT 0,
                 last_daily_check TEXT,
                 aggravation_level INTEGER DEFAULT 0,
+                relationship_anchor_at TEXT,
+                aggravation_updated_at TEXT,
                 mute_until TEXT
             );
             """)
+            self._ensure_user_aux_columns()
             
             # Enhanced pokemon table with species tracking for duplicates
             self.conn.execute("""
@@ -195,13 +198,24 @@ class GameStorageEngine:
             );
             """)
 
+    def _ensure_user_aux_columns(self) -> None:
+        """Ensure auxiliary tracking columns exist on the users table."""
+        cursor = self.conn.cursor()
+        cursor.execute("PRAGMA table_info(users)")
+        columns = {row["name"] for row in cursor.fetchall()}
+        if "relationship_anchor_at" not in columns:
+            self.conn.execute("ALTER TABLE users ADD COLUMN relationship_anchor_at TEXT")
+        if "aggravation_updated_at" not in columns:
+            self.conn.execute("ALTER TABLE users ADD COLUMN aggravation_updated_at TEXT")
+
     def add_user(self, user_id: str) -> None:
         """Initialize a new user with default values."""
+        now = datetime.utcnow().isoformat()
         with self.conn:
             self.conn.execute("""
-                INSERT OR IGNORE INTO users (user_id, last_interaction, last_daily_check) 
-                VALUES (?, ?, ?)
-            """, (user_id, datetime.utcnow().isoformat(), datetime.utcnow().isoformat()))
+                INSERT OR IGNORE INTO users (user_id, last_interaction, last_daily_check, relationship_anchor_at) 
+                VALUES (?, ?, ?, ?)
+            """, (user_id, now, now, now))
 
     def get_user_data(self, user_id: str) -> Optional[Dict[str, Any]]:
         """Get complete user data."""
@@ -325,20 +339,40 @@ class GameStorageEngine:
         return remaining
 
     # Relationship Management
-    def update_relationship(self, user_id: str, relationship_index: int, 
-                           daily_streak: Optional[int] = None) -> None:
+    def update_relationship(
+        self,
+        user_id: str,
+        relationship_index: int,
+        daily_streak: Optional[int] = None,
+        *,
+        touch_last_interaction: bool = True,
+        touch_anchor: bool = True,
+    ) -> None:
         """Update user's relationship index and optionally streak."""
+        now = datetime.utcnow().isoformat()
+        updates = ["relationship_index = ?"]
+        params: list[Any] = [relationship_index]
+
+        if daily_streak is not None:
+            updates.append("daily_streak = ?")
+            params.append(daily_streak)
+
+        if touch_last_interaction:
+            updates.append("last_interaction = ?")
+            params.append(now)
+
+        if touch_anchor:
+            updates.append("relationship_anchor_at = ?")
+            params.append(now)
+
+        params.append(user_id)
+
+        set_clause = ", ".join(updates)
         with self.conn:
-            if daily_streak is not None:
-                self.conn.execute("""
-                    UPDATE users SET relationship_index = ?, daily_streak = ?, 
-                    last_interaction = ? WHERE user_id = ?
-                """, (relationship_index, daily_streak, datetime.utcnow().isoformat(), user_id))
-            else:
-                self.conn.execute("""
-                    UPDATE users SET relationship_index = ?, last_interaction = ? 
-                    WHERE user_id = ?
-                """, (relationship_index, datetime.utcnow().isoformat(), user_id))
+            self.conn.execute(
+                f"UPDATE users SET {set_clause} WHERE user_id = ?",
+                params,
+            )
 
     def increment_interactions(self, user_id: str, interaction_type: str, 
                               cookies_earned: int = 0) -> None:
@@ -553,30 +587,72 @@ class GameStorageEngine:
     # Aggravation and Mute Tracking
     def get_aggravation_level(self, user_id: str) -> int:
         """Get user's current aggravation level."""
-        cursor = self.conn.cursor()
-        cursor.execute("SELECT aggravation_level FROM users WHERE user_id = ?", (user_id,))
-        result = cursor.fetchone()
-        return result['aggravation_level'] if result else 0
+        record = self._get_aggravation_record(user_id)
+        return record['aggravation_level'] if record else 0
     
     def increase_aggravation(self, user_id: str, amount: int = 1) -> int:
         """Increase user's aggravation level. Returns new level."""
         self.add_user(user_id)
-        current = self.get_aggravation_level(user_id)
+        record = self._get_aggravation_record(user_id)
+        current = record['aggravation_level'] if record else 0
         new_level = current + amount
+        now = datetime.utcnow().isoformat()
         
         with self.conn:
             self.conn.execute("""
-                UPDATE users SET aggravation_level = ? WHERE user_id = ?
-            """, (new_level, user_id))
+                UPDATE users
+                   SET aggravation_level = ?, aggravation_updated_at = ?
+                 WHERE user_id = ?
+            """, (new_level, now, user_id))
         
         return new_level
     
     def reset_aggravation(self, user_id: str) -> None:
         """Reset user's aggravation level to 0."""
+        now = datetime.utcnow().isoformat()
         with self.conn:
             self.conn.execute("""
-                UPDATE users SET aggravation_level = 0 WHERE user_id = ?
-            """, (user_id,))
+                UPDATE users
+                   SET aggravation_level = 0,
+                       aggravation_updated_at = ?
+                 WHERE user_id = ?
+            """, (now, user_id))
+    
+    def maybe_reset_aggravation(self, user_id: str, cooldown_minutes: int) -> bool:
+        """Reset aggravation if the cooldown window has passed."""
+        record = self._get_aggravation_record(user_id)
+        if not record:
+            return False
+
+        level = record['aggravation_level'] or 0
+        if level <= 0:
+            return False
+
+        last_update_raw = record['aggravation_updated_at']
+        if not last_update_raw:
+            return False
+
+        try:
+            last_update = datetime.fromisoformat(last_update_raw)
+        except ValueError:
+            # Legacy or corrupt timestamp; reset to be safe.
+            self.reset_aggravation(user_id)
+            return True
+
+        if datetime.utcnow() - last_update >= timedelta(minutes=cooldown_minutes):
+            self.reset_aggravation(user_id)
+            return True
+
+        return False
+    
+    def _get_aggravation_record(self, user_id: str) -> Optional[sqlite3.Row]:
+        """Return aggravation level and last update timestamp for a user."""
+        cursor = self.conn.cursor()
+        cursor.execute(
+            "SELECT aggravation_level, aggravation_updated_at FROM users WHERE user_id = ?",
+            (user_id,),
+        )
+        return cursor.fetchone()
     
     def set_mute_until(self, user_id: str, until_time: datetime) -> None:
         """Set when user's mute expires."""

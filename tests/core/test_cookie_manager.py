@@ -2,6 +2,10 @@
 Tests for CookieManager engine.
 """
 
+from datetime import datetime, timedelta
+
+import random
+
 import pytest
 from discord_bot.games.storage.game_storage_engine import GameStorageEngine
 from discord_bot.core.engines.relationship_manager import RelationshipManager
@@ -40,6 +44,7 @@ class TestCookieManager:
     def test_try_award_cookies_respects_drop_rates(self, cookie_manager):
         """Test that cookie awards respect drop rates."""
         user_id = "test_user_drops"
+        random.seed(0)
         
         # Easter egg has 50% drop rate - test multiple times
         drops = 0
@@ -225,6 +230,43 @@ class TestCookieManager:
         
         # Higher luck should generally give more XP
         assert xp2_total >= xp1_total
+
+    def test_spam_cooldown_resets_penalties(self, cookie_manager, storage):
+        """Ensure repeated requests stop being punished after the cooldown."""
+        user_id = "spammy_user"
+
+        # Simulate earning the full daily quota in one shot
+        storage.record_easter_egg_attempt(
+            user_id,
+            cookie_manager.MAX_DAILY_EASTER_EGG_COOKIES,
+            is_spam=False,
+        )
+
+        # First spam attempt should increase aggravation
+        first_attempt = cookie_manager.handle_easter_egg_spam(user_id)
+        assert first_attempt["is_spam"] is True
+        assert first_attempt["aggravation_level"] >= 1
+
+        # Age the aggravation timestamp beyond the cooldown window
+        past_time = (
+            datetime.utcnow() - timedelta(minutes=cookie_manager.SPAM_RESET_MINUTES + 5)
+        ).isoformat()
+        with storage.conn:
+            storage.conn.execute(
+                """
+                UPDATE users
+                   SET aggravation_updated_at = ?, aggravation_level = ?
+                 WHERE user_id = ?
+                """,
+                (past_time, first_attempt["aggravation_level"], user_id),
+            )
+
+        cooled_attempt = cookie_manager.handle_easter_egg_spam(user_id)
+        assert cooled_attempt["is_spam"] is False
+        assert cooled_attempt["aggravation_level"] == 0
+        assert cooled_attempt["cookie_penalty"] == 0
+        assert cooled_attempt["should_mute"] is False
+        assert storage.get_aggravation_level(user_id) == 0
 
     def test_admin_gift_cookies_do_not_affect_totals(self, cookie_manager, storage):
         """Admin/helper gifts should not count toward total cookies."""

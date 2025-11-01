@@ -16,7 +16,11 @@ from discord import app_commands
 from discord.ext import commands
 from typing import Optional, TYPE_CHECKING
 
-from discord_bot.core.utils import find_bot_channel, is_allowed_channel
+from discord_bot.core.utils import (
+    find_bot_channel,
+    is_allowed_channel,
+    safe_send_interaction_response,
+)
 
 if TYPE_CHECKING:
     from discord_bot.games.pokemon_game import PokemonGame
@@ -68,17 +72,21 @@ class GameCog(commands.Cog):
     async def _check_allowed_channel(self, interaction: discord.Interaction) -> bool:
         """Check if command is used in an allowed channel. Call BEFORE responding to interaction."""
         if not interaction.channel:
-            await interaction.response.send_message(
-                "🦛 I can only respond to game commands in designated channels!",
-                ephemeral=True
+            await safe_send_interaction_response(
+                interaction,
+                content="🦛 I can only respond to game commands in designated channels!",
+                ephemeral=True,
             )
             return False
         
         if not is_allowed_channel(interaction.channel.id):
-            await interaction.response.send_message(
-                "🦛 I can only respond to game commands in designated channels! "
-                "Check with your server admins for the right channels.",
-                ephemeral=True
+            await safe_send_interaction_response(
+                interaction,
+                content=(
+                    "🦛 I can only respond to game commands in designated channels! "
+                    "Check with your server admins for the right channels."
+                ),
+                ephemeral=True,
             )
             return False
         return True

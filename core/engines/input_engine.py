@@ -21,6 +21,7 @@ import asyncio
 import contextlib
 import logging
 import os
+import re
 import time
 from typing import Any, Dict, Optional, Set
 
@@ -34,11 +35,7 @@ from discord_bot.core.utils import find_bot_channel
 
 logger = logging.getLogger("hippo_bot.input_engine")
 
-EMERGENCY_KEYWORDS: Dict[str, str] = {
-    "attack": "Everyone report to base immediately!",
-    "help": "Emergency! Assistance required!",
-    "intruder": "Security alert! Unknown intruder detected!",
-}
+EMERGENCY_KEYWORDS: Dict[str, str] = {}
 
 SOS_REACTION_EMOJI = "🆘"
 ROTATING_LIGHT = "🚨"
@@ -150,6 +147,8 @@ class InputEngine:
         self._ensure_cleanup_task()
 
         if str(payload.emoji) != SOS_REACTION_EMOJI:
+            return
+        if payload.user_id == getattr(self.bot.user, "id", None):
             return
         channel = self.bot.get_channel(payload.channel_id)
         if not isinstance(channel, discord.TextChannel):
@@ -263,17 +262,27 @@ class InputEngine:
     # ------------------------------------------------------------------
     def _match_emergency_keyword(self, content: str, guild_id: Optional[int]) -> Optional[str]:
         lowered = content.lower()
+        normalized = re.sub(r"\s+", " ", lowered).strip()
 
         if guild_id is not None:
             overrides = self._sos_overrides.get(guild_id, {})
             for keyword, response in overrides.items():
-                if keyword in lowered:
+                if self._keyword_in_text(keyword, normalized):
                     return response
 
         for keyword, response in EMERGENCY_KEYWORDS.items():
-            if keyword in lowered:
+            if self._keyword_in_text(keyword, normalized):
                 return response
         return None
+
+    def _keyword_in_text(self, keyword: str, normalized_text: str) -> bool:
+        """Return True if keyword appears as a whole word/phrase in text."""
+        sanitized_keyword = re.sub(r"\s+", " ", keyword.lower().strip())
+        if not sanitized_keyword or not normalized_text:
+            return False
+
+        pattern = rf"(?<!\w){re.escape(sanitized_keyword)}(?!\w)"
+        return re.search(pattern, normalized_text) is not None
 
     async def _trigger_sos(self, message: discord.Message, mapped_msg: str) -> None:
         guild = message.guild

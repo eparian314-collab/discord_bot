@@ -15,8 +15,8 @@
 ┌─────────────────────────────────────────────────────────────────────┐
 │                    InputEngine.on_message()                         │
 │  ┌──────────────────────────────────────────────────────────────┐  │
-│  │  1. Detect keyword "fire" in EMERGENCY_KEYWORDS              │  │
-│  │  2. Get mapped message: "Fire alarm! Evacuate now!"          │  │
+ │  │  1. Detect keyword "fire" in guild-configured SOS keywords   │  │
+ │  │  2. Get mapped message: "Fire alarm! Evacuate now!"          │  │
 │  └────────────────────┬─────────────────────────────────────────┘  │
 │                       │                                             │
 │                       ▼                                             │

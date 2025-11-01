@@ -36,7 +36,7 @@ class TestRelationshipManager:
         
         # First interaction
         relationship1 = relationship_manager.record_interaction(user_id, 'translation')
-        assert relationship1 > 0
+        assert relationship1 >= relationship_manager.BASELINE_RELATIONSHIP
         assert relationship1 <= 100
         
         # Second interaction should increase
@@ -73,14 +73,14 @@ class TestRelationshipManager:
         """Test retrieving relationship index."""
         user_id = "test_user_get"
         
-        # New user should have 0 relationship
+        # New user should start at the friendly baseline
         rel = relationship_manager.get_relationship_index(user_id)
-        assert rel == 0
+        assert rel == relationship_manager.BASELINE_RELATIONSHIP
         
         # After interaction
         relationship_manager.record_interaction(user_id, 'translation')
         rel = relationship_manager.get_relationship_index(user_id)
-        assert rel > 0
+        assert rel >= relationship_manager.BASELINE_RELATIONSHIP
     
     def test_luck_modifier_scales_with_relationship(self, relationship_manager):
         """Test that luck modifier scales correctly with relationship."""
@@ -88,7 +88,8 @@ class TestRelationshipManager:
         
         # Low relationship = low luck
         luck1 = relationship_manager.get_luck_modifier(user_id)
-        assert 0.5 <= luck1 <= 0.55  # Should be near minimum
+        expected_baseline = 0.5 + (relationship_manager.BASELINE_RELATIONSHIP / 140.0)
+        assert pytest.approx(expected_baseline, rel=0.01) == luck1
         
         # Increase relationship
         for _ in range(30):
@@ -105,7 +106,8 @@ class TestRelationshipManager:
         
         # Low relationship = low bonus
         bonus1 = relationship_manager.get_cookie_drop_bonus(user_id)
-        assert 0 <= bonus1 <= 0.02
+        expected_bonus = relationship_manager.BASELINE_RELATIONSHIP / 250.0
+        assert pytest.approx(expected_bonus, rel=0.01) == bonus1
         
         # Increase relationship
         for _ in range(30):
@@ -115,26 +117,63 @@ class TestRelationshipManager:
         bonus2 = relationship_manager.get_cookie_drop_bonus(user_id)
         assert bonus2 > bonus1
         assert bonus2 <= 0.4  # Adjusted maximum bonus
+
+    def test_relationship_stays_low_without_cooldown(self, relationship_manager, storage):
+        """Relationship should remain lowered immediately after a negative streak."""
+        user_id = "test_user_low"
+        storage.add_user(user_id)
+        now = datetime.utcnow()
+        with storage.conn:
+            storage.conn.execute(
+                """
+                UPDATE users
+                   SET relationship_index = ?, relationship_anchor_at = ?, last_interaction = ?, total_interactions = ?
+                 WHERE user_id = ?
+                """,
+                (20, now.isoformat(), now.isoformat(), 5, user_id),
+            )
+
+        current = relationship_manager.get_relationship_index(user_id)
+        assert current == 20
+
+    def test_relationship_recovers_after_cooldown(self, relationship_manager, storage):
+        """Relationship should drift back toward baseline when given time."""
+        user_id = "test_user_recover"
+        storage.add_user(user_id)
+        past_time = (datetime.utcnow() - timedelta(hours=8)).isoformat()
+        with storage.conn:
+            storage.conn.execute(
+                """
+                UPDATE users
+                   SET relationship_index = ?, relationship_anchor_at = ?, last_interaction = ?, total_interactions = ?
+                 WHERE user_id = ?
+                """,
+                (20, past_time, past_time, 10, user_id),
+            )
+
+        recovered = relationship_manager.get_relationship_index(user_id)
+        assert recovered > 20
+        assert recovered < relationship_manager.BASELINE_RELATIONSHIP
     
     def test_relationship_tiers(self, relationship_manager):
         """Test relationship tier names."""
         user_id = "test_user_tiers"
         
-        # Strangers (0-9)
+        # Baseline should already be friendly
         tier = relationship_manager.get_relationship_tier(user_id)
-        assert "Strangers" in tier
+        assert "Good Friends" in tier or "Close Friends" in tier
         
-        # Increase to Friends (25-49)
-        for _ in range(20):
-            relationship_manager.record_interaction(user_id, 'game_action')
-        tier = relationship_manager.get_relationship_tier(user_id)
-        assert "Friends" in tier or "Acquaintances" in tier
-        
-        # Increase to Close Friends (75+)
-        for _ in range(60):
+        # Increase to reach Close Friends (75+)
+        for _ in range(30):
             relationship_manager.record_interaction(user_id, 'game_action')
         tier = relationship_manager.get_relationship_tier(user_id)
         assert "Close Friends" in tier or "Best Friends" in tier
+        
+        # Push to Best Friends (90+)
+        for _ in range(60):
+            relationship_manager.record_interaction(user_id, 'game_action')
+        tier = relationship_manager.get_relationship_tier(user_id)
+        assert "Best Friends" in tier
 
 
 if __name__ == "__main__":

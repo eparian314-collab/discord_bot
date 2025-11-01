@@ -13,6 +13,7 @@ from .channel_utils import (
     get_allowed_channel_ids,
     is_allowed_channel,
 )
+from .message_utils import safe_send_interaction_response
 
 __all__ = [
     "is_server_owner",
@@ -24,4 +25,5 @@ __all__ = [
     "find_bot_channel",
     "get_allowed_channel_ids",
     "is_allowed_channel",
+    "safe_send_interaction_response",
 ]

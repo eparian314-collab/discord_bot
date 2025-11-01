@@ -27,10 +27,15 @@ class RelationshipManager:
     - Starts at 0, max 100
     - Increases with each interaction (+1 to +5 based on interaction type)
     - Daily login bonus (+5) and streak bonuses
-    - Decays slowly if inactive (-1 per day after 3 days)
+    - Decays slowly if inactive (-1 per day after 3 days) but drifts back toward a friendly baseline after cooldowns
     - Affects: cookie drop rates, luck values, bot mood towards user
     """
     
+    BASELINE_RELATIONSHIP = 55
+    RECOVERY_DELAY = timedelta(hours=4)
+    RECOVERY_INTERVAL = timedelta(hours=1)
+    RECOVERY_STEP = 5
+
     # Interaction type values
     INTERACTION_VALUES = {
         'translation': 2,
@@ -65,9 +70,11 @@ class RelationshipManager:
         # Get current user data
         user_data = self.storage.get_user_data(user_id)
         if not user_data:
-            return 0
+            return self.BASELINE_RELATIONSHIP
         
         current_relationship = user_data['relationship_index']
+        if user_data.get('total_interactions', 0) == 0 and current_relationship < self.BASELINE_RELATIONSHIP:
+            current_relationship = self.BASELINE_RELATIONSHIP
         
         # Calculate relationship gain
         base_gain = self.INTERACTION_VALUES.get(interaction_type, 1)
@@ -94,15 +101,33 @@ class RelationshipManager:
         user_data = self.storage.get_user_data(user_id)
         
         if not user_data:
-            return 0
-        
-        # Apply decay if needed
-        decayed_value = self._apply_decay(user_data)
-        
-        if decayed_value != user_data['relationship_index']:
-            self.storage.update_relationship(user_id, decayed_value)
-        
-        return decayed_value
+            return self.BASELINE_RELATIONSHIP
+
+        relationship_value = user_data['relationship_index']
+
+        if user_data.get('total_interactions', 0) == 0 and relationship_value < self.BASELINE_RELATIONSHIP:
+            self.storage.update_relationship(
+                user_id,
+                self.BASELINE_RELATIONSHIP,
+                touch_last_interaction=False,
+                touch_anchor=True,
+            )
+            relationship_value = self.BASELINE_RELATIONSHIP
+            user_data = self.storage.get_user_data(user_id) or user_data
+
+        anchor_time = self._get_anchor_time(user_data)
+        decayed_value = self._apply_decay(anchor_time, relationship_value)
+        recovered_value = self._apply_recovery(anchor_time, decayed_value)
+
+        if recovered_value != user_data['relationship_index']:
+            self.storage.update_relationship(
+                user_id,
+                recovered_value,
+                touch_last_interaction=False,
+                touch_anchor=True,
+            )
+
+        return recovered_value
     
     def get_luck_modifier(self, user_id: str) -> float:
         """
@@ -149,17 +174,13 @@ class RelationshipManager:
         # Same day - return current streak
         return current_streak
     
-    def _apply_decay(self, user_data: dict) -> int:
+    def _apply_decay(self, anchor_time: datetime, current_relationship: int) -> int:
         """Apply relationship decay for inactivity."""
-        last_interaction_str = user_data.get('last_interaction')
-        current_relationship = user_data['relationship_index']
+        if current_relationship <= 0:
+            return 0
         
-        if not last_interaction_str or current_relationship <= 0:
-            return current_relationship
-        
-        last_interaction = datetime.fromisoformat(last_interaction_str)
         now = datetime.utcnow()
-        days_inactive = (now - last_interaction).days
+        days_inactive = (now - anchor_time).days
         
         if days_inactive > self.DECAY_START_DAYS:
             # Apply decay
@@ -167,6 +188,36 @@ class RelationshipManager:
             return max(0, current_relationship - decay_amount)
         
         return current_relationship
+
+    def _apply_recovery(self, anchor_time: datetime, current_relationship: int) -> int:
+        """Recover relationship toward the friendly baseline after cooldown."""
+        if current_relationship >= self.BASELINE_RELATIONSHIP:
+            return current_relationship
+
+        now = datetime.utcnow()
+        elapsed = now - anchor_time
+
+        if elapsed <= self.RECOVERY_DELAY:
+            return current_relationship
+
+        extra = elapsed - self.RECOVERY_DELAY
+        steps = int(extra / self.RECOVERY_INTERVAL)
+
+        if steps <= 0:
+            return current_relationship
+
+        recovered = current_relationship + (steps * self.RECOVERY_STEP)
+        return min(self.BASELINE_RELATIONSHIP, recovered)
+
+    def _get_anchor_time(self, user_data: dict) -> datetime:
+        """Determine reference timestamp for decay/recovery calculations."""
+        anchor_str = user_data.get('relationship_anchor_at') or user_data.get('last_interaction')
+        if anchor_str:
+            try:
+                return datetime.fromisoformat(anchor_str)
+            except ValueError:
+                pass
+        return datetime.utcnow()
     
     def get_relationship_tier(self, user_id: str) -> str:
         """Get relationship tier name for display."""

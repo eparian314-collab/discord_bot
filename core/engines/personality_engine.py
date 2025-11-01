@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 import random
+from datetime import datetime, timedelta
 from typing import Any, Optional, TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -250,10 +251,14 @@ class PersonalityEngine:
         ]
     }
 
+    MOOD_BASELINE = "happy"
+    MOOD_RECOVERY_MINUTES = 30
+
     def __init__(self, *, cache_manager, ai_adapter: Optional[Any] = None) -> None:
         self.cache = cache_manager
         self.ai_adapter = ai_adapter
-        self.current_mood = 'neutral'
+        self.current_mood = self.MOOD_BASELINE
+        self._last_mood_change = datetime.utcnow()
         self._openai_client: Optional[AsyncOpenAI] = None
         self.relationship_manager: Optional["RelationshipManager"] = None
         self._initialize_openai()
@@ -276,9 +281,11 @@ class PersonalityEngine:
         """Set the bot's current mood (happy, neutral, grumpy)."""
         if mood in ('happy', 'neutral', 'grumpy'):
             self.current_mood = mood
+            self._last_mood_change = datetime.utcnow()
 
     def get_mood(self) -> str:
         """Get the bot's current mood."""
+        self._maybe_recover_mood()
         return self.current_mood
     
     def random_mood_shift(self) -> str:
@@ -286,6 +293,7 @@ class PersonalityEngine:
         Randomly shift mood (small chance).
         Call this periodically to keep things interesting.
         """
+        self._maybe_recover_mood()
         roll = random.random()
         if roll < 0.05:  # 5% chance to become grumpy
             self.current_mood = 'grumpy'
@@ -294,6 +302,21 @@ class PersonalityEngine:
         elif roll < 0.20:  # 10% chance to return to neutral
             self.current_mood = 'neutral'
         # 80% chance to stay the same
+        self._last_mood_change = datetime.utcnow()
+        return self.current_mood
+
+    def _maybe_recover_mood(self) -> None:
+        """Passively drift mood back toward a slightly happy baseline."""
+        if self.current_mood == self.MOOD_BASELINE:
+            return
+
+        if datetime.utcnow() - self._last_mood_change >= timedelta(minutes=self.MOOD_RECOVERY_MINUTES):
+            self.current_mood = self.MOOD_BASELINE
+            self._last_mood_change = datetime.utcnow()
+
+    def _current_mood(self) -> str:
+        """Return the current mood after applying any recovery."""
+        self._maybe_recover_mood()
         return self.current_mood
 
     def set_ai_adapter(self, adapter: Optional[Any]) -> None:
@@ -308,21 +331,22 @@ class PersonalityEngine:
             if best_friend_id and str(best_friend_id) == str(user_id):
                 is_secret_favorite = True
 
+        current_mood = self._current_mood()
         if is_secret_favorite:
-            templates = self.BEST_FRIEND_GREETINGS[self.current_mood]
+            templates = self.BEST_FRIEND_GREETINGS[current_mood]
         else:
-            templates = self.GREETINGS[self.current_mood]
+            templates = self.GREETINGS[current_mood]
         return random.choice(templates).format(user=user_name)
 
     def confirmation(self, text: str) -> str:
         """Get a confirmation message based on current mood."""
-        templates = self.CONFIRMATIONS[self.current_mood]
+        templates = self.CONFIRMATIONS[self._current_mood()]
         template = random.choice(templates)
         return template.format(text=text) if '{text}' in template else f"{template} {text}"
 
     def error(self) -> str:
         """Get an error message based on current mood."""
-        templates = self.ERRORS[self.current_mood]
+        templates = self.ERRORS[self._current_mood()]
         return random.choice(templates)
     
     async def generate_dynamic_response(self, context: str, user_name: str,
@@ -335,6 +359,7 @@ class PersonalityEngine:
             return None
         
         # Build personality prompt based on mood and relationship
+        mood = self._current_mood()
         mood_personalities = {
             'happy': "You are Baby Hippo, a cheerful and enthusiastic bot! You love helping users and get excited about everything. Use emojis liberally! 🦛💖",
             'neutral': "You are Baby Hippo, a friendly and helpful bot. You're balanced and professional but still warm and approachable. 🦛😊",
@@ -349,7 +374,7 @@ class PersonalityEngine:
         elif relationship_level < 25:
             relationship_context = f"You're just getting to know {user_name}. Be friendly but not too familiar."
         
-        system_prompt = f"{mood_personalities[self.current_mood]} {relationship_context} Keep responses under 200 characters."
+        system_prompt = f"{mood_personalities[mood]} {relationship_context} Keep responses under 200 characters."
         
         try:
             response = await self._openai_client.chat.completions.create(
@@ -378,8 +403,10 @@ class PersonalityEngine:
             if best_friend_id and str(best_friend_id) == str(user_id):
                 is_secret_favorite = True
 
+        mood = self._current_mood()
+
         if is_secret_favorite:
-            templates = self.BEST_FRIEND_COOKIE_MESSAGES[self.current_mood]
+            templates = self.BEST_FRIEND_COOKIE_MESSAGES[mood]
             return random.choice(templates).format(amount=amount, user_name=user_name)
 
         messages = {
@@ -399,7 +426,7 @@ class PersonalityEngine:
                 "🍪 *grumbles* {amount} cookies for {user_name}..."
             ]
         }
-        return random.choice(messages[self.current_mood]).format(amount=amount, user_name=user_name)
+        return random.choice(messages[mood]).format(amount=amount, user_name=user_name)
     
     def get_easter_egg_limit_message(self, user_name: str, aggravation_level: int) -> str:
         """Get a message when user hits easter egg limit based on mood and aggravation."""
@@ -410,30 +437,30 @@ class PersonalityEngine:
         if level == 0:
             level = 1
         
-        messages = self.EASTER_EGG_LIMIT_MESSAGES[self.current_mood][level]
+        messages = self.EASTER_EGG_LIMIT_MESSAGES[self._current_mood()][level]
         return random.choice(messages).format(user=user_name)
     
     def get_cookie_penalty_message(self, user_name: str, amount: int) -> str:
         """Get a message when cookies are taken as penalty."""
-        messages = self.COOKIE_PENALTY_MESSAGES[self.current_mood]
+        messages = self.COOKIE_PENALTY_MESSAGES[self._current_mood()]
         return random.choice(messages).format(user=user_name, amount=amount)
     
     def get_mute_warning_message(self, user_name: str, chance: float) -> str:
         """Get a warning message about mute chance."""
-        messages = self.MUTE_WARNING_MESSAGES[self.current_mood]
+        messages = self.MUTE_WARNING_MESSAGES[self._current_mood()]
         return random.choice(messages).format(user=user_name, chance=chance)
 
     def get_pokemon_catch_success(self, user_name: str, pokemon_name: str) -> str:
         """Return a celebratory catch message adjusted for the current mood."""
-        messages = self.POKEMON_CATCH_SUCCESS_MESSAGES[self.current_mood]
+        messages = self.POKEMON_CATCH_SUCCESS_MESSAGES[self._current_mood()]
         return random.choice(messages).format(user=user_name, pokemon=pokemon_name)
 
     def get_pokemon_catch_fail(self, user_name: str, pokemon_name: str) -> str:
         """Return a supportive (or grumpy) miss message adjusted for the current mood."""
-        messages = self.POKEMON_CATCH_FAIL_MESSAGES[self.current_mood]
+        messages = self.POKEMON_CATCH_FAIL_MESSAGES[self._current_mood()]
         return random.choice(messages).format(user=user_name, pokemon=pokemon_name)
 
     def get_battle_victory(self, winner_name: str, loser_name: str) -> str:
         """Return a battle victory message with personality flair."""
-        messages = self.BATTLE_VICTORY_MESSAGES[self.current_mood]
+        messages = self.BATTLE_VICTORY_MESSAGES[self._current_mood()]
         return random.choice(messages).format(winner=winner_name, loser=loser_name)

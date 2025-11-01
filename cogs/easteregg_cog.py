@@ -25,7 +25,11 @@ from typing import Optional, TYPE_CHECKING
 
 # Import GameCog to reference the shared cookies group
 from discord_bot.cogs.game_cog import GameCog
-from discord_bot.core.utils import find_bot_channel, is_allowed_channel
+from discord_bot.core.utils import (
+    find_bot_channel,
+    is_allowed_channel,
+    safe_send_interaction_response,
+)
 
 if TYPE_CHECKING:
     from discord_bot.core.engines.relationship_manager import RelationshipManager
@@ -104,17 +108,21 @@ class EasterEggCog(commands.Cog):
     async def _check_allowed_channel(self, interaction: discord.Interaction) -> bool:
         """Check if command is used in bot channel only. Call BEFORE responding to interaction."""
         if not interaction.channel:
-            await interaction.response.send_message(
-                "🦛 I can only respond to game and fun commands in the bot channel!",
-                ephemeral=True
+            await safe_send_interaction_response(
+                interaction,
+                content="🦛 I can only respond to game and fun commands in the bot channel!",
+                ephemeral=True,
             )
             return False
         
         if not is_allowed_channel(interaction.channel.id):
-            await interaction.response.send_message(
-                "🦛 I can only respond to game and fun commands in the bot channel! "
-                "Please use the designated bot channel.",
-                ephemeral=True
+            await safe_send_interaction_response(
+                interaction,
+                content=(
+                    "🦛 I can only respond to game and fun commands in the bot channel! "
+                    "Please use the designated bot channel."
+                ),
+                ephemeral=True,
             )
             return False
         return True

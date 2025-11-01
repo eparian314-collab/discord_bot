@@ -68,6 +68,7 @@ class CookieManager:
     BASE_MUTE_CHANCE = 0.01  # 1%
     MUTE_CHANCE_INCREMENT = 0.10  # 10% per spam attempt
     MUTE_DURATION_MINUTES = 30
+    SPAM_RESET_MINUTES = 60  # Cooldown window before penalties reset
     
     def __init__(self, storage: GameStorageEngine, relationship_manager: RelationshipManager, owner_ids: Optional[Set[int]] = None):
         self.storage = storage
@@ -282,6 +283,16 @@ class CookieManager:
         
         # Check if this is spam (limit reached)
         if stats['cookies_earned'] < self.MAX_DAILY_EASTER_EGG_COOKIES:
+            return {
+                'is_spam': False,
+                'aggravation_level': 0,
+                'cookie_penalty': 0,
+                'mute_chance': 0.0,
+                'should_mute': False
+            }
+
+        # Provide a cooldown grace period before penalties resume
+        if self.storage.maybe_reset_aggravation(user_id, self.SPAM_RESET_MINUTES):
             return {
                 'is_spam': False,
                 'aggravation_level': 0,
