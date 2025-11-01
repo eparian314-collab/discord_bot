@@ -543,8 +543,11 @@ class GameCog(commands.Cog):
                 result_info = f"🎣 A **{pokemon_name}** (Lv.{encounter.level}) got away... 😔"
 
             miss_msg = self.personality_engine.get_pokemon_catch_fail(user_name, pokemon_name)
-            await interaction.response.send_message(f"{miss_msg}
-{result_info}")
+            await safe_send_interaction_response(
+                interaction,
+                content=f"{miss_msg}\n{result_info}",
+                ephemeral=False,
+            )
 
     @pokemon.command(name="explore", description="🔍 Explore for rare Pokemon! (Costs 3 cookies)")
     async def explore(self, interaction: discord.Interaction) -> None:
