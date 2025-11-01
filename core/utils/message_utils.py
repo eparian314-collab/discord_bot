@@ -24,13 +24,14 @@ async def safe_send_interaction_response(
     Attempts the primary response first, then falls back to followup, and finally
     to channel.send when possible. Returns True if any attempt succeeds.
     """
-    send_kwargs: Dict[str, Any] = {
+    raw_kwargs: Dict[str, Any] = {
         "content": content,
         "embed": embed,
         "embeds": embeds,
         "ephemeral": ephemeral,
         **kwargs,
     }
+    send_kwargs = {key: value for key, value in raw_kwargs.items() if value is not None}
 
     if not interaction.response.is_done():
         try:
