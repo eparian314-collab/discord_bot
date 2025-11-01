@@ -1,4 +1,4 @@
-🧭 CURRENT ACTIVE ISSUES (AS OF NOW)
+🧭 Resolve ISSUES (As Of 11.1.25)
 
 🧱 1. SOS Engine Infinite Loop
 Symptom: Repeatedly sends DMs in Japanese to specific users (you + one other).
