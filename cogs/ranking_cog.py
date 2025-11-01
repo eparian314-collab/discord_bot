@@ -27,6 +27,27 @@ if TYPE_CHECKING:
 
 
 class RankingCog(commands.Cog):
+    @commands.Cog.listener()
+    async def on_message(self, message: discord.Message):
+        # Only act in rankings channel, ignore bot and command messages
+        if (
+            message.channel and
+            self._rankings_channel_id and
+            message.channel.id == self._rankings_channel_id and
+            not message.author.bot and
+            not message.content.startswith("/")
+        ):
+            try:
+                await message.delete()
+            except Exception:
+                pass
+            try:
+                await message.author.send(
+                    "This channel is reserved for ranking submissions and commands only. "
+                    "Please use the available slash commands: /games ranking submit, /games ranking view, /games ranking leaderboard, /games ranking_compare_me, /games ranking_compare_others."
+                )
+            except Exception:
+                pass
     """Top Heroes event ranking commands."""
     
     # Use ranking group from ui_groups
@@ -44,6 +65,31 @@ class RankingCog(commands.Cog):
         self.storage = storage
         self._rankings_channel_id = self._get_rankings_channel_id()
         self.kvk_tracker = kvk_tracker or getattr(bot, "kvk_tracker", None)
+        self.bot.loop.create_task(self._post_guidance_message())
+
+    async def _post_guidance_message(self):
+        await self.bot.wait_until_ready()
+        channel_id = self._rankings_channel_id
+        if not channel_id:
+            return
+        channel = self.bot.get_channel(channel_id)
+        if not channel:
+            return
+        guidance = (
+            "📢 **Rankings Channel Guidance**\n"
+            "This channel is reserved for Top Heroes event ranking submissions and commands only.\n\n"
+            "**Allowed actions:**\n"
+            "• Submit your event ranking screenshot using `/games ranking submit`\n"
+            "• View your ranking history with `/games ranking view`\n"
+            "• See the leaderboard with `/games ranking leaderboard`\n"
+            "• Compare your results with `/games ranking_compare_me` and `/games ranking_compare_others`\n\n"
+            "Please do not chat or post unrelated messages here. Use the available slash commands for all ranking-related actions."
+        )
+        # Try to find an existing guidance message
+        async for msg in channel.history(limit=20):
+            if msg.author == self.bot.user and "Rankings Channel Guidance" in msg.content:
+                return  # Already posted
+        await channel.send(guidance)
 
     def __getattribute__(self, name: str):
         value = object.__getattribute__(self, name)
@@ -184,23 +230,29 @@ class RankingCog(commands.Cog):
         
         # If no rankings channel configured, allow in any channel
         if not self._rankings_channel_id:
-            await interaction.response.send_message(
+            msg = (
                 "❌ **Rankings channel not configured!**\n"
                 "Please ask a server admin to set `RANKINGS_CHANNEL_ID` in the bot's `.env` file.\n\n"
-                "This is the dedicated channel where members submit their Top Heroes event rankings.",
-                ephemeral=True
+                "This is the dedicated channel where members submit their Top Heroes event rankings."
             )
+            if interaction.response.is_done():
+                await interaction.followup.send(msg, ephemeral=True)
+            else:
+                await interaction.response.send_message(msg, ephemeral=True)
             return False
         
         # Must be in the rankings channel
         if interaction.channel.id != self._rankings_channel_id:
             channel_mention = f"<#{self._rankings_channel_id}>"
-            await interaction.response.send_message(
+            msg = (
                 f"📊 **Rankings submissions can only be done in {channel_mention}!**\n\n"
                 f"This keeps all event rankings organized in one place.\n"
-                f"Please go to {channel_mention} to submit your screenshot.",
-                ephemeral=True
+                f"Please go to {channel_mention} to submit your screenshot."
             )
+            if interaction.response.is_done():
+                await interaction.followup.send(msg, ephemeral=True)
+            else:
+                await interaction.response.send_message(msg, ephemeral=True)
             return False
         
         return True
