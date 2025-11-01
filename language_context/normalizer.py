@@ -112,6 +112,101 @@ def _load_language_map() -> Dict[str, List[str]]:
 
 _LANGUAGE_MAP = _load_language_map()
 
+# Script-level heuristics and lightweight keyword dictionaries help the
+# confidence-aware detector remain deterministic without external libraries.
+_SCRIPT_PATTERNS: Tuple[Tuple[str, Pattern[str], float], ...] = (
+    ("ja", re.compile(r"[\u3040-\u30FF\u31F0-\u31FF]"), 0.99),
+    ("ko", re.compile(r"[\u1100-\u11FF\uAC00-\uD7AF]"), 0.99),
+    ("zh", re.compile(r"[\u4E00-\u9FFF]"), 0.99),
+    ("ru", re.compile(r"[\u0400-\u04FF]"), 0.99),
+    ("el", re.compile(r"[\u0370-\u03FF]"), 0.90),
+)
+
+_LANGUAGE_KEYWORDS: Dict[str, Tuple[str, ...]] = {
+    # Keep these intentionally small; they act as soft signals rather than a
+    # comprehensive vocabulary.
+    "en": (
+        "a",
+        "an",
+        "and",
+        "are",
+        "be",
+        "bruh",
+        "cool",
+        "for",
+        "friend",
+        "fr",
+        "funny",
+        "good",
+        "great",
+        "hello",
+        "hey",
+        "idea",
+        "idk",
+        "is",
+        "it",
+        "know",
+        "lol",
+        "maybe",
+        "nah",
+        "ok",
+        "project",
+        "really",
+        "think",
+        "this",
+        "ya",
+        "yeah",
+        "you",
+    ),
+    "es": (
+        "amiga",
+        "amigo",
+        "amigos",
+        "buenas",
+        "buenos",
+        "como",
+        "contigo",
+        "dias",
+        "gracias",
+        "hola",
+        "hoy",
+        "manana",
+        "mi",
+        "nosotros",
+        "esta",
+        "estas",
+        "estoy",
+        "usted",
+        "ustedes",
+        "vamos",
+        "voy",
+    ),
+    "fr": (
+        "allez",
+        "ami",
+        "amie",
+        "aujourdhui",
+        "bien",
+        "bonjour",
+        "comment",
+        "etre",
+        "ete",
+        "merci",
+        "non",
+        "nous",
+        "oui",
+        "salut",
+        "tres",
+        "vous",
+    ),
+}
+
+def _strip_accents(token: str) -> str:
+    """Remove accents/diacritics for keyword comparisons."""
+    normalized = unicodedata.normalize("NFKD", token)
+    return "".join(ch for ch in normalized if not unicodedata.combining(ch))
+
+
 def _replace_smart_quotes(text: str) -> str:
     """Replace common smart quotes and dashes with ASCII equivalents."""
     replacements = {
@@ -189,7 +284,11 @@ def default_language_detector(text: str, hint: Optional[str] = None) -> Optional
         return hint
 
     # 2) Quick unicode heuristics
-    # Detect CJK
+    if re.search(r"[\u3040-\u30FF\u31F0-\u31FF]", text):
+        return "ja"
+    if re.search(r"[\u1100-\u11FF\uAC00-\uD7AF]", text):
+        return "ko"
+    # Detect CJK (assume zh unless a more specific script matched above)
     if re.search(r"[\u4E00-\u9FFF]", text):
         return "zh"
     # Detect Cyrillic
@@ -355,6 +454,79 @@ class Normalizer:
         return NormalizationResult(original, cleaned, tokens, language, metadata={"token_count": len(tokens)})
 
 # Module-level quick helpers for convenience -------------------------------
+
+def detect_language_with_confidence(
+    text: str,
+    language_hint: Optional[str] = None,
+) -> Tuple[Optional[str], float]:
+    """
+    Lightweight language detector that returns a `(code, confidence)` pair.
+
+    The implementation intentionally mirrors the deterministic heuristics used
+    throughout this module so tests can run without heavy NLP dependencies.
+    Confidence is a rough heuristic in the 0.0-1.0 range; the goal is to
+    provide relative strength (e.g. "definitely Korean" vs. "probably English")
+    rather than statistical certainty.
+    """
+    cleaned = _collapse_whitespace(
+        _strip_control_chars(_remove_zero_width(_unicode_normalize(text or "")))
+    )
+    if not cleaned:
+        if language_hint:
+            return language_hint, 0.99
+        return None, 0.0
+
+    if language_hint:
+        return language_hint, 0.99
+
+    # Strong script-based signals take precedence and yield near-certain scores.
+    for lang, pattern, confidence in _SCRIPT_PATTERNS:
+        if pattern.search(cleaned):
+            return lang, confidence
+
+    words = re.findall(r"[A-Za-z\u00C0-\u024F]+", cleaned.lower())
+    ascii_chars = sum(1 for ch in cleaned if ord(ch) < 128)
+    ascii_prop = ascii_chars / max(1, len(cleaned))
+    latin_words = [_strip_accents(w) for w in words]
+
+    best_lang: Optional[str] = None
+    best_conf = 0.0
+    best_unique_hits = 0
+
+    for lang, keywords in _LANGUAGE_KEYWORDS.items():
+        hits = [w for w in latin_words if w in keywords]
+        if not hits:
+            continue
+
+        coverage = len(hits) / max(1, len(latin_words))
+        unique_hits = len(set(hits))
+        hit_bonus = min(0.25, len(hits) * 0.1)
+        diversity_bonus = min(0.1, unique_hits * 0.05)
+        length_bonus = min(0.1, len(cleaned) / 120.0)
+        confidence = min(1.0, 0.45 + 0.45 * coverage + hit_bonus + diversity_bonus + length_bonus)
+
+        if (confidence > best_conf) or (confidence == best_conf and unique_hits > best_unique_hits):
+            best_lang = lang
+            best_conf = confidence
+            best_unique_hits = unique_hits
+
+    if best_lang:
+        return best_lang, best_conf
+
+    if ascii_prop > 0.85:
+        slang_hits = sum(1 for w in latin_words if w in _LANGUAGE_KEYWORDS.get("en", ()))
+        length_bonus = min(0.2, len(cleaned) / 200.0)
+        base_conf = 0.35 + (ascii_prop - 0.85) * 0.6
+        confidence = min(0.85, base_conf + length_bonus + min(0.2, slang_hits * 0.1))
+        return "en", max(0.2, confidence)
+
+    # Fall back to the default detector for any remaining scripts.
+    fallback = default_language_detector(cleaned)
+    if fallback:
+        return fallback, 0.2
+    return None, 0.0
+
+
 _default_normalizer = Normalizer()
 
 def normalize(text: str, language_hint: Optional[str] = None) -> NormalizationResult:

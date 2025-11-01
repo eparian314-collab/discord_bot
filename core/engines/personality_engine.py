@@ -196,6 +196,60 @@ class PersonalityEngine:
         ]
     }
 
+    POKEMON_CATCH_SUCCESS_MESSAGES = {
+        'happy': [
+            "🎉 {user}! {pokemon} jumped straight into your arms! Let's celebrate! 🥳",
+            "🧸 Sparkles everywhere! {pokemon} chose you, {user}! 🌟",
+            "🤌 Another cuddly friend for you, {user}! Welcome home, {pokemon}! 💖"
+        ],
+        'neutral': [
+            "✅ Nice work, {user}. {pokemon} is now part of your team.",
+            "🎯 Clean catch, {user}. {pokemon} is yours to train.",
+            "📦 {pokemon} captured successfully, {user}. On to the next!"
+        ],
+        'grumpy': [
+            "🙄 Fine, {user}. You caught {pokemon}. Try not to brag about it.",
+            "😐 {pokemon} is yours, {user}. Guess luck was on your side this time.",
+            "🧱 Tch, {pokemon} fell for it. Keep it together, {user}."
+        ]
+    }
+
+    POKEMON_CATCH_FAIL_MESSAGES = {
+        'happy': [
+            "😢 So close, {user}! {pokemon} slipped away — let's try again soon! 💪",
+            "💫 {pokemon} dashed off, {user}! We'll get them next time! ✨",
+            "🦅 {pokemon} said 'not yet!' but I believe in you, {user}! 💗"
+        ],
+        'neutral': [
+            "⚠️ {pokemon} escaped this time, {user}. Regroup and try again.",
+            "📝 Catch failed. {pokemon} didn't stay in the ball for {user}.",
+            "🔄 {user}, {pokemon} got away. Adjust strategy and retry."
+        ],
+        'grumpy': [
+            "😞 {pokemon} bolted. Told you to hold the ball tighter, {user}.",
+            "🤪 Welp, {pokemon} laughed and ran. Nice job, {user}.",
+            "🤬 Figures. {pokemon} escaped. Maybe focus, {user}?"
+        ]
+    }
+
+    BATTLE_VICTORY_MESSAGES = {
+        'happy': [
+            "🏆 {winner} absolutely dazzled the arena! {loser}, better luck next time! ✨",
+            "⚡ Boom! {winner} outplayed {loser}! Let's throw a victory party! 🎉",
+            "🔥 {winner} just served a legendary win! Don't feel bad, {loser}! 💜"
+        ],
+        'neutral': [
+            "🏆 {winner} wins the match against {loser}.",
+            "📣 Battle complete: {winner} defeated {loser}.",
+            "✅ {winner} came out on top. Solid fight, {loser}."
+        ],
+        'grumpy': [
+            "😒 {winner} steamrolled {loser}. Saw that coming.",
+            "😏 {winner} wiped the floor with {loser}. Try again when you're ready.",
+            "🧹 Sweep. {winner} over {loser}. Next."
+        ]
+    }
+
     def __init__(self, *, cache_manager, ai_adapter: Optional[Any] = None) -> None:
         self.cache = cache_manager
         self.ai_adapter = ai_adapter
@@ -368,3 +422,18 @@ class PersonalityEngine:
         """Get a warning message about mute chance."""
         messages = self.MUTE_WARNING_MESSAGES[self.current_mood]
         return random.choice(messages).format(user=user_name, chance=chance)
+
+    def get_pokemon_catch_success(self, user_name: str, pokemon_name: str) -> str:
+        """Return a celebratory catch message adjusted for the current mood."""
+        messages = self.POKEMON_CATCH_SUCCESS_MESSAGES[self.current_mood]
+        return random.choice(messages).format(user=user_name, pokemon=pokemon_name)
+
+    def get_pokemon_catch_fail(self, user_name: str, pokemon_name: str) -> str:
+        """Return a supportive (or grumpy) miss message adjusted for the current mood."""
+        messages = self.POKEMON_CATCH_FAIL_MESSAGES[self.current_mood]
+        return random.choice(messages).format(user=user_name, pokemon=pokemon_name)
+
+    def get_battle_victory(self, winner_name: str, loser_name: str) -> str:
+        """Return a battle victory message with personality flair."""
+        messages = self.BATTLE_VICTORY_MESSAGES[self.current_mood]
+        return random.choice(messages).format(winner=winner_name, loser=loser_name)

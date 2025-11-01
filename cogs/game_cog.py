@@ -430,6 +430,8 @@ class GameCog(commands.Cog):
         
         # Generate encounter
         encounter = self.pokemon_game.generate_encounter('catch')
+        pokemon_name = encounter.species.capitalize()
+        user_name = interaction.user.display_name
         
         # Record interaction
         self.relationship_manager.record_interaction(user_id, 'game_action')
@@ -440,8 +442,11 @@ class GameCog(commands.Cog):
         if pokemon:
             # Success!
             embed = discord.Embed(
-                title="🎉 Pokemon Caught!",
-                description=f"You caught a **{encounter.species.capitalize()}**!",
+                title="\U0001f389 Pokemon Caught!",
+                description=(
+                    f"{self.personality_engine.get_pokemon_catch_success(user_name, pokemon_name)}\n\n"
+                    f"You caught a **{pokemon_name}**!"
+                ),
                 color=discord.Color.green()
             )
             embed.add_field(name="Level", value=str(encounter.level), inline=True)
@@ -460,11 +465,12 @@ class GameCog(commands.Cog):
                 # Check if it was limit or catch failure
                 count = self.storage.get_pokemon_count_by_species(user_id, encounter.species)
                 if count >= 3:
-                    msg = f"🦛 A **{encounter.species.capitalize()}** appeared, but you already have 3! Consider evolving one."
+                    result_info = f"\U0001f99b A **{pokemon_name}** appeared, but you already have 3! Consider evolving one."
                 else:
-                    msg = f"🦛 A **{encounter.species.capitalize()}** (Lv.{encounter.level}) appeared... but it got away! 😔"
-                
-                await interaction.response.send_message(msg)
+                    result_info = f"\U0001f99b A **{pokemon_name}** (Lv.{encounter.level}) appeared... but it got away! \U0001f614"
+
+                miss_msg = self.personality_engine.get_pokemon_catch_fail(user_name, pokemon_name)
+                await interaction.response.send_message(f"{miss_msg}\n{result_info}")
 
     @pokemon.command(name="fish", description="🎣 Fish for water-type Pokemon! (Costs 1 cookie)")
     async def fish(self, interaction: discord.Interaction) -> None:
@@ -492,6 +498,8 @@ class GameCog(commands.Cog):
         
         # Generate encounter
         encounter = self.pokemon_game.generate_encounter('fish')
+        pokemon_name = encounter.species.capitalize()
+        user_name = interaction.user.display_name
         
         # Record interaction
         self.relationship_manager.record_interaction(user_id, 'game_action')
@@ -503,7 +511,10 @@ class GameCog(commands.Cog):
             # Success!
             embed = discord.Embed(
                 title="🎣 Pokemon Fished!",
-                description=f"You fished up a **{encounter.species.capitalize()}**!",
+                description=(
+                    f"{self.personality_engine.get_pokemon_catch_success(user_name, pokemon_name)}\n\n"
+                    f"You fished up a **{pokemon_name}**!"
+                ),
                 color=discord.Color.blue()
             )
             embed.add_field(name="Level", value=str(encounter.level), inline=True)
@@ -519,11 +530,13 @@ class GameCog(commands.Cog):
         else:
             count = self.storage.get_pokemon_count_by_species(user_id, encounter.species)
             if count >= 3:
-                msg = f"🎣 A **{encounter.species.capitalize()}** bit the line, but you already have 3!"
+                result_info = f"🎣 A **{pokemon_name}** bit the line, but you already have 3!"
             else:
-                msg = f"🎣 A **{encounter.species.capitalize()}** (Lv.{encounter.level}) got away... 😔"
-            
-            await interaction.response.send_message(msg)
+                result_info = f"🎣 A **{pokemon_name}** (Lv.{encounter.level}) got away... 😔"
+
+            miss_msg = self.personality_engine.get_pokemon_catch_fail(user_name, pokemon_name)
+            await interaction.response.send_message(f"{miss_msg}
+{result_info}")
 
     @pokemon.command(name="explore", description="🔍 Explore for rare Pokemon! (Costs 3 cookies)")
     async def explore(self, interaction: discord.Interaction) -> None:
@@ -551,6 +564,8 @@ class GameCog(commands.Cog):
         
         # Generate encounter
         encounter = self.pokemon_game.generate_encounter('explore')
+        pokemon_name = encounter.species.capitalize()
+        user_name = interaction.user.display_name
         
         # Record interaction
         self.relationship_manager.record_interaction(user_id, 'game_action')
@@ -562,7 +577,10 @@ class GameCog(commands.Cog):
             # Success!
             embed = discord.Embed(
                 title="🌟 Rare Discovery!",
-                description=f"You discovered a **{encounter.species.capitalize()}**!",
+                description=(
+                    f"{self.personality_engine.get_pokemon_catch_success(user_name, pokemon_name)}\n\n"
+                    f"You discovered a **{pokemon_name}**!"
+                ),
                 color=discord.Color.purple()
             )
             embed.add_field(name="Level", value=str(encounter.level), inline=True)
@@ -578,11 +596,13 @@ class GameCog(commands.Cog):
         else:
             count = self.storage.get_pokemon_count_by_species(user_id, encounter.species)
             if count >= 3:
-                msg = f"🌟 A **{encounter.species.capitalize()}** appeared, but you already have 3!"
+                result_info = f"🌟 A **{pokemon_name}** appeared, but you already have 3!"
             else:
-                msg = f"🌟 A **{encounter.species.capitalize()}** (Lv.{encounter.level}) fled... 😔"
-            
-            await interaction.response.send_message(msg)
+                result_info = f"🌟 A **{pokemon_name}** (Lv.{encounter.level}) fled... 😔"
+
+            miss_msg = self.personality_engine.get_pokemon_catch_fail(user_name, pokemon_name)
+            await interaction.response.send_message(f"{miss_msg}
+{result_info}")
 
     @pokemon.command(name="collection", description="📋 View your Pokemon collection")
     async def collection(self, interaction: discord.Interaction) -> None:
