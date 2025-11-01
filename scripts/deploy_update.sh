@@ -76,6 +76,8 @@ fi
 
 log "Launching HippoBot"
 # Change to parent directory to run bot as module
-cd "$(dirname "${PROJECT_DIR}")"
+PARENT_DIR="$(dirname "${PROJECT_DIR}")"
+cd "${PARENT_DIR}"
+log "Changed to directory: $(pwd)"
 exec python -m discord_bot
 
