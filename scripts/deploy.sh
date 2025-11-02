@@ -6,6 +6,10 @@
 
 set -e  # Exit on any error
 
+# Resolve important paths up front so the script works regardless of invoking user.
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_DIR="${REPO_DIR_OVERRIDE:-$(dirname "$SCRIPT_DIR")}"
+
 # Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -13,16 +17,6 @@ YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
 # Configuration
-
-REPO_DIR="/home/ec2-user/discord_bot"
-VENV_PATH="$REPO_DIR/venv"
-if [ -d "$VENV_PATH" ]; then
-    source "$VENV_PATH/bin/activate"
-    PYTHON="$VENV_PATH/bin/python"
-else
-    PYTHON="/usr/bin/python3"
-    log_warn "Virtual environment not found, using system Python."
-fi
 MAX_RETRIES=3
 RETRY_COUNT_FILE="/tmp/hippobot_retry_count"
 COOLDOWN_FILE="/tmp/hippobot_cooldown"
@@ -85,6 +79,17 @@ reset_retry_count() {
     rm -f "$COOLDOWN_FILE"
 }
 
+# Python environment
+VENV_PATH="$REPO_DIR/venv"
+if [ -d "$VENV_PATH" ]; then
+    # shellcheck disable=SC1090
+    source "$VENV_PATH/bin/activate"
+    PYTHON="$VENV_PATH/bin/python"
+else
+    PYTHON="/usr/bin/python3"
+    log_warn "Virtual environment not found, using system Python."
+fi
+
 ###############################################################################
 # Deployment Steps
 ###############################################################################
@@ -98,17 +103,22 @@ deploy() {
     # Change to repo directory
     cd "$REPO_DIR" || exit 1
     
-    # Pull latest code
-    log_info "Pulling latest code from GitHub..."
-    if ! git pull origin main; then
-        log_error "Git pull failed"
-        increment_retry_count
-        exit 1
+    # Pull latest code on the current branch when available
+    if git symbolic-ref --quiet HEAD >/dev/null 2>&1; then
+        current_branch=$(git rev-parse --abbrev-ref HEAD)
+        log_info "Pulling latest code from GitHub (branch: $current_branch)..."
+        if ! git pull origin "$current_branch"; then
+            log_error "Git pull failed"
+            increment_retry_count
+            exit 1
+        fi
+    else
+        log_warn "Repository is in a detached HEAD state; skipping git pull."
     fi
     
     # Run preflight checks
     log_info "Running preflight checks..."
-    if ! $PYTHON scripts/preflight_check.py; then
+    if ! "$PYTHON" scripts/preflight_check.py; then
         log_error "Preflight checks failed"
         increment_retry_count
         exit 1
@@ -116,16 +126,16 @@ deploy() {
     
     # Install/update dependencies
     log_info "Checking dependencies..."
-    if ! pip3 install -r requirements.txt --quiet; then
+    if ! "$PYTHON" -m pip install -r requirements.txt --quiet; then
         log_error "Dependency installation failed"
         increment_retry_count
         exit 1
     fi
     
     # Run tests (if pytest is available)
-    if command -v pytest &> /dev/null; then
+    if "$PYTHON" -m pytest --version >/dev/null 2>&1; then
         log_info "Running tests..."
-        if ! pytest tests/ -v --tb=short; then
+        if ! "$PYTHON" -m pytest tests/ -v --tb=short; then
             log_error "Tests failed"
             increment_retry_count
             exit 1
@@ -136,7 +146,7 @@ deploy() {
     
     # Run health check
     log_info "Running health check..."
-    if ! $PYTHON health_check.py; then
+    if ! "$PYTHON" health_check.py; then
         log_error "Health check failed"
         increment_retry_count
         exit 1
