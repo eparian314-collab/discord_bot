@@ -203,7 +203,7 @@ WELCOME_CHANNEL_ID=123456789
 ```
 
 ### Database
-- SQLite database: `game_data.db`
+- SQLite database: `data/game_data.db`
 - Automatically created on first run
 - Tables: users, pokemon, battles, interactions
 

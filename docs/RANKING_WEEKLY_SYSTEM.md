@@ -270,7 +270,7 @@ If you already have ranking data without `event_week`:
 ### Backup Command
 ```bash
 # Before upgrading
-cp event_rankings.db event_rankings.db.backup
+cp data/event_rankings.db data/event_rankings.db.backup
 ```
 
 ## Testing Checklist

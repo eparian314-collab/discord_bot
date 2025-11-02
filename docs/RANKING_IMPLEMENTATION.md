@@ -90,7 +90,7 @@ from discord_bot.cogs.ranking_cog import setup as setup_ranking_cog
 
 # In __init__, add:
 self.ranking_processor = ScreenshotProcessor()
-self.ranking_storage = RankingStorageEngine("event_rankings.db")
+self.ranking_storage = RankingStorageEngine("data/event_rankings.db")
 
 # In _mount_cogs, add:
 await setup_ranking_cog(
@@ -162,7 +162,7 @@ Displays top 20 with medals for top 3: 🥇🥈🥉
 
 ## 🗄️ Database
 
-All rankings stored in `event_rankings.db`:
+All rankings stored in `data/event_rankings.db`:
 
 - **Tracks**: User ID, player name, guild tag, stage, day, rank, score, timestamp
 - **History**: Full submission history per user

@@ -16,7 +16,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 
-def migrate_pokemon_stats(db_path: str = "game_data.db"):
+def migrate_pokemon_stats(db_path: str = "data/game_data.db"):
     """Add stat columns to pokemon table."""
     
     print(f"🔄 Migrating database: {db_path}")

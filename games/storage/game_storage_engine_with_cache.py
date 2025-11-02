@@ -2,7 +2,7 @@ from cachetools import TTLCache
 from games.storage.game_storage_engine import GameStorageEngine
 
 class GameStorageEngineWithCache:
-    def __init__(self, db_path="game_data.db"):
+    def __init__(self, db_path="data/game_data.db"):
         self.storage = GameStorageEngine(db_path)
         self.cache = TTLCache(maxsize=1000, ttl=300)  # Cache with 1000 items and 5-minute TTL
 

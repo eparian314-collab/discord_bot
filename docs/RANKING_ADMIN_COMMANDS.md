@@ -297,7 +297,7 @@ CREATE TABLE event_submissions (
 ### No data in reports
 - Check if RANKINGS_CHANNEL_ID is set correctly
 - Verify users are submitting in correct channel
-- Check event_rankings.db exists and has data
+- Check data/event_rankings.db exists and has data
 
 ### Stats showing 0
 - Normal if no submissions yet

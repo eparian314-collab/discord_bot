@@ -48,7 +48,7 @@ from discord_bot.core.engines.ranking_storage_engine import RankingStorageEngine
 
 # In __init__ method, add:
 self.ranking_processor = ScreenshotProcessor()
-self.ranking_storage = RankingStorageEngine("event_rankings.db")
+self.ranking_storage = RankingStorageEngine("data/event_rankings.db")
 
 # In _mount_cogs method, add:
 from discord_bot.cogs.ranking_cog import setup as setup_ranking_cog
@@ -113,7 +113,7 @@ pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tessera
 
 ## Database Location
 
-Rankings are stored in: `event_rankings.db` (created automatically)
+Rankings are stored in: `data/event_rankings.db` (created automatically)
 
 You can view the database with:
 - DB Browser for SQLite: https://sqlitebrowser.org/

@@ -21,7 +21,7 @@ class RankingStorageEngine:
     
     def __init__(
         self,
-        db_path: str = "event_rankings.db",
+    db_path: str = "data/event_rankings.db",
         storage: Optional["GameStorageEngine"] = None,
     ):
         self.db_path = db_path

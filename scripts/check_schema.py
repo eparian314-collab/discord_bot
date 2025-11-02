@@ -1,6 +1,6 @@
 import sqlite3
 
-conn = sqlite3.connect('game_data.db')
+conn = sqlite3.connect('data/game_data.db')
 cursor = conn.cursor()
 
 # Get pokemon table schema

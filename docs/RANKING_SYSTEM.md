@@ -121,7 +121,7 @@ from discord_bot.core.engines.ranking_storage_engine import RankingStorageEngine
 
 # In __init__ or setup:
 self.ranking_processor = ScreenshotProcessor()
-self.ranking_storage = RankingStorageEngine("event_rankings.db")
+self.ranking_storage = RankingStorageEngine("data/event_rankings.db")
 
 # In _mount_cogs:
 await setup_ranking_cog(
@@ -324,7 +324,7 @@ history = storage.get_ranking_history(user_id="123...", days=7)
 2. `core/engines/ranking_storage_engine.py` - Database operations
 3. `cogs/ranking_cog.py` - Discord commands
 4. `core/ui_groups.py` - Updated with `games_ranking` group
-5. `event_rankings.db` - SQLite database (auto-created)
+5. `data/event_rankings.db` - SQLite database (auto-created)
 
 ## Support
 

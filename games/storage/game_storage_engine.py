@@ -5,7 +5,7 @@ from typing import Optional, List, Dict, Any
 from discord_bot.core.engines.screenshot_processor import RankingData, StageType, RankingCategory
 
 class GameStorageEngine:
-    def __init__(self, db_path="game_data.db"):
+    def __init__(self, db_path="data/game_data.db"):
         self.conn = sqlite3.connect(db_path)
         self.conn.row_factory = sqlite3.Row
         self.create_tables()

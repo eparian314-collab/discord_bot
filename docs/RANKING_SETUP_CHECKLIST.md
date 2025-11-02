@@ -11,7 +11,7 @@
 
 - [x] **RankingStorageEngine** - Database storage and retrieval
   - Location: `core/engines/ranking_storage_engine.py`
-  - Database: `event_rankings.db` with SQLite
+  - Database: `data/event_rankings.db` with SQLite
   - Duplicate detection and update logic
   - Weekly event tracking with auto-cleanup
   - Submission statistics tracking
@@ -89,7 +89,7 @@ from discord_bot.core.engines.ranking_storage_engine import RankingStorageEngine
 # In load_integrations() function, add:
 # Initialize ranking engines
 screenshot_processor = ScreenshotProcessor()
-ranking_storage = RankingStorageEngine("event_rankings.db")
+ranking_storage = RankingStorageEngine("data/event_rankings.db")
 
 # Load ranking cog
 await setup_ranking_cog(bot, screenshot_processor, ranking_storage)
@@ -103,7 +103,7 @@ await setup_ranking_cog(bot, screenshot_processor, ranking_storage)
 - [ ] Bot starts without errors
 - [ ] Commands appear in Discord: `/games ranking`
 - [ ] Tesseract installed and accessible
-- [ ] Database created: `event_rankings.db`
+- [ ] Database created: `data/event_rankings.db`
 
 ### User Commands
 - [ ] `/games ranking submit` - Upload test screenshot
@@ -237,7 +237,7 @@ await setup_ranking_cog(bot, screenshot_processor, ranking_storage)
 
 ### View Rankings
 ```powershell
-sqlite3 event_rankings.db
+sqlite3 data/event_rankings.db
 SELECT * FROM event_rankings ORDER BY submitted_at DESC LIMIT 10;
 ```
 
@@ -343,7 +343,7 @@ Your ranking system is working correctly when:
 1. **Import Errors** - Check all files exist in correct locations
 2. **Permission Errors** - Verify bot has admin access to channels
 3. **OCR Errors** - Install Tesseract binary (not just Python package)
-4. **Database Errors** - Check file permissions for event_rankings.db
+4. **Database Errors** - Check file permissions for data/event_rankings.db
 5. **Command Sync Issues** - Try manual sync with `sync_commands.py`
 
 ### Debug Mode
@@ -361,7 +361,7 @@ logging.basicConfig(level=logging.DEBUG)
 - `core/engines/ranking_storage_engine.py` - Database operations
 - `integrations/integration_loader.py` - Cog registration
 - `.env` - Configuration variables
-- `event_rankings.db` - Data storage
+- `data/event_rankings.db` - Data storage
 
 ---
 

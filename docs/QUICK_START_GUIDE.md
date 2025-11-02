@@ -6,7 +6,7 @@
 The new tables will be created automatically on first run. If you need to manually trigger:
 ```python
 from games.storage.game_storage_engine import GameStorageEngine
-storage = GameStorageEngine("game_data.db")
+storage = GameStorageEngine("data/game_data.db")
 storage.create_tables()  # Creates all new tables
 ```
 
