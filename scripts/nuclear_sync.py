@@ -39,17 +39,14 @@ async def main():
     print("=" * 80)
     print("🚨 NUCLEAR COMMAND SYNC - CLEARING EVERYTHING")
     print("=" * 80)
-    print(f"Test Guild IDs: {test_guild_ids}")
-    print()
-    
     # Build bot with all cogs loaded
     bot, registry = build_application()
-    
+
     async with bot:
         await bot.login(token)
         print(f"✅ Logged in as {bot.user}")
         print()
-        
+
         # STEP 1: Clear ALL global commands
         print("=" * 80)
         print("STEP 1: Nuclear Clear - Global Commands")
@@ -58,44 +55,45 @@ async def main():
         await bot.tree.sync()
         print("✅ Cleared all global commands")
         print()
-        
+
         # STEP 2: Clear ALL guild commands
         print("=" * 80)
         print("STEP 2: Nuclear Clear - Guild Commands")
         print("=" * 80)
-        for guild_id in test_guild_ids:
-            guild_obj = discord.Object(id=guild_id)
-            bot.tree.clear_commands(guild=guild_obj)
-            await bot.tree.sync(guild=guild_obj)
-            print(f"✅ Cleared all commands for guild {guild_id}")
+        await bot.fetch_guilds()
+        guilds = list(bot.guilds)
+        if not guilds:
+            print("⚠️  No guilds found. Make sure your bot is invited to servers.")
+        for guild in guilds:
+            bot.tree.clear_commands(guild=guild)
+            await bot.tree.sync(guild=guild)
+            print(f"✅ Cleared all commands for guild {guild.id} ({guild.name})")
         print()
-        
+
         # STEP 3: Wait 2 seconds for Discord to process
         print("⏳ Waiting 2 seconds for Discord cache to clear...")
         await asyncio.sleep(2)
         print()
-        
+
         # STEP 4: Fresh sync to guilds
         print("=" * 80)
         print("STEP 3: Fresh Sync - Guild Commands")
         print("=" * 80)
-        for guild_id in test_guild_ids:
-            guild_obj = discord.Object(id=guild_id)
-            # Copy global commands to guild
-            bot.tree.copy_global_to(guild=guild_obj)
-            synced = await bot.tree.sync(guild=guild_obj)
-            print(f"✅ Synced {len(synced)} commands to guild {guild_id}")
+        for guild in guilds:
+            bot.tree.copy_global_to(guild=guild)
+            synced = await bot.tree.sync(guild=guild)
+            print(f"✅ Synced {len(synced)} commands to guild {guild.id} ({guild.name})")
             for cmd in synced:
                 print(f"   • {cmd.name}")
         print()
-        
+
         print("=" * 80)
         print("✅ NUCLEAR SYNC COMPLETE!")
         print("=" * 80)
         print()
         print("🔄 Now restart your Discord client (close and reopen)")
         print("⏱️  Wait 30 seconds, then try your commands")
-    
+
     await bot.close()
 
 
