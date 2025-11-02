@@ -8,6 +8,7 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 
+from discord_bot.core import ui_groups
 from discord_bot.core.engines.role_manager import (
     AssignmentResult,
     AmbiguousLanguage,
@@ -26,7 +27,8 @@ logger = logging.getLogger("hippo_bot.role_cog")
 class RoleManagementCog(commands.Cog):
     """Modern language role management built on the new RoleManager engine."""
 
-    language = app_commands.Group(name="language", description="Manage language roles for yourself or the server.")
+    # Reuse shared language command group to avoid duplicate registration.
+    language = ui_groups.language
 
     def __init__(self, bot: commands.Bot, role_manager: Optional[RoleManager] = None) -> None:
         self.bot = bot
