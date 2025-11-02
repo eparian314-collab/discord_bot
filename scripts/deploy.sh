@@ -13,8 +13,16 @@ YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
 # Configuration
+
 REPO_DIR="/home/ec2-user/discord_bot"
-PYTHON="/usr/bin/python3"
+VENV_PATH="$REPO_DIR/venv"
+if [ -d "$VENV_PATH" ]; then
+    source "$VENV_PATH/bin/activate"
+    PYTHON="$VENV_PATH/bin/python"
+else
+    PYTHON="/usr/bin/python3"
+    log_warn "Virtual environment not found, using system Python."
+fi
 MAX_RETRIES=3
 RETRY_COUNT_FILE="/tmp/hippobot_retry_count"
 COOLDOWN_FILE="/tmp/hippobot_cooldown"
