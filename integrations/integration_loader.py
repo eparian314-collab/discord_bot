@@ -572,7 +572,7 @@ class IntegrationLoader:
                 cookie_manager=self.cookie_manager,
                 personality_engine=self.personality_engine
             )
-            await self.bot.add_cog(easter_egg_cog)
+            await self.bot.add_cog(easter_egg_cog, override=True)
             
             game_cog = GameCog(
                 bot=self.bot,
@@ -583,7 +583,7 @@ class IntegrationLoader:
                 relationship_manager=self.relationship_manager,
                 personality_engine=self.personality_engine
             )
-            await self.bot.add_cog(game_cog)
+            await self.bot.add_cog(game_cog, override=True)
             
             logger.info("⚙️ Mounted cogs: translation, admin, help, language, sos, events, ranking, easteregg, game")
         except Exception as exc:

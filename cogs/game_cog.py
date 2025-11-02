@@ -16,6 +16,7 @@ from discord import app_commands
 from discord.ext import commands
 from typing import Optional, TYPE_CHECKING
 
+from discord_bot.core import ui_groups
 from discord_bot.core.utils import (
     find_bot_channel,
     is_allowed_channel,
@@ -33,29 +34,12 @@ if TYPE_CHECKING:
 
 class GameCog(commands.Cog):
     """Pokemon game commands with unlock system."""
-    
-    # Top-level game group
-    game = app_commands.Group(
-        name="game",
-        description="🎮 All game-related commands"
-    )
-    
-    # Nested subgroups under /game
-    pokemon = app_commands.Group(
-        name="pokemon", 
-        description="🎮 Catch, train, and evolve Pokemon!",
-        parent=game
-    )
-    cookies = app_commands.Group(
-        name="cookies",
-        description="🍪 Manage your cookies and check stats",
-        parent=game
-    )
-    battle = app_commands.Group(
-        name="battle",
-        description="⚔️ Pokemon battle system",
-        parent=game
-    )
+
+    # Reuse shared games command groups so everything lives under /games.
+    game = ui_groups.games
+    pokemon = ui_groups.games_pokemon
+    cookies = ui_groups.games_cookies
+    battle = ui_groups.games_battle
     
     def __init__(self, bot: commands.Bot, pokemon_game: PokemonGame, 
                  pokemon_api: PokemonAPIIntegration, storage: GameStorageEngine,

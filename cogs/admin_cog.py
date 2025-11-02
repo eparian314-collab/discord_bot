@@ -413,4 +413,7 @@ async def setup_admin_cog(
         # Guard against duplicate registration when command groups are preloaded.
         print("[WARN] AdminCog already loaded — skipping duplicate registration.")
         return
-    await bot.add_cog(AdminCog(bot, ui_engine, set(owners or []), storage, cookie_manager))
+    await bot.add_cog(
+        AdminCog(bot, ui_engine, set(owners or []), storage, cookie_manager),
+        override=True,
+    )

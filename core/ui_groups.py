@@ -10,58 +10,58 @@ from discord import app_commands
 from discord.ext import commands
 
 # Main top-level groups
-language = app_commands.Group(name="language", description="🌍 Language and communication tools")
-games = app_commands.Group(name="games", description="🎮 Games and entertainment")
+language = app_commands.Group(name="language", description="Language and communication tools")
+games = app_commands.Group(name="games", description="Games and entertainment")
 kvk = app_commands.Group(name="kvk", description="Top Heroes / KVK tools")
-admin = app_commands.Group(name="admin", description="⚙️ Administrative tools")
+admin = app_commands.Group(name="admin", description="Administrative tools")
 
 # Language subgroups
 language_translate = app_commands.Group(
     name="translate", 
-    description="🔄 Translation services",
+    description="Translation services",
     parent=language
 )
 
 language_roles = app_commands.Group(
     name="roles", 
-    description="🎭 Manage your language roles",
+    description="Manage your language roles",
     parent=language
 )
 
 language_sos = app_commands.Group(
     name="sos", 
-    description="🚨 Configure SOS emergency phrases",
+    description="Configure SOS emergency phrases",
     parent=language
 )
 
 # Games subgroups  
 games_pokemon = app_commands.Group(
     name="pokemon", 
-    description="🎮 Catch, train, and evolve Pokemon!",
+    description="Catch, train, and evolve Pokemon",
     parent=games
 )
 
 games_battle = app_commands.Group(
     name="battle", 
-    description="⚔️ Pokemon battles and competitions",
+    description="Pokemon battles and competitions",
     parent=games
 )
 
 games_fun = app_commands.Group(
     name="fun", 
-    description="🎉 Fun games and entertainment!",
+    description="Fun games and entertainment",
     parent=games
 )
 
 games_cookies = app_commands.Group(
     name="cookies",
-    description="🍪 Manage your cookies and check stats",
+    description="Manage your cookies and check stats",
     parent=games
 )
 
 kvk_ranking = app_commands.Group(
     name="ranking",
-    description="📊 Top Heroes event rankings and leaderboards",
+    description="Top Heroes event rankings and leaderboards",
     parent=kvk
 )
 

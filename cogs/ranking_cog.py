@@ -1342,4 +1342,4 @@ async def setup(
         storage = RankingStorageEngine(storage=game_storage)
     
     kvk_tracker = getattr(bot, "kvk_tracker", None)
-    await bot.add_cog(RankingCog(bot, processor, storage, kvk_tracker=kvk_tracker))
+    await bot.add_cog(RankingCog(bot, processor, storage, kvk_tracker=kvk_tracker), override=True)

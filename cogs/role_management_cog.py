@@ -230,4 +230,4 @@ class RoleManagementCog(commands.Cog):
 
 
 async def setup(bot: commands.Bot) -> None:
-    await bot.add_cog(RoleManagementCog(bot))
+    await bot.add_cog(RoleManagementCog(bot), override=True)

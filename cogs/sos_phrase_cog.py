@@ -8,6 +8,7 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 
+from discord_bot.core import ui_groups
 from discord_bot.core.utils import is_admin_or_helper
 
 logger = logging.getLogger("hippo_bot.sos_cog")
@@ -16,7 +17,8 @@ logger = logging.getLogger("hippo_bot.sos_cog")
 class SOSPhraseCog(commands.Cog):
     """Manage SOS keyword -> phrase mappings that the InputEngine will broadcast."""
 
-    sos = app_commands.Group(name="sos", description="Configure SOS keywords for this guild.")
+    # Use shared language SOS subgroup to keep commands under /language.
+    sos = ui_groups.language_sos
 
     def __init__(self, bot: commands.Bot) -> None:
         self.bot = bot
@@ -141,4 +143,4 @@ class SOSPhraseCog(commands.Cog):
 
 
 async def setup(bot: commands.Bot) -> None:
-    await bot.add_cog(SOSPhraseCog(bot))
+    await bot.add_cog(SOSPhraseCog(bot), override=True)

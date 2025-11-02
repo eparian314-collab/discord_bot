@@ -25,6 +25,7 @@ from typing import Optional, TYPE_CHECKING
 
 # Import GameCog to reference the shared cookies group
 from discord_bot.cogs.game_cog import GameCog
+from discord_bot.core import ui_groups
 from discord_bot.core.utils import (
     find_bot_channel,
     is_allowed_channel,
@@ -42,10 +43,7 @@ class EasterEggCog(commands.Cog):
     """Fun interactions and mini-games with cookie rewards."""
     
     # Command groups for better organization
-    fun = app_commands.Group(
-        name="fun",
-        description="🎉 Fun games and entertainment!"
-    )
+    fun = ui_groups.games_fun
     
     # Use the shared cookies group from GameCog
     cookies = GameCog.cookies
