@@ -2,10 +2,10 @@
 Event Ranking Cog - Submit and view Top Heroes event rankings.
 
 Commands:
-- /games ranking submit - Submit a screenshot of your event ranking (RANKINGS CHANNEL ONLY!)
-- /games ranking view - View your ranking history
-- /games ranking leaderboard - View guild leaderboard
-- /games ranking stats - View submission statistics
+- /kvk ranking submit - Submit a screenshot of your event ranking (RANKINGS CHANNEL ONLY!)
+- /kvk ranking view - View your ranking history
+- /kvk ranking leaderboard - View guild leaderboard
+- /kvk ranking stats - View submission statistics
 """
 
 from __future__ import annotations
@@ -44,14 +44,14 @@ class RankingCog(commands.Cog):
             try:
                 await message.author.send(
                     "This channel is reserved for ranking submissions and commands only. "
-                    "Please use the available slash commands: /games ranking submit, /games ranking view, /games ranking leaderboard, /games ranking_compare_me, /games ranking_compare_others."
+                    "Please use the available slash commands: /kvk ranking submit, /kvk ranking view, /kvk ranking leaderboard, /ranking_compare_me, /ranking_compare_others."
                 )
             except Exception:
                 pass
     """Top Heroes event ranking commands."""
     
     # Use ranking group from ui_groups
-    ranking = ui_groups.games_ranking
+    ranking = ui_groups.kvk_ranking
     
     def __init__(
         self,
@@ -79,10 +79,10 @@ class RankingCog(commands.Cog):
             "📢 **Rankings Channel Guidance**\n"
             "This channel is reserved for Top Heroes event ranking submissions and commands only.\n\n"
             "**Allowed actions:**\n"
-            "• Submit your event ranking screenshot using `/games ranking submit`\n"
-            "• View your ranking history with `/games ranking view`\n"
-            "• See the leaderboard with `/games ranking leaderboard`\n"
-            "• Compare your results with `/games ranking_compare_me` and `/games ranking_compare_others`\n\n"
+            "• Submit your event ranking screenshot using `/kvk ranking submit`\n"
+            "• View your ranking history with `/kvk ranking view`\n"
+            "• See the leaderboard with `/kvk ranking leaderboard`\n"
+            "• Compare your results with `/ranking_compare_me` and `/ranking_compare_others`\n\n"
             "Please do not chat or post unrelated messages here. Use the available slash commands for all ranking-related actions."
         )
         # Try to find an existing guidance message
@@ -488,7 +488,7 @@ class RankingCog(commands.Cog):
         if not rankings:
             await interaction.followup.send(
                 "📭 You haven't submitted any rankings yet! "
-                "Use `/ranking submit` to submit your first screenshot.",
+                "Use `/kvk ranking submit` to submit your first screenshot.",
                 ephemeral=True
             )
             return

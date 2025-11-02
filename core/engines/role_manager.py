@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from typing import Any, Dict, Iterable, List, Optional, Tuple
+import re
 import unicodedata
 
 import discord
@@ -64,6 +65,104 @@ class RemovalResult:
     code: str
     display_name: str
 
+# Canonical display names for supported languages.
+LANGUAGE_DISPLAY_NAMES: Dict[str, str] = {
+    "af": "Afrikaans",
+    "ar": "Arabic",
+    "bg": "Bulgarian",
+    "bn": "Bengali",
+    "ca": "Catalan",
+    "cs": "Czech",
+    "cy": "Welsh",
+    "da": "Danish",
+    "de": "German",
+    "el": "Greek",
+    "en": "English",
+    "es": "Spanish",
+    "et": "Estonian",
+    "fa": "Persian",
+    "fi": "Finnish",
+    "fr": "French",
+    "ga": "Irish",
+    "gu": "Gujarati",
+    "he": "Hebrew",
+    "hi": "Hindi",
+    "hr": "Croatian",
+    "hu": "Hungarian",
+    "id": "Indonesian",
+    "is": "Icelandic",
+    "it": "Italian",
+    "ja": "Japanese",
+    "kn": "Kannada",
+    "ko": "Korean",
+    "lt": "Lithuanian",
+    "lv": "Latvian",
+    "ml": "Malayalam",
+    "mr": "Marathi",
+    "ms": "Malay",
+    "mt": "Maltese",
+    "nb": "Norwegian Bokmal",
+    "nl": "Dutch",
+    "pa": "Punjabi",
+    "pl": "Polish",
+    "pt": "Portuguese",
+    "ro": "Romanian",
+    "ru": "Russian",
+    "sk": "Slovak",
+    "sl": "Slovenian",
+    "sq": "Albanian",
+    "sr": "Serbian",
+    "sv": "Swedish",
+    "sw": "Swahili",
+    "ta": "Tamil",
+    "te": "Telugu",
+    "th": "Thai",
+    "tl": "Tagalog",
+    "tr": "Turkish",
+    "uk": "Ukrainian",
+    "ur": "Urdu",
+    "vi": "Vietnamese",
+    "zh": "Chinese",
+}
+
+
+def _guess_display_name(alias: str) -> Optional[str]:
+    """
+    Create a human-friendly display label from an alias token.
+    Returns None when the alias does not look like a descriptive language name.
+    """
+    token = (alias or "").strip()
+    if not token:
+        return None
+
+    lowered = token.lower()
+    if len(lowered) <= 2 or lowered in {"lang", "language"}:
+        return None
+    if any(ch.isdigit() for ch in lowered):
+        return None
+
+    cleaned = token.replace("_", " ").replace("-", " ")
+    cleaned = re.sub(r"\s+", " ", cleaned).strip()
+    if not cleaned:
+        return None
+    if cleaned.lower().endswith(" language"):
+        cleaned = cleaned[: -len(" language")].strip()
+    if not cleaned or len(cleaned) <= 2:
+        return None
+    if "(" in cleaned or ")" in cleaned:
+        return None
+
+    words: List[str] = []
+    for raw_word in cleaned.split(" "):
+        word = raw_word.strip()
+        if not word:
+            continue
+        if len(word) <= 3 and word.isalpha():
+            words.append(word.upper())
+        else:
+            words.append(word[0].upper() + word[1:].lower())
+    display = " ".join(words)
+    return display or None
 
 class RoleManager:
     """
@@ -374,16 +473,26 @@ class RoleManager:
     # ----------------------
 
     def _build_code_to_name(self) -> Dict[str, str]:
-        mapping: Dict[str, str] = {}
+        mapping: Dict[str, str] = dict(LANGUAGE_DISPLAY_NAMES)
         if isinstance(self.language_map, dict):
             aliases = self.language_map.get("language_aliases", {})
             if isinstance(aliases, dict):
-                for alias_token, canonical in aliases.items():
-                    if not isinstance(alias_token, str) or not isinstance(canonical, str):
+                for alias_token, _canonical in aliases.items():
+                    if not isinstance(alias_token, str) or not isinstance(_canonical, str):
                         continue
                     code = map_alias_to_code(alias_token, alias_helper=self.alias_helper, language_map=self.language_map)
                     if code:
-                        mapping.setdefault(normalize_lang_code(code), canonical)
+                        norm_code = normalize_lang_code(code)
+                        if norm_code not in mapping:
+                            guess = _guess_display_name(alias_token)
+                            if guess:
+                                mapping[norm_code] = guess
+                        else:
+                            current = mapping[norm_code]
+                            if current.upper() == norm_code.upper():
+                                guess = _guess_display_name(alias_token)
+                                if guess:
+                                    mapping[norm_code] = guess
         return mapping
 
     def _language_roles_for_member(self, member: discord.Member) -> List[discord.Role]:

@@ -12,6 +12,7 @@ from discord.ext import commands
 # Main top-level groups
 language = app_commands.Group(name="language", description="🌍 Language and communication tools")
 games = app_commands.Group(name="games", description="🎮 Games and entertainment")
+kvk = app_commands.Group(name="kvk", description="Top Heroes / KVK tools")
 admin = app_commands.Group(name="admin", description="⚙️ Administrative tools")
 
 # Language subgroups
@@ -58,10 +59,10 @@ games_cookies = app_commands.Group(
     parent=games
 )
 
-games_ranking = app_commands.Group(
+kvk_ranking = app_commands.Group(
     name="ranking",
     description="📊 Top Heroes event rankings and leaderboards",
-    parent=games
+    parent=kvk
 )
 
 
@@ -79,4 +80,5 @@ def register_command_groups(bot: commands.Bot) -> None:
     # Use override=True to avoid CommandAlreadyRegistered errors
     bot.tree.add_command(language, override=True)
     bot.tree.add_command(games, override=True)
+    bot.tree.add_command(kvk, override=True)
     bot.tree.add_command(admin, override=True)
