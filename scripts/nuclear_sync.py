@@ -83,8 +83,11 @@ async def main() -> None:
         print("=" * 80)
         print("STEP 2: Nuclear Clear - Guild Commands")
         print("=" * 80)
-        await bot.fetch_guilds()
-        guilds = list(bot.guilds)
+        try:
+            guilds = [guild async for guild in bot.fetch_guilds(limit=None)]
+        except discord.HTTPException as exc:  # pragma: no cover - network failure path
+            print(f"Warning: Failed to fetch guilds via HTTP ({exc.status}): {exc.text}")
+            guilds = list(bot.guilds)
         if test_guild_ids:
             target_ids = set(test_guild_ids)
             guilds = [guild for guild in guilds if guild.id in target_ids]

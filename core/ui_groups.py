@@ -81,4 +81,4 @@ def register_command_groups(bot: commands.Bot) -> None:
     bot.tree.add_command(language, override=True)
     bot.tree.add_command(games, override=True)
     bot.tree.add_command(kvk, override=True)
-    bot.tree.add_command(admin, override=True)
+    # Admin group is registered when the admin cog mounts to avoid double registration.
