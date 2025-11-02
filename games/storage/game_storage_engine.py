@@ -1,12 +1,23 @@
 import sqlite3
 from datetime import datetime, timedelta
 from typing import Optional, List, Dict, Any
+from pathlib import Path
 
 from discord_bot.core.engines.screenshot_processor import RankingData, StageType, RankingCategory
 
 class GameStorageEngine:
     def __init__(self, db_path="data/game_data.db"):
-        self.conn = sqlite3.connect(db_path)
+        if isinstance(db_path, str) and (db_path == ":memory:" or db_path.startswith("file:")):
+            resolved_path = db_path
+        else:
+            path_obj = Path(db_path)
+            if not path_obj.is_absolute():
+                # Anchor relative paths to the repository root (current working directory under systemd).
+                path_obj = Path.cwd() / path_obj
+            path_obj.parent.mkdir(parents=True, exist_ok=True)
+            resolved_path = path_obj
+
+        self.conn = sqlite3.connect(resolved_path)
         self.conn.row_factory = sqlite3.Row
         self.create_tables()
 

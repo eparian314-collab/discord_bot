@@ -21,6 +21,7 @@ MAX_RETRIES=3
 RETRY_COUNT_FILE="/tmp/hippobot_retry_count"
 COOLDOWN_FILE="/tmp/hippobot_cooldown"
 COOLDOWN_DURATION=300  # 5 minutes in seconds
+DEPLOY_SKIP_COOLDOWN="${DEPLOY_SKIP_COOLDOWN:-0}"
 
 ###############################################################################
 # Helper Functions
@@ -39,6 +40,11 @@ log_error() {
 }
 
 check_cooldown() {
+    if [ "$DEPLOY_SKIP_COOLDOWN" = "1" ]; then
+        log_warn "Cooldown check skipped (DEPLOY_SKIP_COOLDOWN=1)."
+        return
+    fi
+
     if [ -f "$COOLDOWN_FILE" ]; then
         cooldown_start=$(cat "$COOLDOWN_FILE")
         current_time=$(date +%s)
@@ -56,6 +62,11 @@ check_cooldown() {
 }
 
 increment_retry_count() {
+    if [ "$DEPLOY_SKIP_COOLDOWN" = "1" ]; then
+        log_warn "Cooldown disabled; not incrementing retry count."
+        return
+    fi
+
     if [ -f "$RETRY_COUNT_FILE" ]; then
         retry_count=$(cat "$RETRY_COUNT_FILE")
         retry_count=$((retry_count + 1))
@@ -75,6 +86,10 @@ increment_retry_count() {
 }
 
 reset_retry_count() {
+    if [ "$DEPLOY_SKIP_COOLDOWN" = "1" ]; then
+        return
+    fi
+
     rm -f "$RETRY_COUNT_FILE"
     rm -f "$COOLDOWN_FILE"
 }
