@@ -435,15 +435,37 @@ class RankingCog(commands.Cog):
             return mapping.get(day, f"Day {day}")
         return f"Day {day}"
 
-    def _aggregate_entries(self, entries: List[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+    def _resolve_entry_stage(self, entry: Dict[str, Any]) -> "StageType":
+        stage_value = entry.get("stage_type")
+        if isinstance(stage_value, StageType):
+            return stage_value
+        if isinstance(stage_value, str) and stage_value.lower().startswith("war"):
+            return StageType.WAR
+        day_number = entry.get("kvk_day") or entry.get("day_number")
+        if isinstance(day_number, int) and day_number == 6:
+            return StageType.WAR
+        return StageType.PREP
+
+    def _aggregate_entries(
+        self,
+        entries: List[Dict[str, Any]],
+        *,
+        stage: Optional["StageType"] = None,
+    ) -> Optional[Dict[str, Any]]:
         if not entries:
             return None
-        scores = [row.get("score", 0) for row in entries]
-        ranks = [row.get("rank") for row in entries if row.get("rank") is not None]
+        filtered = [
+            row for row in entries
+            if stage is None or self._resolve_entry_stage(row) == stage
+        ]
+        if not filtered:
+            return None
+        scores = [row.get("score", 0) for row in filtered]
+        ranks = [row.get("rank") for row in filtered if row.get("rank") is not None]
         return {
             "score": sum(scores),
             "rank": min(ranks) if ranks else None,
-            "samples": len(entries),
+            "samples": len(filtered),
         }
 
     def _format_run_header(self, kvk_run: "KVKRun") -> str:
@@ -477,12 +499,21 @@ class RankingCog(commands.Cog):
             run_id=run_id,
             user_id=user_id,
         )
-        aggregated = self._aggregate_entries(entries)
-        if not aggregated:
+        prep_total = self._aggregate_entries(entries, stage=StageType.PREP)
+        war_total = self._aggregate_entries(entries, stage=StageType.WAR)
+        aggregate_source = prep_total or war_total or self._aggregate_entries(entries)
+        if not aggregate_source:
             return None
-        aggregated["kvk_day"] = None
-        aggregated["entries"] = entries
-        return aggregated
+        summary = {
+            "score": aggregate_source.get("score", 0),
+            "rank": aggregate_source.get("rank"),
+            "samples": aggregate_source.get("samples", 0),
+            "kvk_day": None,
+            "entries": entries,
+            "prep_total": prep_total,
+            "war_total": war_total,
+        }
+        return summary
 
     def _fetch_peers(self, run_id: int, day: Optional[int], limit: int = 100) -> List[Dict[str, Any]]:
         if not self.kvk_tracker:
@@ -1075,28 +1106,41 @@ class RankingCog(commands.Cog):
 
         if day is None:
             entries = user_stat.get("entries", [])
-            overall = self._aggregate_entries(entries) or {"score": 0, "rank": None, "samples": 0}
-            overall_rank = overall.get("rank")
-            rank_text = f"#{overall_rank:,}" if isinstance(overall_rank, int) else "N/A"
+            prep_total = user_stat.get("prep_total") or {"score": 0, "rank": None, "samples": 0}
+            war_total = user_stat.get("war_total") or None
+            combined = self._aggregate_entries(entries) or prep_total
+
+            def _format_summary_block(label: str, summary: Dict[str, Any]) -> str:
+                rank_value = summary.get("rank")
+                rank_line = f"#{rank_value:,}" if isinstance(rank_value, int) else "N/A"
+                return f"Rank: {rank_line}\\nScore: {summary.get('score', 0):,}"
+
             embed.add_field(
-                name="Summary",
-                value=(
-                    f"Total score: {overall.get('score', 0):,}\\n"
-                    f"Best rank: {rank_text}"
-                ),
+                name="Prep Stage Total",
+                value=_format_summary_block("Prep Stage Total", prep_total),
                 inline=False,
             )
+            if war_total:
+                embed.add_field(
+                    name="War Stage",
+                    value=_format_summary_block("War Stage", war_total),
+                    inline=False,
+                )
+                embed.add_field(
+                    name="All Stages",
+                    value=_format_summary_block("All Stages", combined),
+                    inline=False,
+                )
             for entry in entries:
                 kvk_day = entry.get("kvk_day") or entry.get("day_number") or 6
-                stage_value = entry.get("stage_type", "Prep Stage")
-                stage_enum = StageType.PREP if str(stage_value).lower().startswith("prep") else StageType.WAR
+                stage_enum = self._resolve_entry_stage(entry)
                 label = self._format_day_label(int(kvk_day), stage_enum)
                 rank_value = entry.get("rank")
                 rank_line = f"#{rank_value:,}" if isinstance(rank_value, int) else "N/A"
                 embed.add_field(
                     name=label,
                     value=(
-                        f"Rank: {rank_line}\\n"
+                        f"Rank: {rank_line}\n"
                         f"Score: {entry.get('score', 0):,}"
                     ),
                     inline=True,
