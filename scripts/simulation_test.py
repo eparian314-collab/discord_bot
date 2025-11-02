@@ -16,6 +16,7 @@ Exit codes:
 
 import sys
 import asyncio
+import discord
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
 from typing import List, Tuple
@@ -23,6 +24,7 @@ from typing import List, Tuple
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
+from discord.ext import commands
 from discord_bot.games.pokemon_data_manager import PokemonDataManager
 from discord_bot.games.pokemon_game import PokemonGame
 from discord_bot.games.storage.game_storage_engine import GameStorageEngine
@@ -35,6 +37,7 @@ from discord_bot.core.engines.event_reminder_engine import (
     EventCategory,
     RecurrenceType
 )
+from discord_bot.core import ui_groups
 
 
 class SimulationTest:
@@ -104,6 +107,29 @@ class SimulationTest:
             self.record_pass("Time parsing with various formats")
         except Exception as e:
             self.record_fail("Time parsing", str(e))
+    
+    def test_command_group_registration(self):
+        """Ensure slash command groups register correctly on a fresh bot."""
+        self.log("Validating slash command group registration...")
+        try:
+            intents = discord.Intents.none()
+            intents.guilds = True
+            bot = commands.Bot(command_prefix="!", intents=intents, help_command=None)
+            ui_groups.register_command_groups(bot)
+            
+            top_level = {command.name for command in bot.tree.get_commands()}
+            expected = {"language", "games", "kvk", "admin"}
+            missing = expected - top_level
+            assert not missing, f"Missing command groups: {', '.join(sorted(missing))}"
+            
+            kvk_group = next((cmd for cmd in bot.tree.get_commands() if cmd.name == "kvk"), None)
+            assert kvk_group is not None, "KVK command group not registered"
+            subgroup_names = {command.name for command in kvk_group.commands}
+            assert "ranking" in subgroup_names, "KVK ranking subgroup missing"
+            
+            self.record_pass("Slash command group registration")
+        except Exception as e:
+            self.record_fail("Slash command group registration", str(e))
     
     async def test_event_scheduling(self):
         """Test event scheduling with pseudo-future dates."""
@@ -350,6 +376,7 @@ class SimulationTest:
         
         # Run synchronous tests
         self.test_time_parsing()
+        self.test_command_group_registration()
         
         # Run async tests
         await self.test_event_scheduling()

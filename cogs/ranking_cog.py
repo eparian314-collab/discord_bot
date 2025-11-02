@@ -9,21 +9,43 @@ Commands:
 """
 
 from __future__ import annotations
+
+import logging
+import os
+from dataclasses import dataclass
+from typing import TYPE_CHECKING, Any, Dict, List, Optional
+
+import aiohttp
 import discord
 from discord import app_commands
 from discord.ext import commands
-from typing import Optional, TYPE_CHECKING, List, Dict, Any
-import aiohttp
-import os
 
-from discord_bot.core.engines.screenshot_processor import StageType
-from discord_bot.core.utils import find_bot_channel, is_admin_or_helper
 from discord_bot.core import ui_groups
+from discord_bot.core.engines.screenshot_processor import RankingData, StageType
+from discord_bot.core.utils import find_bot_channel, is_admin_or_helper
+
+logger = logging.getLogger("hippo_bot.ranking_cog")
 
 if TYPE_CHECKING:
-    from discord_bot.core.engines.screenshot_processor import ScreenshotProcessor, StageType
-    from discord_bot.core.engines.ranking_storage_engine import RankingStorageEngine
     from discord_bot.core.engines.kvk_tracker import KVKRun
+    from discord_bot.core.engines.ranking_storage_engine import RankingStorageEngine
+    from discord_bot.core.engines.screenshot_processor import ScreenshotProcessor
+    from discord_bot.core.engines.kvk_tracker import KVKRun
+
+
+class SubmissionValidationError(Exception):
+    """Raised when a ranking submission fails validation."""
+
+
+@dataclass(slots=True)
+class SubmissionValidationResult:
+    """Normalized results from the submission validation flow."""
+
+    ranking: RankingData
+    stage_type: StageType
+    normalized_day: int
+    event_week: str
+    existing_entry: Optional[Dict[str, Any]]
 
 
 class RankingCog(commands.Cog):
@@ -146,6 +168,252 @@ class RankingCog(commands.Cog):
             return f"KVK-{int(kvk_run.run_number):02d}"
         return f"KVK-{kvk_run.id}"
 
+    async def _validate_submission_payload(
+        self,
+        *,
+        interaction: discord.Interaction,
+        screenshot: discord.Attachment,
+        stage_value: str,
+        day: int,
+        kvk_run: "KVKRun",
+    ) -> SubmissionValidationResult:
+        stage_key = (stage_value or "").strip().lower()
+        stage_map = {"prep": StageType.PREP, "war": StageType.WAR}
+        stage_type = stage_map.get(stage_key)
+        if stage_type is None:
+            raise SubmissionValidationError("Stage must be 'Prep' or 'War'.")
+
+        if stage_type == StageType.PREP:
+            if day < 1 or day > 5:
+                raise SubmissionValidationError("Day must be between 1 and 5 for the prep stage.")
+            normalized_day = day
+        else:
+            normalized_day = 6  # War stage aggregates into a single slot
+
+        content_type = (screenshot.content_type or "").lower()
+        if not content_type.startswith("image/"):
+            raise SubmissionValidationError("Please upload an image file (PNG, JPG, etc.).")
+
+        if screenshot.size and screenshot.size > 10 * 1024 * 1024:
+            raise SubmissionValidationError("Image too large. Please upload a screenshot under 10MB.")
+
+        event_week = self._format_event_week_label(kvk_run)
+        guild_id = str(interaction.guild_id) if interaction.guild else None
+        user_id = str(interaction.user.id)
+
+        existing = self.storage.check_duplicate_submission(
+            user_id,
+            guild_id or "0",
+            event_week,
+            stage_type,
+            normalized_day,
+            kvk_run_id=kvk_run.id,
+        )
+
+        try:
+            image_data = await screenshot.read()
+        except Exception:
+            raise SubmissionValidationError("Could not read the uploaded screenshot. Please try again.")
+
+        is_valid, error_msg = await self.processor.validate_screenshot(image_data)
+        if not is_valid:
+            self.storage.log_submission(
+                user_id,
+                guild_id,
+                "failed",
+                error_message=error_msg,
+            )
+            raise SubmissionValidationError(f"Screenshot validation failed: {error_msg}")
+
+        try:
+            ranking = await self.processor.process_screenshot(
+                image_data,
+                user_id,
+                interaction.user.name,
+                guild_id,
+            )
+        except Exception as exc:
+            self.storage.log_submission(
+                user_id,
+                guild_id,
+                "failed",
+                error_message=str(exc),
+            )
+            raise SubmissionValidationError(
+                "An unexpected error occurred while processing the screenshot. Please try again."
+            ) from exc
+
+        if not ranking:
+            self.storage.log_submission(
+                user_id,
+                guild_id,
+                "failed",
+                error_message="Could not extract ranking data from image",
+            )
+            raise SubmissionValidationError(
+                "Could not read ranking data from the screenshot. Please ensure all required information is visible."
+            )
+
+        detected_stage = ranking.stage_type
+        if stage_type == StageType.PREP and ranking.day_number and ranking.day_number != normalized_day:
+            self.storage.log_submission(
+                user_id,
+                guild_id,
+                "failed",
+                error_message="Day mismatch between selection and OCR result",
+            )
+            raise SubmissionValidationError(
+                "The highlighted day in the screenshot does not match the selected day."
+            )
+
+        if detected_stage not in (StageType.UNKNOWN, stage_type):
+            self.storage.log_submission(
+                user_id,
+                guild_id,
+                "failed",
+                error_message="Stage mismatch between selection and OCR result",
+            )
+            raise SubmissionValidationError(
+                "The screenshot appears to show a different stage than selected."
+            )
+
+        if ranking.rank <= 0:
+            self.storage.log_submission(
+                user_id,
+                guild_id,
+                "failed",
+                error_message="Extracted rank was non-positive",
+            )
+            raise SubmissionValidationError("The extracted rank must be a positive number.")
+
+        if ranking.score < 0:
+            self.storage.log_submission(
+                user_id,
+                guild_id,
+                "failed",
+                error_message="Extracted score was negative",
+            )
+            raise SubmissionValidationError("The extracted score cannot be negative.")
+
+        ranking.stage_type = stage_type
+        ranking.day_number = normalized_day
+        ranking.screenshot_url = screenshot.url
+        ranking.event_week = event_week
+        ranking.kvk_run_id = kvk_run.id
+        ranking.is_test_run = kvk_run.is_test
+        ranking.guild_id = guild_id
+        ranking.username = interaction.user.display_name or interaction.user.name
+
+        return SubmissionValidationResult(
+            ranking=ranking,
+            stage_type=stage_type,
+            normalized_day=normalized_day,
+            event_week=event_week,
+            existing_entry=existing,
+        )
+
+    def _persist_validated_submission(
+        self,
+        *,
+        interaction: discord.Interaction,
+        ranking: RankingData,
+        kvk_run: "KVKRun",
+        normalized_day: int,
+        existing: Optional[Dict[str, Any]],
+    ) -> tuple[int, str]:
+        user_id = str(interaction.user.id)
+        guild_id = str(interaction.guild_id) if interaction.guild else None
+
+        action = "Submitted"
+        ranking_id: Optional[int] = None
+        if existing:
+            updated = self.storage.update_ranking(
+                existing["id"],
+                ranking.rank,
+                ranking.score,
+                ranking.screenshot_url,
+            )
+            if updated:
+                ranking_id = existing["id"]
+                action = "Updated"
+            else:
+                logger.warning(
+                    "Expected to update ranking entry %s but no rows were affected. Falling back to insert.",
+                    existing["id"],
+                )
+
+        if ranking_id is None:
+            ranking_id = self.storage.save_ranking(ranking)
+
+        if self.kvk_tracker:
+            try:
+                self.kvk_tracker.record_submission(
+                    kvk_run_id=kvk_run.id,
+                    ranking_id=ranking_id,
+                    user_id=interaction.user.id,
+                    day_number=normalized_day,
+                    stage_type=ranking.stage_type.value,
+                    is_test=kvk_run.is_test,
+                )
+            except Exception:
+                logger.exception("Failed to record submission for KVK run %s", kvk_run.id)
+
+        self.storage.log_submission(
+            user_id,
+            guild_id,
+            "success",
+            ranking_id=ranking_id,
+        )
+
+        return ranking_id, action
+
+    def _build_submission_embed(
+        self,
+        *,
+        ranking: RankingData,
+        kvk_run: "KVKRun",
+        normalized_day: int,
+        run_is_active: bool,
+        screenshot_url: Optional[str],
+        action: str,
+        interaction: discord.Interaction,
+    ) -> discord.Embed:
+        embed = discord.Embed(
+            title=f"{action} ranking entry",
+            description=f"Tracking label: {ranking.event_week}",
+            color=discord.Color.green(),
+            timestamp=ranking.submitted_at,
+        )
+        player_label = ranking.player_name or interaction.user.display_name or interaction.user.name
+        embed.add_field(
+            name="Stored data",
+            value=(
+                f"Guild tag: {ranking.guild_tag or 'N/A'}\n"
+                f"Player: {player_label}\n"
+                f"Day: {self._format_day_label(normalized_day, ranking.stage_type)}\n"
+                f"Rank: #{ranking.rank:,}\n"
+                f"Score: {ranking.score:,}"
+            ),
+            inline=False,
+        )
+
+        run_label = "Test run" if kvk_run.is_test else f"Run #{kvk_run.run_number}"
+        window_text = (
+            f"{kvk_run.started_at.strftime('%Y-%m-%d %H:%M UTC')} - "
+            f"{kvk_run.ends_at.strftime('%Y-%m-%d %H:%M UTC')}"
+        )
+        status_text = "active" if run_is_active else "closed (admin update)"
+        embed.add_field(
+            name="KVK window",
+            value=f"{run_label}\nPeriod: {window_text}\nStatus: {status_text}",
+            inline=False,
+        )
+
+        if screenshot_url:
+            embed.set_thumbnail(url=screenshot_url)
+        embed.set_footer(text="Data saved to rankings database")
+        return embed
+
     def _normalize_day(self, stage_type: "StageType", day: int) -> int:
         if stage_type == StageType.WAR:
             return 6
@@ -261,12 +529,18 @@ class RankingCog(commands.Cog):
     
     @ranking.command(
         name="submit",
-        description="Submit a screenshot of your Top Heroes event ranking"
+        description="Submit a screenshot of your Top Heroes event ranking",
+    )
+    @app_commands.choices(
+        stage=[
+            app_commands.Choice(name="Prep Stage", value="prep"),
+            app_commands.Choice(name="War Stage", value="war"),
+        ]
     )
     @app_commands.describe(
         screenshot="Upload your ranking screenshot",
-        day="Which day is this for? (1-5 for prep, ignored for war)",
-        stage="Which stage? (Prep or War)"
+        day="Event day number (1-5 for prep, use 6 for the war stage total)",
+        stage="Which stage is this submission for?",
     )
     async def submit_ranking(
         self,
@@ -298,171 +572,45 @@ class RankingCog(commands.Cog):
 
         await interaction.response.defer(ephemeral=True)
 
-        stage_lower = stage.lower()
-        if stage_lower not in ("prep", "war"):
-            await interaction.followup.send(
-                "Stage must be 'Prep' or 'War'.",
-                ephemeral=True,
+        try:
+            validation = await self._validate_submission_payload(
+                interaction=interaction,
+                screenshot=screenshot,
+                stage_value=stage,
+                day=day,
+                kvk_run=kvk_run,
             )
-            return
-        stage_type = StageType.PREP if stage_lower == "prep" else StageType.WAR
-
-        if stage_type == StageType.PREP:
-            if day < 1 or day > 5:
-                await interaction.followup.send(
-                    "Day must be between 1 and 5 for the prep stage.",
-                    ephemeral=True,
-                )
-                return
-        else:
-            day = 6  # War stage is treated as the sixth slot
-
-        if not screenshot.content_type or not screenshot.content_type.startswith('image/'):
-            await interaction.followup.send(
-                "Please upload an image file (PNG, JPG, etc.).",
-                ephemeral=True,
-            )
+        except SubmissionValidationError as exc:
+            await interaction.followup.send(str(exc), ephemeral=True)
             return
 
-        if screenshot.size > 10 * 1024 * 1024:
-            await interaction.followup.send(
-                "Image too large. Please upload a screenshot under 10MB.",
-                ephemeral=True,
-            )
-            return
+        ranking = validation.ranking
+        normalized_day = validation.normalized_day
+        stage_type = validation.stage_type
 
-        event_week = self._format_event_week_label(kvk_run)
-        normalized_day = self._normalize_day(stage_type, day)
-
-        existing = self.storage.check_duplicate_submission(
-            str(interaction.user.id),
-            str(interaction.guild_id) if interaction.guild else "0",
-            event_week,
-            stage_type,
-            normalized_day,
-            kvk_run_id=kvk_run.id,
-        )
-
-        if existing:
+        if validation.existing_entry:
             await interaction.followup.send(
                 "You already submitted data for this run and day. The previous entry will be replaced.",
                 ephemeral=True,
             )
 
-        image_data = await screenshot.read()
-        is_valid, error_msg = await self.processor.validate_screenshot(image_data)
-        if not is_valid:
-            self.storage.log_submission(
-                str(interaction.user.id),
-                str(interaction.guild_id) if interaction.guild else None,
-                "failed",
-                error_message=error_msg,
-            )
-            await interaction.followup.send(
-                f"Screenshot validation failed: {error_msg}",
-                ephemeral=True,
-            )
-            return
-
-        ranking = await self.processor.process_screenshot(
-            image_data,
-            str(interaction.user.id),
-            interaction.user.name,
-            str(interaction.guild_id) if interaction.guild else None,
+        _ranking_id, action = self._persist_validated_submission(
+            interaction=interaction,
+            ranking=ranking,
+            kvk_run=kvk_run,
+            normalized_day=normalized_day,
+            existing=validation.existing_entry,
         )
 
-        if not ranking:
-            self.storage.log_submission(
-                str(interaction.user.id),
-                str(interaction.guild_id) if interaction.guild else None,
-                "failed",
-                error_message="Could not extract ranking data from image",
-            )
-            await interaction.followup.send(
-                "Could not read ranking data from the screenshot. Please ensure all required information is visible.",
-                ephemeral=True,
-            )
-            return
-
-        detected_stage = ranking.stage_type
-        if stage_type == StageType.PREP and ranking.day_number and ranking.day_number != normalized_day:
-            await interaction.followup.send(
-                "The highlighted day in the screenshot does not match the selected day.",
-                ephemeral=True,
-            )
-            return
-
-        if detected_stage not in (StageType.UNKNOWN, stage_type):
-            await interaction.followup.send(
-                "The screenshot appears to show a different stage than selected.",
-                ephemeral=True,
-            )
-            return
-
-        ranking.stage_type = stage_type
-        ranking.day_number = normalized_day
-        ranking.screenshot_url = screenshot.url
-        ranking.event_week = event_week
-        ranking.kvk_run_id = kvk_run.id
-        ranking.is_test_run = kvk_run.is_test
-
-        if existing:
-            self.storage.update_ranking(
-                existing["id"],
-                ranking.rank,
-                ranking.score,
-                screenshot.url,
-            )
-            target_ranking_id = existing["id"]
-            action = "Updated"
-        else:
-            target_ranking_id = self.storage.save_ranking(ranking)
-            action = "Submitted"
-
-        if self.kvk_tracker:
-            self.kvk_tracker.record_submission(
-                kvk_run_id=kvk_run.id,
-                ranking_id=target_ranking_id,
-                user_id=interaction.user.id,
-                day_number=normalized_day,
-                stage_type=ranking.stage_type.value,
-                is_test=kvk_run.is_test,
-            )
-
-        self.storage.log_submission(
-            str(interaction.user.id),
-            str(interaction.guild_id) if interaction.guild else None,
-            "success",
-            ranking_id=target_ranking_id,
+        embed = self._build_submission_embed(
+            ranking=ranking,
+            kvk_run=kvk_run,
+            normalized_day=normalized_day,
+            run_is_active=run_is_active,
+            screenshot_url=screenshot.url,
+            action=action,
+            interaction=interaction,
         )
-
-        embed = discord.Embed(
-            title=f"{action} ranking entry",
-            description=f"Tracking label: {ranking.event_week}",
-            color=discord.Color.green(),
-            timestamp=ranking.submitted_at,
-        )
-        embed.add_field(
-            name="Stored data",
-            value=(
-                f"Guild tag: {ranking.guild_tag or 'N/A'}\n"
-                f"Player: {ranking.player_name or interaction.user.name}\n"
-                f"Day: {self._format_day_label(normalized_day, stage_type)}\n"
-                f"Rank: #{ranking.rank}\n"
-                f"Score: {ranking.score:,}"
-            ),
-            inline=False,
-        )
-        run_label = "Test run" if kvk_run.is_test else f"Run #{kvk_run.run_number}"
-        window_text = f"{kvk_run.started_at.strftime('%Y-%m-%d %H:%M UTC')} - {kvk_run.ends_at.strftime('%Y-%m-%d %H:%M UTC')}"
-        status_text = "active" if run_is_active else "closed (admin update)"
-        embed.add_field(
-            name="KVK window",
-            value=f"{run_label}\nPeriod: {window_text}\nStatus: {status_text}",
-            inline=False,
-        )
-        embed.set_thumbnail(url=screenshot.url)
-        embed.set_footer(text="Data saved to rankings database")
 
         await interaction.followup.send(embed=embed, ephemeral=True)
 

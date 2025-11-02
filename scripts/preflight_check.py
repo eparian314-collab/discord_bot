@@ -8,6 +8,7 @@ import sys
 import sqlite3
 import json
 import logging
+from typing import Dict, Optional
 from pathlib import Path
 
 # Setup logging
@@ -23,7 +24,8 @@ class PreflightChecker:
     def __init__(self):
         self.errors = []
         self.warnings = []
-        
+        self._env_cache: Optional[Dict[str, str]] = None
+
     def log_error(self, message):
         logging.error(message)
         self.errors.append(message)
@@ -35,6 +37,29 @@ class PreflightChecker:
     def log_info(self, message):
         logging.info(message)
         
+    def _load_env(self) -> Dict[str, str]:
+        """Parse the .env file into a dictionary."""
+        if self._env_cache is not None:
+            return self._env_cache
+
+        env_path = Path('.env')
+        data: Dict[str, str] = {}
+        if not env_path.exists():
+            self._env_cache = data
+            return data
+
+        for raw_line in env_path.read_text(encoding='utf-8').splitlines():
+            line = raw_line.strip()
+            if not line or line.startswith('#'):
+                continue
+            if '=' not in line:
+                continue
+            key, value = line.split('=', 1)
+            data[key.strip()] = value.strip()
+
+        self._env_cache = data
+        return data
+
     def check_environment_file(self):
         """Check if .env file exists and has required variables."""
         self.log_info("Checking environment file...")
@@ -56,6 +81,61 @@ class PreflightChecker:
             return False
             
         self.log_info("Environment file check passed")
+        # Reset cache so downstream checks read the latest file
+        self._env_cache = None
+        return True
+
+    def check_channel_configuration(self):
+        """Ensure channel-related environment configuration is consistent."""
+        self.log_info("Checking channel configuration...")
+        env = self._load_env()
+
+        rankings_channel = env.get('RANKINGS_CHANNEL_ID', '').strip()
+        if not rankings_channel:
+            self.log_error("RANKINGS_CHANNEL_ID is not configured in .env")
+            return False
+
+        try:
+            int(rankings_channel)
+        except ValueError:
+            self.log_error("RANKINGS_CHANNEL_ID must be a numeric Discord channel ID")
+            return False
+
+        allowed_channels_raw = env.get('ALLOWED_CHANNELS', '')
+        allowed_channels = {
+            token.strip()
+            for token in allowed_channels_raw.replace(';', ',').split(',')
+            if token.strip()
+        }
+
+        if allowed_channels and rankings_channel not in allowed_channels:
+            self.log_error(
+                "RANKINGS_CHANNEL_ID must be included in ALLOWED_CHANNELS to permit submissions"
+            )
+            return False
+
+        bot_channels_raw = env.get('BOT_CHANNEL_ID', '')
+        bot_channels = [
+            token.strip()
+            for token in bot_channels_raw.replace(';', ',').split(',')
+            if token.strip()
+        ]
+        invalid_bot_channels = [
+            token for token in bot_channels
+            if not token.isdigit()
+        ]
+        if invalid_bot_channels:
+            self.log_error(
+                f"BOT_CHANNEL_ID contains non-numeric values: {', '.join(invalid_bot_channels)}"
+            )
+            return False
+
+        if not allowed_channels:
+            self.log_warning(
+                "ALLOWED_CHANNELS is empty; bot commands will be accepted in any channel"
+            )
+
+        self.log_info("Channel configuration check passed")
         return True
         
     def check_databases(self):
@@ -187,6 +267,7 @@ class PreflightChecker:
         checks = [
             ("Python Version", self.check_python_version),
             ("Environment File", self.check_environment_file),
+            ("Channel Configuration", self.check_channel_configuration),
             ("Required Directories", self.check_required_directories),
             ("Databases", self.check_databases),
             ("Language Map", self.check_language_map),

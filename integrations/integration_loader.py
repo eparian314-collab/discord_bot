@@ -6,9 +6,9 @@ from typing import Any, Awaitable, Callable, Iterable, Optional, Set, Tuple
 import discord
 from discord.ext import commands
 
-from discord_bot.core.engines.admin_ui_engine import AdminUIEngine
 from discord_bot.core.engines.base.engine_registry import EngineRegistry
 from discord_bot.core.engines.base.logging_utils import get_logger
+from discord_bot.core.engines.admin_ui_engine import AdminUIEngine
 from discord_bot.core.engines.cache_manager import CacheManager
 from discord_bot.core.engines.error_engine import GuardianErrorEngine
 from discord_bot.core.engines.event_reminder_engine import EventReminderEngine
@@ -34,6 +34,7 @@ from discord_bot.language_context.translators.deepl_adapter import DeepLAdapter
 from discord_bot.language_context.translators.mymemory_adapter import MyMemoryAdapter
 from discord_bot.language_context.translators.openai_adapter import OpenAIAdapter
 from discord_bot.language_context.translators.google_translate_adapter import create_google_translate_adapter
+from discord_bot.core import ui_groups
 
 logger = get_logger("integration_loader")
 
@@ -383,6 +384,7 @@ class IntegrationLoader:
             test_guild_ids=test_guilds,
             help_command=None,
         )
+        ui_groups.register_command_groups(self.bot)
         self.event_reminder_engine.set_bot(self.bot)
         self.kvk_tracker.set_bot(self.bot)
 

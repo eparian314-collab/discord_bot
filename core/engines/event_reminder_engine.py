@@ -1,4 +1,4 @@
-﻿"""
+"""
 Event Reminder System for Top Heroes game coordination.
 
 Features:

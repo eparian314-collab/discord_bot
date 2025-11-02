@@ -2,7 +2,7 @@
 
 This project recently reorganized its top-level modules (e.g. ``core``,
 ``games``, ``integrations``) out of the nested ``discord_bot`` package.
-Many parts of the codebase – including the test-suite – still import
+Many parts of the codebase - including the test-suite - still import
 modules via the old dotted path (``discord_bot.core.utils`` and so on).
 
 To keep those imports working without having to touch every call-site at
@@ -14,8 +14,19 @@ from __future__ import annotations
 
 import importlib
 import sys
+from pathlib import Path
 from types import ModuleType
 from typing import Iterable
+
+
+# Ensure the project root (one level above this package) is importable.
+_package_dir = Path(__file__).resolve().parent
+_project_root = _package_dir
+if str(_project_root) not in sys.path:
+    sys.path.insert(0, str(_project_root))
+_repo_root = _package_dir.parent
+if str(_repo_root) not in sys.path:
+    sys.path.insert(0, str(_repo_root))
 
 
 def _register_aliases(base_package: ModuleType, names: Iterable[str]) -> None:
@@ -47,4 +58,11 @@ _register_aliases(
         "tests",
     ),
 )
+
+try:
+    import integrations as _integrations
+    sys.modules[__name__ + '.integrations'] = _integrations
+    integrations = _integrations
+except ModuleNotFoundError:
+    pass
 
