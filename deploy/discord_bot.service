@@ -13,13 +13,13 @@ EnvironmentFile=/home/ubuntu/discord_bot/.env
 ExecStartPre=/bin/bash /home/ubuntu/discord_bot/scripts/deploy.sh
 
 # Layer 2: Preflight checks (environment, databases, imports)
-ExecStartPre=/home/ubuntu/discord_bot/venv/bin/python /home/ubuntu/discord_bot/scripts/preflight_check.py
+ExecStartPre=/home/ubuntu/discord_bot/.venv/bin/python /home/ubuntu/discord_bot/scripts/preflight_check.py
 
 # Layer 3: Health check (final validation before launch)
-ExecStartPre=/home/ubuntu/discord_bot/venv/bin/python /home/ubuntu/discord_bot/health_check.py
+ExecStartPre=/home/ubuntu/discord_bot/.venv/bin/python /home/ubuntu/discord_bot/health_check.py
 
 # Main bot process
-ExecStart=/home/ubuntu/discord_bot/venv/bin/python -m discord_bot.main
+ExecStart=/home/ubuntu/discord_bot/.venv/bin/python -m discord_bot.main
 
 # Restart policy with safeguards
 Restart=on-failure
