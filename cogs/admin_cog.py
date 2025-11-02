@@ -7,6 +7,7 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 
+from discord_bot.core import ui_groups
 from discord_bot.core.utils import is_admin_or_helper
 
 if TYPE_CHECKING:
@@ -28,10 +29,8 @@ class AdminCog(commands.Cog):
         description="🔑 Link and manage custom keywords for this guild",
     )
     
-    admin = app_commands.Group(
-        name="admin",
-        description="🛡️ Moderation and administration tools"
-    )
+    # Reuse shared admin command group to avoid duplicate registrations.
+    admin = ui_groups.admin
 
     def __init__(
         self,

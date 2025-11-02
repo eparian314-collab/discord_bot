@@ -13,8 +13,10 @@ from discord_bot.core.engines.cache_manager import CacheManager
 from discord_bot.core.engines.error_engine import GuardianErrorEngine
 from discord_bot.core.engines.event_reminder_engine import EventReminderEngine
 from discord_bot.core.engines.kvk_tracker import KVKTracker
+from discord_bot.core.engines.ranking_storage_engine import RankingStorageEngine
 from discord_bot.core.engines.input_engine import InputEngine
 from discord_bot.core.engines.output_engine import OutputEngine
+from discord_bot.core.engines.screenshot_processor import ScreenshotProcessor
 from discord_bot.core.engines.personality_engine import PersonalityEngine
 from discord_bot.core.engines.processing_engine import ProcessingEngine
 from discord_bot.core.engines.role_manager import RoleManager
@@ -224,6 +226,11 @@ class IntegrationLoader:
         logger.debug("KVK tracker initialized")
         self.event_reminder_engine.kvk_tracker = self.kvk_tracker
 
+        # Ranking system engines
+        self.ranking_processor = ScreenshotProcessor()
+        self.ranking_storage = RankingStorageEngine(storage=self.game_storage)
+        logger.debug("Ranking system engines initialized")
+
         self.ambiguity_resolver = (
             AmbiguityResolver(
                 role_manager=self.role_manager,
@@ -431,6 +438,8 @@ class IntegrationLoader:
         self.registry.inject("pokemon_api", self.pokemon_api)
         self.registry.inject("event_reminder_engine", self.event_reminder_engine)
         self.registry.inject("kvk_tracker", self.kvk_tracker)
+        self.registry.inject("ranking_processor", self.ranking_processor)
+        self.registry.inject("ranking_storage", self.ranking_storage)
         logger.debug("Game system engines registered")
 
         self._expose_bot_attributes()
@@ -495,6 +504,8 @@ class IntegrationLoader:
             "pokemon_api": self.pokemon_api,
             "event_reminder_engine": self.event_reminder_engine,
             "kvk_tracker": self.kvk_tracker,
+            "ranking_processor": self.ranking_processor,
+            "ranking_storage": self.ranking_storage,
         }
 
         orchestrator = getattr(self.processing_engine, "orchestrator", None) or self.orchestrator
@@ -540,6 +551,7 @@ class IntegrationLoader:
             from discord_bot.cogs.easteregg_cog import EasterEggCog
             from discord_bot.cogs.game_cog import GameCog
             from discord_bot.cogs.event_management_cog import setup as setup_event_cog
+            from discord_bot.cogs.ranking_cog import setup as setup_ranking_cog
 
             await setup_translation_cog(self.bot, ui_engine=self.translation_ui)
             await setup_admin_cog(self.bot, ui_engine=self.admin_ui, owners=set(owners), storage=self.game_storage, cookie_manager=self.cookie_manager)
@@ -547,6 +559,11 @@ class IntegrationLoader:
             await setup_language_cog(self.bot)
             await setup_sos_cog(self.bot)
             await setup_event_cog(self.bot, event_reminder_engine=self.event_reminder_engine)
+            await setup_ranking_cog(
+                self.bot,
+                processor=self.ranking_processor,
+                storage=self.ranking_storage,
+            )
             
             # Mount game system cogs with dependency injection
             easter_egg_cog = EasterEggCog(
@@ -568,7 +585,7 @@ class IntegrationLoader:
             )
             await self.bot.add_cog(game_cog)
             
-            logger.info("⚙️ Mounted cogs: translation, admin, help, language, sos, events, easteregg, game")
+            logger.info("⚙️ Mounted cogs: translation, admin, help, language, sos, events, ranking, easteregg, game")
         except Exception as exc:
             logger.exception("Failed to mount cogs")
             try:
