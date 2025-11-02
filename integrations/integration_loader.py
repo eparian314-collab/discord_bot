@@ -196,12 +196,12 @@ class IntegrationLoader:
         from discord_bot.games.pokemon_game import PokemonGame
         from discord_bot.games.pokemon_api_integration import PokemonAPIIntegration
         from discord_bot.games.pokemon_data_manager import PokemonDataManager
-        
-    self.game_storage = GameStorageEngine(db_path="data/game_data.db")
+
+        self.game_storage = GameStorageEngine(db_path="data/game_data.db")
         self.relationship_manager = RelationshipManager(storage=self.game_storage)
         self.cookie_manager = CookieManager(
             storage=self.game_storage,
-            relationship_manager=self.relationship_manager
+            relationship_manager=self.relationship_manager,
         )
         if hasattr(self.personality_engine, "set_relationship_manager"):
             self.personality_engine.set_relationship_manager(self.relationship_manager)
@@ -211,11 +211,11 @@ class IntegrationLoader:
             storage=self.game_storage,
             cookie_manager=self.cookie_manager,
             relationship_manager=self.relationship_manager,
-            data_manager=self.pokemon_data_manager
+            data_manager=self.pokemon_data_manager,
         )
         self.pokemon_api = PokemonAPIIntegration()
         logger.debug("Game system engines initialized")
-        
+
         # Event reminder engine for Top Heroes events
         self.event_reminder_engine = EventReminderEngine(storage_engine=self.game_storage)
         logger.debug("Event reminder engine initialized")

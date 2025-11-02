@@ -1,20 +1,43 @@
 [Unit]
-Description=Discord Bot with automated pre-flight checks
+Description=HippoBot Discord Service with Multi-Layer Protection
 After=network-online.target
 Wants=network-online.target
 
 [Service]
 Type=simple
-WorkingDirectory=/opt/discord_bot
-# Optionally load environment variables (DISCORD_TOKEN, BOT_VENV_PATH, etc.)
-# EnvironmentFile=/etc/discord_bot.env
-ExecStart=/opt/discord_bot/scripts/deploy_update.sh
+User=ec2-user
+WorkingDirectory=/home/ec2-user/discord_bot
+EnvironmentFile=/home/ec2-user/discord_bot/.env
+
+# Layer 1: Deploy script (pulls code, runs tests, validates)
+ExecStartPre=/bin/bash /home/ec2-user/discord_bot/scripts/deploy.sh
+
+# Layer 2: Preflight checks (environment, databases, imports)
+ExecStartPre=/usr/bin/python3 /home/ec2-user/discord_bot/scripts/preflight_check.py
+
+# Layer 3: Health check (final validation before launch)
+ExecStartPre=/usr/bin/python3 /home/ec2-user/discord_bot/health_check.py
+
+# Main bot process
+ExecStart=/usr/bin/python3 -m discord_bot.main
+
+# Restart policy with safeguards
 Restart=on-failure
-RestartSec=15
+RestartSec=10
 StartLimitIntervalSec=300
-StartLimitBurst=5
+StartLimitBurst=3
+
+# Graceful shutdown
+TimeoutStopSec=20
+
+# Resource limits
+MemoryMax=1G
+CPUQuota=75%
+
+# Logging
 StandardOutput=journal
 StandardError=journal
+SyslogIdentifier=hippobot
 
 [Install]
 WantedBy=multi-user.target

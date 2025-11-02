@@ -95,8 +95,8 @@ async def test_personality_variations():
         print("- ⚠️ OpenAI not configured (optional)")
 
 
-def test_message_uniqueness():
-    """Test that messages don't repeat exactly."""
+def _run_message_uniqueness_check():
+    """Execute the uniqueness check used by tests and the CLI."""
     print("\n🔍 Testing Message Uniqueness...")
     cache_manager = MockCacheManager()
     personality = PersonalityEngine(cache_manager=cache_manager)
@@ -118,12 +118,18 @@ def test_message_uniqueness():
     return unique_greetings > 1
 
 
+def test_message_uniqueness():
+    """Test that messages don't repeat exactly."""
+    success = _run_message_uniqueness_check()
+    assert success, "All messages were identical - check variation system"
+
+
 if __name__ == "__main__":
     print("🤖 HippoBot Personality Engine Test Suite")
     print("Testing dynamic response variations...")
     
     # Test basic functionality
-    uniqueness_works = test_message_uniqueness()
+    uniqueness_works = _run_message_uniqueness_check()
     
     # Test async functionality
     try:

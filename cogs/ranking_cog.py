@@ -65,7 +65,9 @@ class RankingCog(commands.Cog):
         self.storage = storage
         self._rankings_channel_id = self._get_rankings_channel_id()
         self.kvk_tracker = kvk_tracker or getattr(bot, "kvk_tracker", None)
-        self.bot.loop.create_task(self._post_guidance_message())
+        loop = getattr(self.bot, "loop", None)
+        if loop and hasattr(loop, "create_task"):
+            loop.create_task(self._post_guidance_message())
 
     async def _post_guidance_message(self):
         await self.bot.wait_until_ready()

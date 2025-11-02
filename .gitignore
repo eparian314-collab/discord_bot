@@ -35,6 +35,8 @@ build/
 /core/storage/*.json
 /cache/
 *.bak
+health_check.py
+health_check.log
 
 # OS-specific files
 .DS_Store

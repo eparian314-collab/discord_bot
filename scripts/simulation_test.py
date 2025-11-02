@@ -62,7 +62,15 @@ class SimulationTest:
     def log(self, message: str, level: str = "INFO"):
         """Log simulation output."""
         timestamp = datetime.now().strftime("%H:%M:%S")
-        print(f"[{timestamp}] [{level}] {message}")
+        try:
+            print(f"[{timestamp}] [{level}] {message}")
+        except UnicodeEncodeError:
+            safe_message = (
+                message.replace("✓", "OK")
+                .replace("✗", "X")
+                .replace("🚀", "READY")
+            )
+            print(f"[{timestamp}] [{level}] {safe_message}")
     
     def record_pass(self, test_name: str):
         """Record a passing test."""
