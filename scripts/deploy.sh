@@ -80,7 +80,7 @@ reset_retry_count() {
 }
 
 # Python environment
-VENV_PATH="$REPO_DIR/venv"
+VENV_PATH="$REPO_DIR/.venv"
 if [ -d "$VENV_PATH" ]; then
     # shellcheck disable=SC1090
     source "$VENV_PATH/bin/activate"
