@@ -282,6 +282,14 @@ class EventManagementCog(commands.Cog):
                             is_test=is_test_kvk,
                             event_id=event.event_id,
                         )
+                        ends_at = kvk_run.ends_at
+                        if isinstance(ends_at, (int, float)):
+                            ends_at_dt = datetime.fromtimestamp(ends_at, tz=timezone.utc)
+                        elif isinstance(ends_at, datetime):
+                            ends_at_dt = ends_at.astimezone(timezone.utc) if ends_at.tzinfo else ends_at.replace(tzinfo=timezone.utc)
+                        else:
+                            ends_at_dt = None
+
                         if kvk_run.run_number:
                             status_line = (
                                 "Started new KVK tracking window"
@@ -291,7 +299,11 @@ class EventManagementCog(commands.Cog):
                             status_line += f" (Run #{kvk_run.run_number})"
                         else:
                             status_line = "Test KVK tracking window ready" if created else "Existing test KVK window reused"
-                        closes = kvk_run.ends_at.strftime("%Y-%m-%d %H:%M UTC")
+                        closes = (
+                            ends_at_dt.strftime("%Y-%m-%d %H:%M UTC")
+                            if ends_at_dt is not None
+                            else "Unknown (invalid timestamp)"
+                        )
                         embed.add_field(
                             name="KVK Tracking",
                             value=f"{status_line}\nWindow closes on **{closes}**.",
