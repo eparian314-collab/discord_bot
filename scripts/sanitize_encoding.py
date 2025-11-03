@@ -4,89 +4,66 @@ Use once or include in startup sequence.
 """
 
 from __future__ import annotations
-import os
-import re
 
-ROOT = os.path.dirname(os.path.dirname(__file__))  # points to /discord_bot_v2/discord_bot
+import os
+from pathlib import Path
+from typing import Tuple
+
+ROOT = Path(__file__).resolve().parent.parent
 
 BAD_CHARS = {
-    "\u2013": "-",  # � en dash
-    "\u2014": "-",  # � em dash
-    "\u2018": "'",  # � left single quote
-    "\u2019": "'",  # � right single quote
-    "\u201c": '"',  # � left double quote
-    "\u201d": '"',  # � right double quote
+    "\u2013": "-",  # en dash
+    "\u2014": "-",  # em dash
+    "\u2018": "'",  # left single quote
+    "\u2019": "'",  # right single quote
+    "\u201c": '"',  # left double quote
+    "\u201d": '"',  # right double quote
     "\ufeff": "",   # BOM
 }
 
 
-def sanitize_file(path: str, verbose: bool = False) -> tuple[bool, str | None]:
-    """
-    Sanitize a single file.
-    
-    Returns:
-        (success, error_message) tuple
-    """
+def sanitize_file(path: Path, verbose: bool = False) -> Tuple[bool, str | None]:
     try:
-        with open(path, "rb") as f:
-            raw = f.read()
-
-        # Remove BOM if present
+        raw = path.read_bytes()
         if raw.startswith(b"\xef\xbb\xbf"):
             raw = raw[3:]
-
         text = raw.decode("utf-8", errors="replace")
-
-        # Replace smart quotes & invalid chars
         for bad, fixed in BAD_CHARS.items():
             if bad in text:
                 text = text.replace(bad, fixed)
-
-        with open(path, "w", encoding="utf-8", newline="\n") as f:
-            f.write(text)
-
+        path.write_text(text, encoding="utf-8", newline="\n")
         if verbose:
             print(f"[CLEAN] {path}")
-        
-        return (True, None)
-
-    except Exception as e:
-        error = f"{path} ({e})"
+        return True, None
+    except Exception as exc:  # pylint: disable=broad-except
+        error = f"{path} ({exc})"
         if verbose:
             print(f"[SKIP] {error}")
-        return (False, error)
+        return False, error
 
 
-def run(verbose: bool = False):
-    """
-    Sanitize all Python files in the project.
-    
-    Args:
-        verbose: If True, print each file processed. If False, only show summary.
-    """
+def run(verbose: bool = False) -> None:
     cleaned = 0
-    errors = []
-    
+    errors: list[str] = []
+
     for root, dirs, files in os.walk(ROOT):
-        # Skip virtual environments and other generated directories
         dirs[:] = [d for d in dirs if d not in {".venv", "__pycache__"}]
-        for file in files:
-            if file.endswith(".py"):
-                success, error = sanitize_file(os.path.join(root, file), verbose=verbose)
-                if success:
-                    cleaned += 1
-                else:
-                    errors.append(error)
-    
-    # Always show summary
-    if not verbose:
-        print(f"✓ Sanitized {cleaned} Python files")
-        if errors:
-            print(f"⚠ Failed to sanitize {len(errors)} files")
-            for error in errors:
-                print(f"  - {error}")
+        for filename in files:
+            if not filename.endswith(".py"):
+                continue
+            success, error = sanitize_file(Path(root) / filename, verbose=verbose)
+            if success:
+                cleaned += 1
+            elif error:
+                errors.append(error)
+
+    summary_prefix = "[OK]"
+    print(f"{summary_prefix} Sanitized {cleaned} Python files")
+    if errors:
+        print(f"[WARN] Failed to sanitize {len(errors)} files")
+        for error in errors:
+            print(f"  - {error}")
 
 
 if __name__ == "__main__":
-    # When run directly, show all files (verbose mode)
     run(verbose=True)

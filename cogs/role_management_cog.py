@@ -8,7 +8,6 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 
-from discord_bot.core import ui_groups
 from discord_bot.core.engines.role_manager import (
     AssignmentResult,
     AmbiguousLanguage,
@@ -26,9 +25,6 @@ logger = logging.getLogger("hippo_bot.role_cog")
 
 class RoleManagementCog(commands.Cog):
     """Modern language role management built on the new RoleManager engine."""
-
-    # Reuse shared language command group to avoid duplicate registration.
-    language = ui_groups.language
 
     def __init__(self, bot: commands.Bot, role_manager: Optional[RoleManager] = None) -> None:
         self.bot = bot
@@ -57,9 +53,9 @@ class RoleManagementCog(commands.Cog):
                 return None
         return None
 
-    @language.command(name="assign", description="Assign a language role to yourself.")
+    @app_commands.command(name="language_assign", description="Assign a language role to yourself.")
     @app_commands.describe(code="Language code or role name. Example: en, es, fr")
-    async def assign(self, interaction: discord.Interaction, code: str) -> None:
+    async def language_assign(self, interaction: discord.Interaction, code: str) -> None:
         if not self.roles:
             await interaction.response.send_message("Role manager not configured.", ephemeral=True)
             return
@@ -78,7 +74,7 @@ class RoleManagementCog(commands.Cog):
         except AmbiguousLanguage as exc:
             choices = "\n".join(f"- `{opt_code}` ({label})" for opt_code, label in exc.options)
             await interaction.followup.send(
-                "That flag or keyword maps to multiple languages. Pick one by running `/language assign <code>`:\n"
+                "That flag or keyword maps to multiple languages. Pick one by running `/language_assign <code>`:\n"
                 f"{choices}",
                 ephemeral=True,
             )
@@ -91,16 +87,16 @@ class RoleManagementCog(commands.Cog):
             return
         except RoleLimitExceeded as exc:
             await interaction.followup.send(
-                f"You already have {exc.max_roles} language roles. Remove one with `/language remove` before adding another.",
+                f"You already have {exc.max_roles} language roles. Remove one with `/language_remove` before adding another.",
                 ephemeral=True,
             )
             return
         except RolePermissionError as exc:
             await interaction.followup.send(str(exc), ephemeral=True)
-            await self._log_error(exc, context="language.assign.permission")
+            await self._log_error(exc, context="language_assign.permission")
             return
         except RoleManagerError as exc:
-            await self._log_error(exc, context="language.assign")
+            await self._log_error(exc, context="language_assign")
             await interaction.followup.send("Failed to assign the role. Please try again later.", ephemeral=True)
             return
 
@@ -117,23 +113,20 @@ class RoleManagementCog(commands.Cog):
             ephemeral=True,
         )
 
-    @assign.autocomplete("code")
-    async def assign_autocomplete(self, interaction: discord.Interaction, current: str) -> List[app_commands.Choice[str]]:
+    @language_assign.autocomplete("code")
+    async def language_assign_autocomplete(self, interaction: discord.Interaction, current: str) -> List[app_commands.Choice[str]]:
         if not self.roles:
             return []
         suggestions = self.roles.suggest_languages(current, limit=25)
         return [app_commands.Choice(name=f"{label} ({code})", value=code) for code, label in suggestions]
 
-    @language.command(name="remove", description="Remove one of your language roles.")
+    @app_commands.command(name="language_remove", description="Remove one of your language roles.")
     @app_commands.describe(code="Language code or role name to remove.")
-    async def remove(self, interaction: discord.Interaction, code: str) -> None:
+    async def language_remove(self, interaction: discord.Interaction, code: str) -> None:
         member = await self._resolve_member(interaction)
         if not member or not member.guild:
             await interaction.response.send_message("This command can only be used inside a server.", ephemeral=True)
             return
-
-        if not interaction.response.is_done():
-            await interaction.response.defer(ephemeral=True)
 
         if not interaction.response.is_done():
             await interaction.response.defer(ephemeral=True)
@@ -156,16 +149,16 @@ class RoleManagementCog(commands.Cog):
             return
         except RoleNotAssigned:
             await interaction.followup.send(
-                "You don't currently have that language role. Use `/language list` to see which ones are active.",
+                "You don't currently have that language role. Use `/language_list` to see which ones are active.",
                 ephemeral=True,
             )
             return
         except RolePermissionError as exc:
             await interaction.followup.send(str(exc), ephemeral=True)
-            await self._log_error(exc, context="language.remove.permission")
+            await self._log_error(exc, context="language_remove.permission")
             return
         except RoleManagerError as exc:
-            await self._log_error(exc, context="language.remove")
+            await self._log_error(exc, context="language_remove")
             await interaction.followup.send("Failed to remove the role. Please try again later.", ephemeral=True)
             return
 
@@ -173,8 +166,8 @@ class RoleManagementCog(commands.Cog):
             f"Removed `{result.role.name}` (language: {result.display_name}).", ephemeral=True
         )
 
-    @remove.autocomplete("code")
-    async def remove_autocomplete(self, interaction: discord.Interaction, current: str) -> List[app_commands.Choice[str]]:
+    @language_remove.autocomplete("code")
+    async def language_remove_autocomplete(self, interaction: discord.Interaction, current: str) -> List[app_commands.Choice[str]]:
         if not self.roles or not interaction.guild:
             return []
         member = await self._resolve_member(interaction)
@@ -184,8 +177,8 @@ class RoleManagementCog(commands.Cog):
         suggestions = self.roles.suggest_languages(current, limit=25, restrict_to=user_codes)
         return [app_commands.Choice(name=f"{label} ({code})", value=code) for code, label in suggestions]
 
-    @language.command(name="list", description="List your current language roles.")
-    async def list_roles(self, interaction: discord.Interaction) -> None:
+    @app_commands.command(name="language_list", description="List your current language roles.")
+    async def language_list(self, interaction: discord.Interaction) -> None:
         member = await self._resolve_member(interaction)
         if not member or not member.guild:
             await interaction.response.send_message("This command can only be used inside a server.", ephemeral=True)
@@ -205,8 +198,8 @@ class RoleManagementCog(commands.Cog):
         message = "**Your language roles:**\n" + "\n".join(entries)
         await interaction.response.send_message(message, ephemeral=True)
 
-    @language.command(name="sync", description="Sync language roles in this guild with known codes.")
-    async def sync(self, interaction: discord.Interaction) -> None:
+    @app_commands.command(name="language_sync", description="Sync language roles in this guild with known codes.")
+    async def language_sync(self, interaction: discord.Interaction) -> None:
         if not self.roles:
             await interaction.response.send_message("Role manager not configured.", ephemeral=True)
             return
@@ -225,7 +218,7 @@ class RoleManagementCog(commands.Cog):
                 msg = f"Role sync complete. Recognised {recognised} existing language roles."
             await interaction.followup.send(msg, ephemeral=True)
         except Exception as exc:
-            await self._log_error(exc, context="language.sync")
+            await self._log_error(exc, context="language_sync")
             await interaction.followup.send("Failed to sync language roles.", ephemeral=True)
 
 

@@ -15,55 +15,24 @@ games = app_commands.Group(name="games", description="Games and entertainment")
 kvk = app_commands.Group(name="kvk", description="Top Heroes / KVK tools")
 admin = app_commands.Group(name="admin", description="Administrative tools")
 
-# Language subgroups
-language_translate = app_commands.Group(
-    name="translate", 
-    description="Translation services",
-    parent=language
-)
+# Additional metadata for common subgroup names
+LANGUAGE_SOS_NAME = "sos"
+LANGUAGE_SOS_DESCRIPTION = "Configure SOS emergency phrases"
 
-language_roles = app_commands.Group(
-    name="roles", 
-    description="Manage your language roles",
-    parent=language
-)
+GAMES_POKEMON_NAME = "pokemon"
+GAMES_POKEMON_DESCRIPTION = "Catch, train, and evolve Pokemon"
 
-language_sos = app_commands.Group(
-    name="sos", 
-    description="Configure SOS emergency phrases",
-    parent=language
-)
+GAMES_BATTLE_NAME = "battle"
+GAMES_BATTLE_DESCRIPTION = "Pokemon battles and competitions"
 
-# Games subgroups  
-games_pokemon = app_commands.Group(
-    name="pokemon", 
-    description="Catch, train, and evolve Pokemon",
-    parent=games
-)
+GAMES_FUN_NAME = "fun"
+GAMES_FUN_DESCRIPTION = "Fun games and entertainment"
 
-games_battle = app_commands.Group(
-    name="battle", 
-    description="Pokemon battles and competitions",
-    parent=games
-)
+GAMES_COOKIES_NAME = "cookies"
+GAMES_COOKIES_DESCRIPTION = "Manage your cookies and check stats"
 
-games_fun = app_commands.Group(
-    name="fun", 
-    description="Fun games and entertainment",
-    parent=games
-)
-
-games_cookies = app_commands.Group(
-    name="cookies",
-    description="Manage your cookies and check stats",
-    parent=games
-)
-
-kvk_ranking = app_commands.Group(
-    name="ranking",
-    description="Top Heroes event rankings and leaderboards",
-    parent=kvk
-)
+KVK_RANKING_NAME = "ranking"
+KVK_RANKING_DESCRIPTION = "Top Heroes event rankings and leaderboards"
 
 
 def register_command_groups(bot: commands.Bot) -> None:

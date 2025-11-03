@@ -11,6 +11,7 @@ Commands:
 from __future__ import annotations
 
 import logging
+import textwrap
 import os
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Dict, List, Optional
@@ -72,8 +73,12 @@ class RankingCog(commands.Cog):
                 pass
     """Top Heroes event ranking commands."""
     
-    # Use ranking group from ui_groups
-    ranking = ui_groups.kvk_ranking
+    # Register ranking commands under /kvk ranking
+    ranking = app_commands.Group(
+        name=ui_groups.KVK_RANKING_NAME,
+        description=ui_groups.KVK_RANKING_DESCRIPTION,
+        parent=ui_groups.kvk,
+    )
     
     def __init__(
         self,
@@ -91,6 +96,7 @@ class RankingCog(commands.Cog):
         if loop and hasattr(loop, "create_task"):
             loop.create_task(self._post_guidance_message())
 
+
     async def _post_guidance_message(self):
         await self.bot.wait_until_ready()
         channel_id = self._rankings_channel_id
@@ -99,21 +105,52 @@ class RankingCog(commands.Cog):
         channel = self.bot.get_channel(channel_id)
         if not channel:
             return
-        guidance = (
-            "📢 **Rankings Channel Guidance**\n"
-            "This channel is reserved for Top Heroes event ranking submissions and commands only.\n\n"
-            "**Allowed actions:**\n"
-            "• Submit your event ranking screenshot using `/kvk ranking submit`\n"
-            "• View your ranking history with `/kvk ranking view`\n"
-            "• See the leaderboard with `/kvk ranking leaderboard`\n"
-            "• Compare your results with `/ranking_compare_me` and `/ranking_compare_others`\n\n"
-            "Please do not chat or post unrelated messages here. Use the available slash commands for all ranking-related actions."
-        )
+        guidance = textwrap.dedent(
+            """
+            **Rankings Channel Guidance**
+            This channel is reserved for Top Heroes event ranking submissions and commands only.
+            
+            **Allowed actions:**
+            - Submit your event ranking screenshot using `/kvk ranking submit`
+            - View your ranking history with `/kvk ranking view`
+            - See the leaderboard with `/kvk ranking leaderboard`
+            - Compare your results with `/ranking_compare_me` and `/ranking_compare_others`
+            
+            Please do not chat or post unrelated messages here. Use the available slash commands for all ranking-related actions.
+            """
+        ).strip()
         # Try to find an existing guidance message
-        async for msg in channel.history(limit=20):
-            if msg.author == self.bot.user and "Rankings Channel Guidance" in msg.content:
-                return  # Already posted
-        await channel.send(guidance)
+        try:
+            async for msg in channel.history(limit=20):
+                if msg.author == self.bot.user and "Rankings Channel Guidance" in msg.content:
+                    return  # Already posted
+        except discord.Forbidden:
+            logger.warning(
+                "Insufficient permissions to read history in rankings channel %s; skipping guidance message",
+                channel_id,
+            )
+            return
+        except discord.HTTPException as exc:
+            logger.warning(
+                "Failed to inspect rankings channel %s history: %s",
+                channel_id,
+                exc,
+            )
+            return
+
+        try:
+            await channel.send(guidance)
+        except discord.Forbidden:
+            logger.warning(
+                "Insufficient permissions to post guidance in rankings channel %s",
+                channel_id,
+            )
+        except discord.HTTPException as exc:
+            logger.warning(
+                "Failed to send rankings guidance message to channel %s: %s",
+                channel_id,
+                exc,
+            )
 
     def __getattribute__(self, name: str):
         value = object.__getattribute__(self, name)
@@ -1387,3 +1424,5 @@ async def setup(
     
     kvk_tracker = getattr(bot, "kvk_tracker", None)
     await bot.add_cog(RankingCog(bot, processor, storage, kvk_tracker=kvk_tracker), override=True)
+
+

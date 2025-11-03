@@ -8,7 +8,6 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 
-from discord_bot.core import ui_groups
 from discord_bot.core.utils import is_admin_or_helper
 
 logger = logging.getLogger("hippo_bot.sos_cog")
@@ -16,9 +15,6 @@ logger = logging.getLogger("hippo_bot.sos_cog")
 
 class SOSPhraseCog(commands.Cog):
     """Manage SOS keyword -> phrase mappings that the InputEngine will broadcast."""
-
-    # Use shared language SOS subgroup to keep commands under /language.
-    sos = ui_groups.language_sos
 
     def __init__(self, bot: commands.Bot) -> None:
         self.bot = bot
@@ -67,9 +63,9 @@ class SOSPhraseCog(commands.Cog):
                 pass
         logger.exception("%s failed: %s", context, exc)
 
-    @sos.command(name="add", description="Add or update an SOS keyword for this guild.")
+    @app_commands.command(name="sos_add", description="Add or update an SOS keyword for this guild.")
     @app_commands.describe(keyword="Word or phrase to watch for", phrase="Alert text to broadcast")
-    async def add(self, interaction: discord.Interaction, keyword: str, phrase: str) -> None:
+    async def sos_add(self, interaction: discord.Interaction, keyword: str, phrase: str) -> None:
         if not interaction.guild:
             await interaction.response.send_message("This command must be used inside a guild.", ephemeral=True)
             return
@@ -86,9 +82,9 @@ class SOSPhraseCog(commands.Cog):
             f"Linked keyword `{keyword}` to SOS phrase:\n> {phrase}", ephemeral=True
         )
 
-    @sos.command(name="remove", description="Remove an SOS keyword mapping.")
+    @app_commands.command(name="sos_remove", description="Remove an SOS keyword mapping.")
     @app_commands.describe(keyword="Word or phrase to remove from the SOS mapping")
-    async def remove(self, interaction: discord.Interaction, keyword: str) -> None:
+    async def sos_remove(self, interaction: discord.Interaction, keyword: str) -> None:
         if not interaction.guild:
             await interaction.response.send_message("This command must be used inside a guild.", ephemeral=True)
             return
@@ -107,8 +103,8 @@ class SOSPhraseCog(commands.Cog):
         self._apply(interaction.guild.id)
         await interaction.response.send_message(f"Removed SOS keyword `{keyword}`.", ephemeral=True)
 
-    @sos.command(name="list", description="List configured SOS keywords for this guild.")
-    async def list_keywords(self, interaction: discord.Interaction) -> None:
+    @app_commands.command(name="sos_list", description="List configured SOS keywords for this guild.")
+    async def sos_list(self, interaction: discord.Interaction) -> None:
         if not interaction.guild:
             await interaction.response.send_message("This command must be used inside a guild.", ephemeral=True)
             return
@@ -122,8 +118,8 @@ class SOSPhraseCog(commands.Cog):
         content = "**Configured SOS keywords:**\n" + "\n".join(lines)
         await interaction.response.send_message(content, ephemeral=True)
 
-    @sos.command(name="clear", description="Remove all SOS keywords for this guild.")
-    async def clear(self, interaction: discord.Interaction) -> None:
+    @app_commands.command(name="sos_clear", description="Remove all SOS keywords for this guild.")
+    async def sos_clear(self, interaction: discord.Interaction) -> None:
         if not interaction.guild:
             await interaction.response.send_message("This command must be used inside a guild.", ephemeral=True)
             return

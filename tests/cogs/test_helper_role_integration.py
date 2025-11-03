@@ -169,7 +169,7 @@ async def test_sos_cog_add_with_helper_role(bot, user_with_helper_role, guild, m
     cog = SOSPhraseCog(bot)
     interaction = DummyInteraction(user_with_helper_role, guild)
     
-    await SOSPhraseCog.add.callback(cog, interaction, keyword="help", phrase="Emergency alert!")
+    await SOSPhraseCog.sos_add.callback(cog, interaction, keyword="help", phrase="Emergency alert!")
     
     # Should send success message
     assert interaction.response.send_message.called
@@ -183,7 +183,7 @@ async def test_sos_cog_add_without_helper_role(bot, user_without_helper_role, gu
     cog = SOSPhraseCog(bot)
     interaction = DummyInteraction(user_without_helper_role, guild)
     
-    await SOSPhraseCog.add.callback(cog, interaction, keyword="help", phrase="Emergency alert!")
+    await SOSPhraseCog.sos_add.callback(cog, interaction, keyword="help", phrase="Emergency alert!")
     
     # Should send permission denied message
     assert interaction.response.send_message.called
@@ -200,13 +200,13 @@ async def test_sos_cog_remove_with_helper_role(bot, user_with_helper_role, guild
     interaction = DummyInteraction(user_with_helper_role, guild)
     
     # Add a keyword first
-    await SOSPhraseCog.add.callback(cog, interaction, keyword="help", phrase="Emergency alert!")
+    await SOSPhraseCog.sos_add.callback(cog, interaction, keyword="help", phrase="Emergency alert!")
     
     # Reset mock
     interaction.response.send_message.reset_mock()
     
     # Try to remove it
-    await SOSPhraseCog.remove.callback(cog, interaction, keyword="help")
+    await SOSPhraseCog.sos_remove.callback(cog, interaction, keyword="help")
     
     # Should send success message
     assert interaction.response.send_message.called
@@ -220,7 +220,7 @@ async def test_sos_cog_clear_with_helper_role(bot, user_with_helper_role, guild,
     cog = SOSPhraseCog(bot)
     interaction = DummyInteraction(user_with_helper_role, guild)
     
-    await SOSPhraseCog.clear.callback(cog, interaction)
+    await SOSPhraseCog.sos_clear.callback(cog, interaction)
     
     # Should send success message
     assert interaction.response.send_message.called

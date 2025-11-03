@@ -43,7 +43,11 @@ class EasterEggCog(commands.Cog):
     """Fun interactions and mini-games with cookie rewards."""
     
     # Command groups for better organization
-    fun = ui_groups.games_fun
+    fun = app_commands.Group(
+        name=ui_groups.GAMES_FUN_NAME,
+        description=ui_groups.GAMES_FUN_DESCRIPTION,
+        parent=ui_groups.games,
+    )
     
     # Use the shared cookies group from GameCog
     cookies = GameCog.cookies

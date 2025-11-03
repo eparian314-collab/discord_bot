@@ -19,7 +19,10 @@ from discord_bot.core.engines.base.logging_utils import (
     get_logger,
     set_correlation_id,
 )
-from discord_bot.integrations import build_application, load_config, require_keys
+try:
+    from discord_bot.integrations import build_application, load_config, require_keys
+except ModuleNotFoundError:
+    from integrations import build_application, load_config, require_keys  # type: ignore[assignment]
 
 from discord_bot.scripts.sanitize_encoding import run as sanitize
 

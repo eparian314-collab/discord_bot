@@ -18,7 +18,7 @@ if str(_project_root) not in sys.path:
     sys.path.insert(0, str(_project_root))
 
 import discord
-
+pyth
 from discord_bot.integrations import build_application, load_config
 
 
@@ -56,6 +56,9 @@ async def main() -> None:
 
     # Build bot with all cogs loaded
     bot, _registry = build_application()
+    original_commands = list(bot.tree.get_commands())
+    if not original_commands:
+        print("Warning: No commands were registered on the bot before clearing. Tree will remain empty until restart.")
 
     try:
         await bot.login(token)
@@ -108,9 +111,25 @@ async def main() -> None:
         await asyncio.sleep(2)
         print()
 
+        # STEP 3: Restore command definitions locally before fresh sync
+        print("=" * 80)
+        print("STEP 3: Restore Local Command Tree")
+        print("=" * 80)
+        if original_commands:
+            bot.tree.clear_commands(guild=None)
+            for command in original_commands:
+                bot.tree.add_command(command, override=True)
+            restored_names = ", ".join(command.name for command in original_commands)
+            print(f"Restored {len(original_commands)} commands into the local command tree: {restored_names}")
+            synced_global = await bot.tree.sync()
+            print(f"Synced {len(synced_global)} commands globally after restore")
+        else:
+            print("Local tree remains empty (no commands were registered prior to clearing)")
+        print()
+
         # STEP 4: Fresh sync to guilds
         print("=" * 80)
-        print("STEP 3: Fresh Sync - Guild Commands")
+        print("STEP 4: Fresh Sync - Guild Commands")
         print("=" * 80)
         for guild in guilds:
             bot.tree.copy_global_to(guild=guild)

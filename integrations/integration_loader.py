@@ -1,9 +1,12 @@
 from __future__ import annotations
 
 import os
-from typing import Any, Awaitable, Callable, Iterable, Optional, Set, Tuple
+from datetime import datetime, timezone
+from typing import Any, Awaitable, Callable, Dict, Iterable, Optional, Set, Tuple
+import unicodedata
 
 import discord
+from discord import app_commands
 from discord.ext import commands
 
 from discord_bot.core.engines.base.engine_registry import EngineRegistry
@@ -40,6 +43,8 @@ from discord_bot.core import ui_groups
 
 logger = get_logger("integration_loader")
 
+COMMAND_SCHEMA_VERSION = 1
+
 
 def _parse_id_set(raw: str) -> Set[int]:
     """Parse comma/semicolon separated IDs from the environment."""
@@ -58,34 +63,425 @@ def _parse_id_set(raw: str) -> Set[int]:
 class HippoBot(commands.Bot):
     """Bot subclass that performs first-run command tree sync."""
 
-    def __init__(self, *args: Any, test_guild_ids: Optional[Set[int]] = None, **kwargs: Any) -> None:
+    _SCHEMA_DIFF_LIMIT = 8
+    _SCHEMA_COMMAND_LIMIT = 10
+
+    def __init__(
+        self,
+        *args: Any,
+        test_guild_ids: Optional[Set[int]] = None,
+        sync_global_commands: bool = True,
+        primary_guild_name: Optional[str] = None,
+        alert_recipient_ids: Optional[Set[int]] = None,
+        **kwargs: Any,
+    ) -> None:
         super().__init__(*args, **kwargs)
         self.test_guild_ids: Set[int] = test_guild_ids or set()
+        self.sync_global_commands = sync_global_commands
+        self.primary_guild_name = (primary_guild_name or "").strip().lower() or None
+        self.alert_recipient_ids: Set[int] = set(alert_recipient_ids or ())
         self._synced = False
         self._post_setup_hooks: list[Callable[[], Awaitable[None]]] = []
+        self.last_command_sync: Optional[datetime] = None
+        self._mismatch_alerts: Set[Tuple[str, Optional[int]]] = set()
 
     async def on_ready(self) -> None:
-        logger.info("🦛 HippoBot logged in as %s (%s)", self.user, getattr(self.user, "id", "-"))
+        logger.info("HippoBot logged in as %s (%s)", self.user, getattr(self.user, "id", "-"))
         if self._synced:
             return
 
         try:
-            if self.test_guild_ids:
-                # Always perform a global sync first so legacy global commands are cleaned up.
-                await self.tree.sync()
-                logger.debug("Synced app commands globally (cleanup)")
-                for guild_id in self.test_guild_ids:
-                    await self.tree.sync(guild=discord.Object(id=guild_id))
-                    logger.debug("Synced app commands for guild %s", guild_id)
+            targets, unresolved_primary = self._resolve_target_guilds()
+            sync_summary = await self._perform_command_sync(targets)
+            self.last_command_sync = datetime.now(timezone.utc)
+
+            if sync_summary:
+                details = ", ".join(f"{scope}: {count}" for scope, count in sync_summary)
+                logger.info(
+                    "Command sync complete (schema_version=%s, %s)",
+                    COMMAND_SCHEMA_VERSION,
+                    details,
+                )
             else:
-                await self.tree.sync()
-                logger.debug("Synced app commands globally")
+                logger.info(
+                    "Command sync skipped - no targets identified (schema_version=%s)",
+                    COMMAND_SCHEMA_VERSION,
+                )
+
+            mismatches = await self._verify_remote_schema(targets)
+            if unresolved_primary:
+                mismatches.append(
+                    f"Configured PRIMARY_GUILD_NAME '{unresolved_primary}' was not found among connected guilds."
+                )
+            if mismatches:
+                mismatches = self._summarize_mismatches(mismatches)
+                await self._notify_sync_issue(
+                    "Slash command schema mismatch detected:\n" + "\n".join(f"- {line}" for line in mismatches)
+                )
             self._synced = True
         except Exception:
+            await self._notify_sync_issue(
+                "Initial slash command sync failed - check logs and rerun the sync utility."
+            )
             logger.exception("Failed to sync application commands on ready")
 
         # Send startup message to bot channels
         await self._send_startup_message()
+
+    def _resolve_target_guilds(self) -> Tuple[Dict[int, str], Optional[str]]:
+        """Resolve guild IDs targeted for command sync."""
+        targets: Dict[int, str] = {}
+        unresolved_primary: Optional[str] = None
+
+        if self.primary_guild_name:
+            match = discord.utils.find(
+                lambda g: g.name.lower() == self.primary_guild_name,
+                self.guilds,
+            )
+            if match:
+                targets[match.id] = match.name
+                logger.info("Syncing app commands only to primary guild %s (%s)", match.name, match.id)
+            else:
+                unresolved_primary = self.primary_guild_name
+                logger.warning(
+                    "PRIMARY_GUILD_NAME=%s provided but no matching guild is connected",
+                    self.primary_guild_name,
+                )
+        else:
+            for guild_id in self.test_guild_ids:
+                guild = self.get_guild(guild_id)
+                if guild:
+                    targets[guild_id] = guild.name
+                    logger.info("Syncing app commands for configured guild %s (%s)", guild.name, guild.id)
+                else:
+                    targets[guild_id] = "unknown"
+                    logger.warning(
+                        "Configured TEST_GUILDS entry %s is not currently connected; attempting sync regardless",
+                        guild_id,
+                    )
+
+        return targets, unresolved_primary
+
+    async def _perform_command_sync(self, targets: Dict[int, str]) -> list[Tuple[str, int]]:
+        """Perform command sync across configured scopes."""
+        summary: list[Tuple[str, int]] = []
+
+        if self.sync_global_commands:
+            synced_global = await self.tree.sync()
+            summary.append(("global", len(synced_global)))
+
+        if targets:
+            for guild_id, name in targets.items():
+                guild_obj = self.get_guild(guild_id)
+                if not guild_obj:
+                    logger.warning(
+                        "Skipping guild sync for %s (%s) because the bot is not currently connected",
+                        name,
+                        guild_id,
+                    )
+                    continue
+                synced_guild = await self.tree.sync(guild=discord.Object(id=guild_id))
+                summary.append((f"{name} ({guild_id})", len(synced_guild)))
+        elif not self.sync_global_commands:
+            logger.info(
+                "Global slash command sync disabled and no guild targets resolved; commands were not refreshed this cycle."
+            )
+
+        return summary
+
+    async def _verify_remote_schema(self, targets: Dict[int, str]) -> list[str]:
+        """Compare remote command definitions with the local tree."""
+        mismatches: list[str] = []
+        local_index = self._build_local_schema_index()
+
+        if self.sync_global_commands:
+            remote_global = await self.tree.fetch_commands()
+            mismatches.extend(self._diff_remote_schema("global", remote_global, local_index))
+
+        for guild_id, name in targets.items():
+            scope = f"guild {name} ({guild_id})"
+            guild_obj = self.get_guild(guild_id)
+            if not guild_obj:
+                mismatches.append(f"{scope}: bot is not connected; unable to verify command schema")
+                continue
+            remote_guild = await self.tree.fetch_commands(guild=discord.Object(id=guild_id))
+            mismatches.extend(self._diff_remote_schema(scope, remote_guild, local_index))
+
+        return mismatches
+
+    def _summarize_mismatches(self, mismatches: list[str]) -> list[str]:
+        """Limit the number of per-command mismatch reports."""
+        if len(mismatches) <= self._SCHEMA_COMMAND_LIMIT:
+            return mismatches
+        remaining = len(mismatches) - self._SCHEMA_COMMAND_LIMIT
+        summary = mismatches[: self._SCHEMA_COMMAND_LIMIT]
+        summary.append(f"... {remaining} additional command definitions differ.")
+        return summary
+
+    def _chunk_message(self, content: str, *, prefix: str = "[HippoBot] ", limit: int = 1900) -> list[str]:
+        """Split a message into DM-safe chunks."""
+        if limit <= 0:
+            raise ValueError("limit must be positive")
+        chunks: list[str] = []
+        buffer = ""
+        for segment in content.splitlines(keepends=True):
+            if len(buffer) + len(segment) > limit and buffer:
+                chunks.append(prefix + buffer.rstrip())
+                buffer = ""
+            if len(segment) > limit:
+                for offset in range(0, len(segment), limit):
+                    slice_ = segment[offset : offset + limit]
+                    chunks.append(prefix + slice_.rstrip())
+                buffer = ""
+                continue
+            buffer += segment
+        if buffer:
+            chunks.append(prefix + buffer.rstrip())
+        if not chunks:
+            chunks.append(prefix.strip())
+        return chunks
+
+    def _find_schema_differences(
+        self,
+        *,
+        expected: Any,
+        actual: Any,
+        path: str = "",
+        limit: int | None = None,
+    ) -> list[str]:
+        """Return human-readable differences between two schema payloads."""
+        differences: list[str] = []
+        max_diffs = limit if limit is not None else self._SCHEMA_DIFF_LIMIT * 2
+
+        def _diff(exp: Any, act: Any, current_path: str) -> None:
+            if len(differences) >= max_diffs:
+                return
+
+            if isinstance(exp, dict) and isinstance(act, dict):
+                all_keys = set(exp) | set(act)
+                for key in sorted(all_keys):
+                    sub_path = f"{current_path}.{key}" if current_path else key
+                    if key not in act:
+                        differences.append(f"{sub_path} missing remotely")
+                    elif key not in exp:
+                        differences.append(f"{sub_path} unexpected remotely")
+                    else:
+                        _diff(exp[key], act[key], sub_path)
+                        if len(differences) >= max_diffs:
+                            return
+                return
+
+            if isinstance(exp, list) and isinstance(act, list):
+                if len(exp) != len(act):
+                    differences.append(
+                        f"{current_path or 'list'} length differs (expected {len(exp)}, got {len(act)})"
+                    )
+                for index, (exp_item, act_item) in enumerate(zip(exp, act)):
+                    sub_path = f"{current_path}[{index}]" if current_path else f"[{index}]"
+                    _diff(exp_item, act_item, sub_path)
+                    if len(differences) >= max_diffs:
+                        return
+                if len(exp) < len(act) and len(differences) < max_diffs:
+                    differences.append(
+                        f"{current_path or 'list'} has {len(act) - len(exp)} unexpected remote entries"
+                    )
+                elif len(exp) > len(act) and len(differences) < max_diffs:
+                    differences.append(
+                        f"{current_path or 'list'} missing {len(exp) - len(act)} entries remotely"
+                    )
+                return
+
+            if type(exp) != type(act):
+                differences.append(
+                    f"{current_path or 'value'} type differs (expected {type(exp).__name__}, got {type(act).__name__})"
+                )
+                return
+
+            if exp != act:
+                differences.append(
+                    f"{current_path or 'value'} differs (expected {exp!r}, got {act!r})"
+                )
+
+        _diff(expected, actual, path)
+        return differences
+
+    def _build_local_schema_index(self) -> Dict[str, Dict[str, Any]]:
+        """Serialize the local command tree for diffing."""
+        index: Dict[str, Dict[str, Any]] = {}
+        for command in self.tree.get_commands():
+            payload = self._command_to_payload(command)
+            key = self._command_key(payload)
+            index[key] = self._normalize_command_payload(payload)
+        return index
+
+    def _normalize_text(self, value: str) -> str:
+        """Return a normalized string for schema comparisons."""
+        normalized = unicodedata.normalize("NFKC", value)
+        return normalized.replace("️", "").strip()
+
+    def _command_key(self, payload: Dict[str, Any]) -> str:
+        """Return a unique cache key for a command payload."""
+        name = payload.get("name", "")
+        type_value = payload.get("type", 0)
+        return f"{name}:{type_value}"
+
+    def _normalize_command_payload(self, payload: Dict[str, Any]) -> Dict[str, Any]:
+        """Serialize command payload with only schema-significant fields."""
+        normalized: Dict[str, Any] = {
+            "name": payload.get("name"),
+            "type": payload.get("type"),
+        }
+
+        description = payload.get("description")
+        if isinstance(description, str) and description:
+            normalized["description"] = self._normalize_text(description)
+
+        perms = payload.get("default_member_permissions")
+        if perms:
+            normalized["default_member_permissions"] = perms
+
+        dm_permission = payload.get("dm_permission")
+        if dm_permission is False:
+            normalized["dm_permission"] = False
+
+        if payload.get("nsfw"):
+            normalized["nsfw"] = True
+
+        options = payload.get("options") or []
+        shaped_options = [self._shape_option(option) for option in options]
+        if shaped_options:
+            shaped_options.sort(key=lambda item: (item.get("type", 0), item.get("name") or ""))
+        if shaped_options:
+            normalized["options"] = shaped_options
+
+        return normalized
+
+    def _shape_option(self, option: Dict[str, Any]) -> Dict[str, Any]:
+        """Normalize an option payload (parameter or subcommand)."""
+        shaped: Dict[str, Any] = {
+            "name": option.get("name"),
+            "type": option.get("type"),
+        }
+
+        description = option.get("description")
+        if isinstance(description, str) and description:
+            shaped["description"] = self._normalize_text(description)
+
+        if option.get("required"):
+            shaped["required"] = True
+
+        choices = option.get("choices") or []
+        if choices:
+            shaped["choices"] = sorted(
+                (self._normalize_text(choice.get("name", "")), str(choice.get("value")))
+                for choice in choices
+            )
+
+        sub_options = option.get("options") or []
+        shaped_sub_options = [self._shape_option(sub_option) for sub_option in sub_options]
+        if shaped_sub_options:
+            shaped_sub_options.sort(key=lambda item: (item.get("type", 0), item.get("name") or ""))
+        if shaped_sub_options:
+            shaped["options"] = shaped_sub_options
+
+        return shaped
+
+    def _command_to_payload(
+        self,
+        command: app_commands.Command[Any, Any] | app_commands.Group,
+    ) -> Dict[str, Any]:
+        """Return a serialisable payload for a local command, handling groups."""
+        try:
+            return command.to_dict(self.tree)
+        except TypeError:
+            # Older discord.py builds expect no tree reference for basic commands.
+            return command.to_dict()
+
+    def _diff_remote_schema(
+        self,
+        scope: str,
+        remote_commands: Iterable[app_commands.AppCommand],
+        local_index: Dict[str, Dict[str, Any]],
+    ) -> list[str]:
+        """Return mismatch descriptions between remote and local command schemas."""
+        mismatches: list[str] = []
+        remote_keys: Set[str] = set()
+
+        for command in remote_commands:
+            payload = command.to_dict()
+            key = self._command_key(payload)
+            remote_keys.add(key)
+
+            local_schema = local_index.get(key)
+            if local_schema is None:
+                mismatches.append(
+                    f"{scope}: remote command '{payload.get('name')}' (type {payload.get('type')}) is not registered locally"
+                )
+                continue
+
+            remote_schema = self._normalize_command_payload(payload)
+            if remote_schema != local_schema:
+                differences = self._find_schema_differences(
+                    expected=local_schema,
+                    actual=remote_schema,
+                )
+                summary = "; ".join(differences[: self._SCHEMA_DIFF_LIMIT]) if differences else "unknown drift"
+                if len(differences) > self._SCHEMA_DIFF_LIMIT:
+                    summary += "; …"
+                mismatches.append(
+                    f"{scope}: schema drift for command '{payload.get('name')}': {summary}"
+                )
+
+        missing_local = set(local_index.keys()) - remote_keys
+        for key in sorted(missing_local):
+            name, type_value = key.rsplit(":", 1)
+            mismatches.append(f"{scope}: command '{name}' (type {type_value}) missing from remote registry")
+
+        return mismatches
+
+    async def _notify_sync_issue(self, message: str) -> None:
+        """Log and optionally DM configured owners about sync issues."""
+        logger.error(message)
+        chunks = self._chunk_message(message)
+        if not self.alert_recipient_ids:
+            return
+
+        for user_id in self.alert_recipient_ids:
+            user = self.get_user(user_id)
+            if user is None:
+                try:
+                    user = await self.fetch_user(user_id)
+                except Exception:
+                    logger.warning("Unable to fetch owner %s for sync alert delivery", user_id, exc_info=True)
+                    continue
+            for chunk in chunks:
+                try:
+                    await user.send(chunk)
+                except Exception:
+                    logger.warning("Failed to deliver sync alert DM to user %s", user_id, exc_info=True)
+                    break
+
+    async def on_app_command_error(
+        self,
+        interaction: discord.Interaction,
+        error: app_commands.AppCommandError,
+    ) -> None:
+        """Capture command signature mismatches and alert owners."""
+        if isinstance(error, app_commands.CommandSignatureMismatch):
+            command_name = getattr(getattr(interaction, "command", None), "qualified_name", None) or getattr(
+                getattr(interaction, "command", None), "name", "unknown"
+            )
+            key = (command_name, interaction.guild_id)
+            if key not in self._mismatch_alerts:
+                self._mismatch_alerts.add(key)
+                await self._notify_sync_issue(
+                    (
+                        f"Command signature mismatch detected for '{command_name}' "
+                        f"in guild {interaction.guild_id}. Run the sync utility or restart the bot to refresh commands."
+                    )
+                )
+
+        await self.tree.on_error(interaction, error)
 
     async def _send_startup_message(self) -> None:
         """Send a startup message to bot channels in all guilds."""
@@ -384,11 +780,21 @@ class IntegrationLoader:
 
         owners = _parse_id_set(os.getenv("OWNER_IDS", ""))
         test_guilds = _parse_id_set(os.getenv("TEST_GUILDS", ""))
+        primary_guild_name = os.getenv("PRIMARY_GUILD_NAME", "").strip() or None
+
+        sync_global_env = os.getenv("SYNC_GLOBAL_COMMANDS")
+        sync_global_commands = str(sync_global_env or "1").lower() not in {"0", "false", "no"}
+        if primary_guild_name and sync_global_env is None:
+            # Default to guild-only sync when a primary guild name is supplied.
+            sync_global_commands = False
 
         self.bot = HippoBot(
             command_prefix=os.getenv("CMD_PREFIX", "!"),
             intents=intents,
             test_guild_ids=test_guilds,
+            sync_global_commands=sync_global_commands,
+            primary_guild_name=primary_guild_name,
+            alert_recipient_ids=owners,
             help_command=None,
         )
         ui_groups.register_command_groups(self.bot)

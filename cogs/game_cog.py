@@ -35,11 +35,23 @@ if TYPE_CHECKING:
 class GameCog(commands.Cog):
     """Pokemon game commands with unlock system."""
 
-    # Reuse shared games command groups so everything lives under /games.
+    # Organize commands under the shared /games hierarchy.
     game = ui_groups.games
-    pokemon = ui_groups.games_pokemon
-    cookies = ui_groups.games_cookies
-    battle = ui_groups.games_battle
+    pokemon = app_commands.Group(
+        name=ui_groups.GAMES_POKEMON_NAME,
+        description=ui_groups.GAMES_POKEMON_DESCRIPTION,
+        parent=game,
+    )
+    cookies = app_commands.Group(
+        name=ui_groups.GAMES_COOKIES_NAME,
+        description=ui_groups.GAMES_COOKIES_DESCRIPTION,
+        parent=game,
+    )
+    battle = app_commands.Group(
+        name=ui_groups.GAMES_BATTLE_NAME,
+        description=ui_groups.GAMES_BATTLE_DESCRIPTION,
+        parent=game,
+    )
     
     def __init__(self, bot: commands.Bot, pokemon_game: PokemonGame, 
                  pokemon_api: PokemonAPIIntegration, storage: GameStorageEngine,
