@@ -197,7 +197,7 @@ class IntegrationLoader:
         from discord_bot.games.pokemon_api_integration import PokemonAPIIntegration
         from discord_bot.games.pokemon_data_manager import PokemonDataManager
         
-    self.game_storage = GameStorageEngine(db_path="data/game_data.db")
+        self.game_storage = GameStorageEngine(db_path="data/game_data.db")
         self.relationship_manager = RelationshipManager(storage=self.game_storage)
         self.cookie_manager = CookieManager(
             storage=self.game_storage,
