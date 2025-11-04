@@ -43,3 +43,5 @@ def test_no_literal_event_topics_present():
                 continue
             offenders.append((path, m.group(0)))
     assert not offenders, f"Found literal event topics in code: {offenders}"
+
+

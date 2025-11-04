@@ -56,3 +56,4 @@ def test_get_user_cookies(storage_engine):
     # Test for non-existent user
     cookies = storage_engine.get_user_cookies("nonexistent")
     assert cookies == (0, 0)
+

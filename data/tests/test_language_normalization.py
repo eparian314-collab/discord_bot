@@ -132,3 +132,5 @@ print("   /language add es        → Creates 'Spanish' role")
 print("   /language add Spanish   → Creates 'Spanish' role")
 print("   /language add fr        → Creates 'French' role")
 print("   All will use normalized codes for translation API calls")
+
+

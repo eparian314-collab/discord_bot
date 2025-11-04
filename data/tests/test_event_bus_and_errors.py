@@ -37,3 +37,5 @@ async def test_guardian_error_engine_emits_engine_error_event():
     assert seen.get("severity") == "warning"
     assert seen.get("context") == "unit-test"
 
+
+

@@ -77,3 +77,5 @@ async def test_execute_handles_query_failure_and_returns_false(monkeypatch, tmp_
 
     result = await storage.execute("INSERT INTO logs VALUES (1)", commit=True)
     assert result is False
+
+

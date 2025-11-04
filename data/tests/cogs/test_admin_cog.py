@@ -128,3 +128,5 @@ async def test_keyword_remove_requires_existing_mapping():
 
     assert "alert" not in engine.get_sos_mapping(1)
     assert interaction.response.messages[0][0].startswith("Removed keyword")
+
+

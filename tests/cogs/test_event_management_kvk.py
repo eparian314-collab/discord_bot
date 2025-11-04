@@ -117,3 +117,5 @@ async def test_test_kvk_requires_owner(monkeypatch, bot, event_engine, kvk_track
     event_engine.create_event.assert_not_called()
     kvk_tracker.ensure_run.assert_not_called()
 
+
+

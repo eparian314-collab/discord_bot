@@ -9,10 +9,11 @@ from pathlib import Path
 from typing import Mapping
 
 # Ensure parent directory is in path for proper package imports
-_current_file = Path(__file__).resolve()
-_project_root = _current_file.parent  # Project root (repository directory)
-if str(_project_root) not in sys.path:
-    sys.path.insert(0, str(_project_root))
+# This is no longer needed with the new package structure
+# _current_file = Path(__file__).resolve()
+# _project_root = _current_file.parent  # Project root (repository directory)
+# if str(_project_root) not in sys.path:
+#     sys.path.insert(0, str(_project_root))
 
 from discord_bot.core.engines.base.logging_utils import (
     configure_logging,
@@ -22,7 +23,7 @@ from discord_bot.core.engines.base.logging_utils import (
 try:
     from discord_bot.integrations import build_application, load_config, require_keys
 except ModuleNotFoundError:
-    from integrations import build_application, load_config, require_keys  # type: ignore[assignment]
+    from discord_bot.integrations import build_application, load_config, require_keys  # type: ignore[assignment]
 
 from discord_bot.scripts.sanitize_encoding import run as sanitize
 
@@ -96,7 +97,7 @@ def configure_logging_from_env() -> None:
     except Exception:
         level = logging.INFO
 
-    log_file = os.getenv("LOG_FILE")
+    log_file = os.getenv("LOG_FILE", "logs/hippo_bot.log")
     # Do not force reconfiguration to respect libs/tests that preconfigure logging.
     configure_logging(level=level, log_file=log_file, force=False)
 
@@ -161,3 +162,5 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+
+

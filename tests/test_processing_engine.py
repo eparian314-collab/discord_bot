@@ -42,3 +42,5 @@ async def test_all_fail_returns_none():
     job = TranslationJob(text="hej", src="sv", tgt="en")
     out = await engine.execute_job(job)
     assert out is None
+
+

@@ -364,3 +364,4 @@ def decide_fallback_with_optional_ai(
 #   - Add rate-limiting or circuit-breaker around AI augmentation calls to avoid overuse.
 #   - Add telemetry hooks (counters/histograms) to record how often fallbacks occur and which actions are taken.
 #   - Provide an option to return multiple candidate actions for downstream ranking.
+

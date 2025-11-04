@@ -12,3 +12,5 @@ for col in columns:
     print(f"{col[1]} ({col[2]})")
 
 conn.close()
+
+

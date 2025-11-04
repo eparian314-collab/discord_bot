@@ -193,3 +193,5 @@ async def test_submit_ranking_allows_admin_when_closed(monkeypatch, storage):
     )
 
     assert tracker.record_calls  # admin override allowed
+
+

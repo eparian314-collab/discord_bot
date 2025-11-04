@@ -90,3 +90,5 @@ def run(verbose: bool = False):
 if __name__ == "__main__":
     # When run directly, show all files (verbose mode)
     run(verbose=True)
+
+

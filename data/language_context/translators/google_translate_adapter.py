@@ -14,7 +14,7 @@ logger = logging.getLogger("hippo_bot.google_translate_adapter")
 try:
     from deep_translator import GoogleTranslator
     TRANSLATOR_AVAILABLE = True
-except ImportError:
+# except ImportError:
     TRANSLATOR_AVAILABLE = False
     logger.warning("deep-translator not installed - Google Translate adapter disabled")
 
@@ -152,3 +152,5 @@ def create_google_translate_adapter() -> Optional[GoogleTranslateAdapter]:
     except Exception as exc:
         logger.error("Failed to create Google Translate adapter: %s", exc)
         return None
+
+

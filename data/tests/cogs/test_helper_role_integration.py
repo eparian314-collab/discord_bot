@@ -311,3 +311,5 @@ async def test_discord_admin_permission_still_works(bot, guild, monkeypatch):
     interaction = DummyInteraction(admin_user, guild)
     
     assert cog._has_permission(interaction) is True
+
+

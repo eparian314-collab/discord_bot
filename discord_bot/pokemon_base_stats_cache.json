@@ -1,0 +1,100 @@
+{
+  "eevee": {
+    "species": "eevee",
+    "hp": 55,
+    "attack": 55,
+    "defense": 50,
+    "special_attack": 45,
+    "special_defense": 65,
+    "speed": 55,
+    "types": [
+      "normal"
+    ]
+  },
+  "rattata": {
+    "species": "rattata",
+    "hp": 30,
+    "attack": 56,
+    "defense": 35,
+    "special_attack": 25,
+    "special_defense": 35,
+    "speed": 72,
+    "types": [
+      "normal"
+    ]
+  },
+  "ekans": {
+    "species": "ekans",
+    "hp": 35,
+    "attack": 60,
+    "defense": 44,
+    "special_attack": 40,
+    "special_defense": 54,
+    "speed": 55,
+    "types": [
+      "poison"
+    ]
+  },
+  "pidgey": {
+    "species": "pidgey",
+    "hp": 40,
+    "attack": 45,
+    "defense": 40,
+    "special_attack": 35,
+    "special_defense": 35,
+    "speed": 56,
+    "types": [
+      "normal",
+      "flying"
+    ]
+  },
+  "bulbasaur": {
+    "species": "bulbasaur",
+    "hp": 45,
+    "attack": 49,
+    "defense": 49,
+    "special_attack": 65,
+    "special_defense": 65,
+    "speed": 45,
+    "types": [
+      "grass",
+      "poison"
+    ]
+  },
+  "dratini": {
+    "species": "dratini",
+    "hp": 41,
+    "attack": 64,
+    "defense": 45,
+    "special_attack": 50,
+    "special_defense": 50,
+    "speed": 50,
+    "types": [
+      "dragon"
+    ]
+  },
+  "pikachu": {
+    "species": "pikachu",
+    "hp": 35,
+    "attack": 55,
+    "defense": 40,
+    "special_attack": 50,
+    "special_defense": 50,
+    "speed": 90,
+    "types": [
+      "electric"
+    ]
+  },
+  "goldeen": {
+    "species": "goldeen",
+    "hp": 45,
+    "attack": 67,
+    "defense": 60,
+    "special_attack": 35,
+    "special_defense": 50,
+    "speed": 63,
+    "types": [
+      "water"
+    ]
+  }
+}

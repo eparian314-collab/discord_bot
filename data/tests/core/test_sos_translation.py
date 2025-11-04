@@ -326,3 +326,5 @@ async def test_send_sos_dms_uses_fallback_on_translation_failure(input_engine, m
     assert member.send.call_count == 1
     dm_content = member.send.call_args[0][0]
     assert "Emergency!" in dm_content
+
+

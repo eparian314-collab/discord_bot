@@ -603,3 +603,5 @@ def build_application() -> Tuple[HippoBot, EngineRegistry]:
     """Entry point used by main.py."""
     loader = IntegrationLoader()
     return loader.build()
+
+

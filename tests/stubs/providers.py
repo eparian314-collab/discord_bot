@@ -27,3 +27,5 @@ class FailingStub:
     async def translate(self, text: str, src: Optional[str], tgt: Optional[str]) -> str:
         raise RuntimeError(f"{self.label}: boom")
 
+
+

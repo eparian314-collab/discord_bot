@@ -115,3 +115,5 @@ async def test_perform_translation_falls_back_to_orchestrator():
 
     assert cog.orchestrator.calls == 1
     assert cog.ui.results[-1]["text"] == "ciao"
+
+

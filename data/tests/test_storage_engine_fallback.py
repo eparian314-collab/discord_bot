@@ -27,3 +27,5 @@ async def test_json_backup_write_and_read(tmp_path: Path, monkeypatch):
     data = [json.loads(line) for line in backup_file.read_text(encoding="utf-8").splitlines() if line.strip()]
     assert data and data[-1]["message"] == "unit-test"
 
+
+

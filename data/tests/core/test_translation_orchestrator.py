@@ -98,3 +98,5 @@ async def test_translate_job_invokes_text_pipeline():
     job = TranslationJob(text="hi", src="en", tgt="en", guild_id=1, author_id=1)
     translated = await orchestrator.translate_job(job)
     assert translated == "ciao"
+
+
