@@ -1,13 +1,17 @@
 from __future__ import annotations
 
+import asyncio
+import time
+import psutil
 from typing import Dict, Iterable, Optional, Set, TYPE_CHECKING
-from datetime import timedelta
+from datetime import timedelta, datetime, timezone
 
 import discord
 from discord import app_commands
 from discord.ext import commands
 
 from discord_bot.core.utils import is_admin_or_helper
+from discord_bot.core.engines.event_engine import EventEngine
 
 if TYPE_CHECKING:
     from discord_bot.core.engines.admin_ui_engine import AdminUIEngine
@@ -40,12 +44,14 @@ class AdminCog(commands.Cog):
         owners: Optional[Set[int]] = None,
         storage: Optional["GameStorageEngine"] = None,
         cookie_manager: Optional["CookieManager"] = None,
+        event_engine: Optional[EventEngine] = None,
     ) -> None:
         self.bot = bot
         self.ui = ui_engine  # retained for backwards compatibility / help text
         self.owners: Set[int] = set(owners or [])
         self.storage = storage  # For mute functionality
         self.cookie_manager = cookie_manager  # For cookie rewards
+        self.event_engine = event_engine
         self._cache: Dict[int, Dict[str, str]] = {}
         self._denied = "You do not have permission to run this command."
         self.input_engine = getattr(bot, "input_engine", None)
@@ -99,17 +105,8 @@ class AdminCog(commands.Cog):
     def _save_mapping(self, guild_id: int, mapping: Dict[str, str]) -> None:
         clean = {k.lower(): v for k, v in mapping.items()}
         self._cache[guild_id] = clean
-
-        if self.input_engine and hasattr(self.input_engine, "set_sos_mapping"):
-            try:
-                self.input_engine.set_sos_mapping(guild_id, clean)  # type: ignore[attr-defined]
-            except Exception:
-                pass
-
-        # Keep SOSPhraseCog cache in sync if it's loaded.
-        sos_cog = self.bot.get_cog("SOSPhraseCog")
-        if sos_cog and hasattr(sos_cog, "_local"):
-            sos_cog._local[guild_id] = dict(clean)  # type: ignore[attr-defined]
+        if self.input_engine and hasattr(self.input_engine, "save_sos_mapping"):
+            self.input_engine.save_sos_mapping(guild_id, clean)  # type: ignore[attr-defined]
 
     # ------------------------------------------------------------------
     # Keyword commands
@@ -402,12 +399,221 @@ class AdminCog(commands.Cog):
             ephemeral=True,
         )
 
+    @admin.command(name="generate_event_report", description="Generate a summary report for KVK and GAR events.")
+    async def generate_event_report(self, interaction: discord.Interaction):
+        """Generates and sends the event summary report."""
+        try:
+            self._ensure_permitted(interaction)
+        except PermissionError:
+            await self._deny(interaction)
+            return
 
-async def setup_admin_cog(
-    bot: commands.Bot,
-    ui_engine: Optional["AdminUIEngine"] = None,
-    owners: Optional[Iterable[int]] = None,
-    storage: Optional["GameStorageEngine"] = None,
-    cookie_manager: Optional["CookieManager"] = None,
-) -> None:
-    await bot.add_cog(AdminCog(bot, ui_engine, set(owners or []), storage, cookie_manager))
+        await interaction.response.defer(ephemeral=True)
+        
+        if not self.event_engine:
+            await interaction.followup.send("Event engine is not available.", ephemeral=True)
+            return
+
+        report_path = self.event_engine.generate_summary_report()
+        
+        await interaction.followup.send(
+            "Generated event summary report.",
+            file=discord.File(report_path),
+            ephemeral=True
+        )
+
+    @admin.command(name="cleanup", description="🧹 Clean up my old messages from this channel")
+    @app_commands.describe(limit="Maximum number of messages to check (default: 100)")
+    async def cleanup_command(self, interaction: discord.Interaction, limit: int = 100):
+        """Manually clean up bot messages in the current channel."""
+        try:
+            self._ensure_permitted(interaction)
+        except PermissionError:
+            await self._deny(interaction)
+            return
+        
+        # Validate limit
+        if limit < 1 or limit > 500:
+            await interaction.response.send_message(
+                "❌ Limit must be between 1 and 500.",
+                ephemeral=True
+            )
+            return
+        
+        await interaction.response.defer(ephemeral=True)
+        
+        try:
+            deleted = 0
+            skipped = 0
+            errors = 0
+            
+            # Fetch and delete messages
+            async for msg in interaction.channel.history(limit=limit):
+                if msg.author.id != self.bot.user.id:
+                    continue
+                
+                # Skip pinned messages
+                if msg.pinned:
+                    skipped += 1
+                    continue
+                
+                # Skip messages with "DO NOT DELETE" or similar
+                if any(keyword in msg.content.upper() for keyword in ["DO NOT DELETE", "SYSTEM NOTICE", "IMPORTANT"]):
+                    skipped += 1
+                    continue
+                
+                try:
+                    await msg.delete()
+                    deleted += 1
+                    await asyncio.sleep(0.5)  # Rate limit protection
+                except discord.Forbidden:
+                    errors += 1
+                except discord.NotFound:
+                    pass  # Already deleted
+                except Exception:
+                    errors += 1
+            
+            # Build response
+            response_parts = [f"✅ Deleted **{deleted}** message(s)."]
+            if skipped > 0:
+                response_parts.append(f"⏭️ Skipped **{skipped}** (pinned/important).")
+            if errors > 0:
+                response_parts.append(f"⚠️ **{errors}** error(s) occurred.")
+            
+            await interaction.followup.send(
+                "\n".join(response_parts),
+                ephemeral=True
+            )
+        
+        except Exception as e:
+            await interaction.followup.send(
+                f"❌ Cleanup failed: {str(e)}",
+                ephemeral=True
+            )
+
+    @admin.command(name="selfcheck", description="🔍 Check bot health and performance metrics")
+    async def selfcheck_command(self, interaction: discord.Interaction):
+        """Run diagnostic health check on the bot."""
+        try:
+            self._ensure_permitted(interaction)
+        except PermissionError:
+            await self._deny(interaction)
+            return
+        
+        await interaction.response.defer(ephemeral=True)
+        
+        try:
+            # Measure response time
+            start_time = time.time()
+            
+            # Get process information
+            process = psutil.Process()
+            memory_info = process.memory_info()
+            memory_mb = memory_info.rss / 1024 / 1024
+            
+            # Get bot latency
+            latency_ms = round(self.bot.latency * 1000, 2)
+            
+            # Count tasks
+            all_tasks = asyncio.all_tasks()
+            running_tasks = len([t for t in all_tasks if not t.done()])
+            
+            # Get uptime (from session manager if available)
+            try:
+                from discord_bot.core.engines.session_manager import get_session_manager
+                session_mgr = get_session_manager()
+                session_start = session_mgr.get_current_session_time()
+                if session_start:
+                    uptime = datetime.now(timezone.utc) - session_start
+                    uptime_str = str(uptime).split('.')[0]  # Remove microseconds
+                else:
+                    uptime_str = "Unknown"
+            except:
+                uptime_str = "Unknown"
+            
+            # Calculate response time
+            response_time_ms = round((time.time() - start_time) * 1000, 2)
+            
+            # Build health report embed
+            embed = discord.Embed(
+                title="🔍 Bot Health Check",
+                description="System diagnostics and performance metrics",
+                color=discord.Color.green(),
+                timestamp=datetime.now(timezone.utc)
+            )
+            
+            # Performance metrics
+            embed.add_field(
+                name="⚡ Performance",
+                value=f"**Latency**: {latency_ms}ms\n"
+                      f"**Response Time**: {response_time_ms}ms\n"
+                      f"**Status**: {'🟢 Healthy' if latency_ms < 500 else '🟡 Slow' if latency_ms < 1000 else '🔴 Degraded'}",
+                inline=True
+            )
+            
+            # System resources
+            embed.add_field(
+                name="💾 Resources",
+                value=f"**Memory**: {memory_mb:.1f} MB\n"
+                      f"**Tasks**: {running_tasks} active\n"
+                      f"**Guilds**: {len(self.bot.guilds)}",
+                inline=True
+            )
+            
+            # Runtime info
+            embed.add_field(
+                name="⏱️ Runtime",
+                value=f"**Uptime**: {uptime_str}\n"
+                      f"**User**: {self.bot.user.name}\n"
+                      f"**ID**: {self.bot.user.id}",
+                inline=True
+            )
+            
+            # Event loop health
+            loop = asyncio.get_event_loop()
+            loop_running = loop.is_running()
+            loop_closed = loop.is_closed()
+            
+            embed.add_field(
+                name="🔄 Event Loop",
+                value=f"**Status**: {'🟢 Running' if loop_running and not loop_closed else '🔴 Stopped'}\n"
+                      f"**Closed**: {'Yes' if loop_closed else 'No'}",
+                inline=True
+            )
+            
+            # Cog status
+            loaded_cogs = len(self.bot.cogs)
+            embed.add_field(
+                name="🧩 Cogs",
+                value=f"**Loaded**: {loaded_cogs}\n"
+                      f"**Commands**: {len(self.bot.tree.get_commands())}",
+                inline=True
+            )
+            
+            # Overall status
+            overall_health = "🟢 Healthy" if latency_ms < 500 and memory_mb < 500 else "🟡 Monitor" if latency_ms < 1000 else "🔴 Issues Detected"
+            embed.add_field(
+                name="📊 Overall Status",
+                value=overall_health,
+                inline=True
+            )
+            
+            embed.set_footer(text="Use /admin cleanup to free up resources if needed")
+            
+            await interaction.followup.send(embed=embed, ephemeral=True)
+        
+        except Exception as e:
+            await interaction.followup.send(
+                f"❌ Selfcheck failed: {str(e)}",
+                ephemeral=True
+            )
+
+async def setup(bot: commands.Bot):
+    """Standard setup, called by the bot to load the cog."""
+    owners = getattr(bot, "owner_ids", set())
+    ui_engine = getattr(bot, "admin_ui", None)
+    storage = getattr(bot, "game_storage", None)
+    cookie_manager = getattr(bot, "cookie_manager", None)
+    event_engine = bot.get_engine("event_engine")
+    
+    await bot.add_cog(AdminCog(bot, ui_engine, owners, storage, cookie_manager, event_engine))

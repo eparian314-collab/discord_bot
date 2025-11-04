@@ -19,8 +19,19 @@ _project_root = _current_file.parent.parent
 if str(_project_root) not in sys.path:
     sys.path.insert(0, str(_project_root))
 
+# Load environment variables from .env file
+from dotenv import load_dotenv
+dotenv_path = _project_root / ".env"
+if dotenv_path.exists():
+    load_dotenv(dotenv_path=dotenv_path)
+    print("✅ Loaded .env file")
+else:
+    print("⚠️ .env file not found, relying on system environment variables.")
+
+
 import discord
 from discord.ext import commands
+from core.bot_base import HippoBot
 
 
 async def sync_commands():

@@ -272,26 +272,24 @@ class EventManagementCog(commands.Cog):
                 embed.add_field(name="Reminders", value=f"{', '.join(map(str, reminder_times))} min before", inline=True)
 
                 if is_kvk_event and self.kvk_tracker:
-                    kvk_channel = self.rankings_channel_id or interaction.channel_id
                     try:
-                        kvk_run, created = await self.kvk_tracker.ensure_run(
+                        run, is_new = await self.kvk_tracker.ensure_run(
                             guild_id=interaction.guild.id,
                             title=title,
-                            initiated_by=interaction.user.id,
-                            channel_id=kvk_channel,
                             is_test=is_test_kvk,
-                            event_id=event.event_id,
+                            channel_id=self.rankings_channel_id or interaction.channel_id
                         )
-                        if kvk_run.run_number:
+                        if is_new:
+                            logger.info("Started new KVK run #%d for guild %d", run.id, interaction.guild.id)
                             status_line = (
                                 "Started new KVK tracking window"
-                                if created else
+                                if is_new else
                                 "Reusing active KVK tracking window"
                             )
-                            status_line += f" (Run #{kvk_run.run_number})"
+                            status_line += f" (Run #{run.run_number})"
                         else:
-                            status_line = "Test KVK tracking window ready" if created else "Existing test KVK window reused"
-                        closes = kvk_run.ends_at.strftime("%Y-%m-%d %H:%M UTC")
+                            status_line = "Test KVK tracking window ready" if is_new else "Existing test KVK window reused"
+                        closes = run.ends_at.strftime("%Y-%m-%d %H:%M UTC") if hasattr(run.ends_at, 'strftime') else str(run.ends_at)
                         embed.add_field(
                             name="KVK Tracking",
                             value=f"{status_line}\nWindow closes on **{closes}**.",

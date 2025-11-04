@@ -2,28 +2,29 @@
 Event Ranking Cog - Submit and view Top Heroes event rankings.
 
 Commands:
-- /kvk ranking submit - Submit a screenshot of your event ranking (RANKINGS CHANNEL ONLY!)
-- /kvk ranking view - View your ranking history
-- /kvk ranking leaderboard - View guild leaderboard
-- /kvk ranking stats - View submission statistics
+- /ranking submit - Submit a screenshot of your event ranking (RANKINGS CHANNEL ONLY!)
+- /ranking view - View your ranking history
+- /ranking leaderboard - View guild leaderboard
+- /ranking stats - View submission statistics
 """
 
-from __future__ import annotations
+from typing import Optional, TYPE_CHECKING, List, Dict, Any
+from datetime import datetime, timezone
+import aiohttp
+import os
 import discord
 from discord import app_commands
 from discord.ext import commands
-from typing import Optional, TYPE_CHECKING, List, Dict, Any
-import aiohttp
-import os
 
 from discord_bot.core.engines.screenshot_processor import StageType
 from discord_bot.core.utils import find_bot_channel, is_admin_or_helper
+from discord_bot.core.engines.screenshot_processor import ScreenshotProcessor, StageType
+from discord_bot.core.engines.ranking_storage_engine import RankingStorageEngine
+from discord_bot.core.engines.kvk_tracker import KVKRun
 from discord_bot.core import ui_groups
 
 if TYPE_CHECKING:
-    from discord_bot.core.engines.screenshot_processor import ScreenshotProcessor, StageType
-    from discord_bot.core.engines.ranking_storage_engine import RankingStorageEngine
-    from discord_bot.core.engines.kvk_tracker import KVKRun
+    pass
 
 
 class RankingCog(commands.Cog):
@@ -44,14 +45,14 @@ class RankingCog(commands.Cog):
             try:
                 await message.author.send(
                     "This channel is reserved for ranking submissions and commands only. "
-                    "Please use the available slash commands: /kvk ranking submit, /kvk ranking view, /kvk ranking leaderboard, /ranking_compare_me, /ranking_compare_others."
+                    "Please use the available slash commands: /ranking submit, /ranking view, /ranking leaderboard, /ranking_compare_me, /ranking_compare_others."
                 )
             except Exception:
                 pass
     """Top Heroes event ranking commands."""
     
     # Use ranking group from ui_groups
-    ranking = ui_groups.kvk_ranking
+    ranking = ui_groups.games_ranking
     
     def __init__(
         self,
@@ -81,9 +82,9 @@ class RankingCog(commands.Cog):
             "📢 **Rankings Channel Guidance**\n"
             "This channel is reserved for Top Heroes event ranking submissions and commands only.\n\n"
             "**Allowed actions:**\n"
-            "• Submit your event ranking screenshot using `/kvk ranking submit`\n"
-            "• View your ranking history with `/kvk ranking view`\n"
-            "• See the leaderboard with `/kvk ranking leaderboard`\n"
+            "• Submit your event ranking screenshot using `/ranking submit`\n"
+            "• View your ranking history with `/ranking view`\n"
+            "• See the leaderboard with `/ranking leaderboard`\n"
             "• Compare your results with `/ranking_compare_me` and `/ranking_compare_others`\n\n"
             "Please do not chat or post unrelated messages here. Use the available slash commands for all ranking-related actions."
         )
@@ -112,6 +113,7 @@ class RankingCog(commands.Cog):
     def _get_modlog_channel(self, guild: discord.Guild) -> Optional[discord.TextChannel]:
         """Find the modlog channel in guild."""
         # Look for channel named "modlog" or "mod-log"
+    
         for channel in guild.text_channels:
             if channel.name.lower() in ['modlog', 'mod-log', 'mod_log']:
                 return channel
@@ -467,6 +469,86 @@ class RankingCog(commands.Cog):
         await interaction.followup.send(embed=embed, ephemeral=True)
 
     @ranking.command(
+        name="start_test_run",
+        description="🔬 Open a temporary KVK test window for ranking checks (Admin only)",
+    )
+    @app_commands.describe(
+        duration_minutes="How long the test window remains open (minutes)",
+    )
+    async def start_test_run(
+        self,
+        interaction: discord.Interaction,
+        duration_minutes: app_commands.Range[int, 5, 720] = 60,
+    ) -> None:
+        """Create a short-lived KVK test window for manual ranking validation."""
+
+        if not interaction.guild:
+            await interaction.response.send_message(
+                "This command can only be used inside a server.",
+                ephemeral=True,
+            )
+            return
+
+        if not is_admin_or_helper(interaction.user, interaction.guild):
+            await interaction.response.send_message(
+                "Only admins or helpers can start a KVK test window.",
+                ephemeral=True,
+            )
+            return
+
+        if not self.kvk_tracker:
+            await interaction.response.send_message(
+                "KVK tracker engine is not available on this bot instance.",
+                ephemeral=True,
+            )
+            return
+
+        active_test = None
+        try:
+            for run in self.kvk_tracker.list_runs(interaction.guild.id, include_tests=True):
+                if run.is_active and run.is_test:
+                    active_test = run
+                    break
+        except Exception:
+            active_test = None
+
+        if active_test:
+            await interaction.response.send_message(
+                (
+                    "A KVK test window is already active until "
+                    f"{active_test.ends_at.strftime('%Y-%m-%d %H:%M UTC')}"
+                ),
+                ephemeral=True,
+            )
+            return
+
+        channel_id = self._rankings_channel_id or getattr(interaction.channel, "id", None)
+        title = f"Secret Test KVK {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')}"
+
+        run, _ = await self.kvk_tracker.ensure_run(
+            guild_id=interaction.guild.id,
+            title=title,
+            initiated_by=interaction.user.id,
+            channel_id=channel_id,
+            is_test=True,
+            duration_minutes=duration_minutes,
+        )
+
+        embed = discord.Embed(
+            title="🧪 Test KVK window ready",
+            description=(
+                f"Test KVK run **#{run.id}** is live now and will auto-close at "
+                f"{run.ends_at.strftime('%Y-%m-%d %H:%M UTC')}"
+            ),
+            color=discord.Color.teal(),
+        )
+        if channel_id and channel_id != interaction.channel_id:
+            embed.add_field(name="Rankings channel", value=f"<#{channel_id}>", inline=False)
+        embed.set_footer(text="Use /ranking submit in the rankings channel to validate OCR & storage.")
+
+        await interaction.response.send_message(embed=embed, ephemeral=True)
+
+    @ranking.command(
         name="view",
         description="📋 View your ranking submission history"
     )
@@ -490,7 +572,7 @@ class RankingCog(commands.Cog):
         if not rankings:
             await interaction.followup.send(
                 "📭 You haven't submitted any rankings yet! "
-                "Use `/kvk ranking submit` to submit your first screenshot.",
+                "Use `/ranking submit` to submit your first screenshot.",
                 ephemeral=True
             )
             return

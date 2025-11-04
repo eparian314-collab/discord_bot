@@ -4,7 +4,7 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from cogs.event_management_cog import EventManagementCog, RecurrenceType
+from discord_bot.cogs.event_management_cog import EventManagementCog, RecurrenceType
 
 
 class DummyResponse:
@@ -72,7 +72,8 @@ def make_interaction(user_id=200, owner_ids=None):
 
 @pytest.mark.asyncio
 async def test_create_event_starts_kvk(monkeypatch, bot, event_engine, kvk_tracker):
-    monkeypatch.setenv("OWNER_IDS", "999")  # ensure deterministic owner list
+    monkeypatch.setenv("OWNER_IDS", "999")
+    monkeypatch.setenv("RANKINGS_CHANNEL_ID", "")
 
     cog = EventManagementCog(bot, event_engine=event_engine)
     interaction = make_interaction(user_id=200)

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import asyncio
 from typing import Any, Awaitable, Callable, Iterable, Optional, Set, Tuple
 
 import discord
@@ -10,18 +11,26 @@ from discord_bot.core.engines.admin_ui_engine import AdminUIEngine
 from discord_bot.core.engines.base.engine_registry import EngineRegistry
 from discord_bot.core.engines.base.logging_utils import get_logger
 from discord_bot.core.engines.cache_manager import CacheManager
+from discord_bot.core.engines.cleanup_engine import cleanup_old_messages
 from discord_bot.core.engines.error_engine import GuardianErrorEngine
 from discord_bot.core.engines.event_reminder_engine import EventReminderEngine
+from discord_bot.core.engines.kvk_storage_engine import KVKStorageEngine
+from discord_bot.core.engines.kvk_tracker_engine import KVKTrackerEngine
 from discord_bot.core.engines.kvk_tracker import KVKTracker
 from discord_bot.core.engines.input_engine import InputEngine
 from discord_bot.core.engines.output_engine import OutputEngine
 from discord_bot.core.engines.personality_engine import PersonalityEngine
 from discord_bot.core.engines.processing_engine import ProcessingEngine
 from discord_bot.core.engines.role_manager import RoleManager
+from discord_bot.core.engines.session_manager import get_last_session_time, update_session_start
 from discord_bot.core.engines.translation_orchestrator import TranslationOrchestratorEngine
 from discord_bot.core.engines.translation_ui_engine import TranslationUIEngine
 from discord_bot.core.event_bus import EventBus
 from discord_bot.core.event_topics import ENGINE_ERROR
+from discord_bot.core.engines.event_engine import EventEngine
+from discord_bot.core.engines.kvk_parser_engine import KVKParserEngine
+from discord_bot.core.engines.gar_parser_engine import GARParserEngine
+from discord_bot.core.engines.compare_engine import CompareEngine
 from discord_bot.language_context import AmbiguityResolver, LanguageAliasHelper, load_language_map
 from discord_bot.language_context.context_engine import ContextEngine
 from discord_bot.language_context.context.policies import PolicyRepository
@@ -60,23 +69,70 @@ class HippoBot(commands.Bot):
         self.test_guild_ids: Set[int] = test_guild_ids or set()
         self._synced = False
         self._post_setup_hooks: list[Callable[[], Awaitable[None]]] = []
+        self._welcome_messages: dict[int, list[int]] = {}  # guild_id -> list of message_ids
 
     async def on_ready(self) -> None:
         logger.info("🦛 HippoBot logged in as %s (%s)", self.user, getattr(self.user, "id", "-"))
+        
+        # Don't sync on every reconnect, only on first ready
         if self._synced:
+            logger.info("Commands already synced, skipping re-sync")
+            # Send startup message even on reconnects
+            await self._send_startup_message()
             return
 
+        # Cleanup old messages from previous session (if enabled)
+        cleanup_enabled = os.getenv("CLEANUP_ENABLED", "true").lower() in ("true", "1", "yes")
+        if cleanup_enabled:
+            last_session_time = get_last_session_time()
+            if last_session_time:
+                logger.info("🧹 Starting cleanup of messages since %s", last_session_time)
+                try:
+                    # Get cleanup configuration from environment
+                    cleanup_config = {
+                        "enabled": True,
+                        "skip_recent_minutes": int(os.getenv("CLEANUP_SKIP_RECENT_MINUTES", "30")),
+                        "delete_limit_per_channel": int(os.getenv("CLEANUP_LIMIT_PER_CHANNEL", "200")),
+                        "rate_limit_delay": float(os.getenv("CLEANUP_RATE_DELAY", "0.5")),
+                    }
+                    
+                    # Run cleanup
+                    stats = await cleanup_old_messages(
+                        self, 
+                        guild_ids=list(self.test_guild_ids) if self.test_guild_ids else None,
+                        since=last_session_time,
+                        config=cleanup_config
+                    )
+                    
+                    logger.info(
+                        "🧹 Cleanup complete: deleted %d messages across %d channels (took %.2fs)",
+                        stats.get("messages_deleted", 0),
+                        stats.get("channels_cleaned", 0),
+                        stats.get("duration_seconds", 0)
+                    )
+                except Exception as e:
+                    logger.error("Cleanup failed: %s", e, exc_info=True)
+            else:
+                logger.info("🧹 No previous session found, skipping cleanup (first run)")
+            
+            # Update session timestamp for next restart
+            session_id = update_session_start()
+            logger.info("Session started: %s", session_id)
+
+        # Wait a moment to ensure all cogs are loaded
+        await asyncio.sleep(1)
+        
         try:
             if self.test_guild_ids:
                 # Always perform a global sync first so legacy global commands are cleaned up.
                 await self.tree.sync()
-                logger.debug("Synced app commands globally (cleanup)")
+                logger.info("✅ Synced app commands globally (cleanup)")
                 for guild_id in self.test_guild_ids:
-                    await self.tree.sync(guild=discord.Object(id=guild_id))
-                    logger.debug("Synced app commands for guild %s", guild_id)
+                    synced = await self.tree.sync(guild=discord.Object(id=guild_id))
+                    logger.info("✅ Synced %d app commands for guild %s", len(synced), guild_id)
             else:
-                await self.tree.sync()
-                logger.debug("Synced app commands globally")
+                synced = await self.tree.sync()
+                logger.info("✅ Synced %d app commands globally", len(synced))
             self._synced = True
         except Exception:
             logger.exception("Failed to sync application commands on ready")
@@ -117,12 +173,39 @@ class HippoBot(commands.Bot):
             # Send the startup message
             if channel:
                 try:
+                    # Delete ALL previous welcome messages if they exist
+                    if guild.id in self._welcome_messages:
+                        deleted_count = 0
+                        for old_message_id in self._welcome_messages[guild.id]:
+                            try:
+                                old_message = await channel.fetch_message(old_message_id)
+                                await old_message.delete()
+                                deleted_count += 1
+                            except discord.NotFound:
+                                pass  # Message already deleted
+                            except discord.Forbidden:
+                                logger.warning("No permission to delete welcome message %s in guild %s", old_message_id, guild.name)
+                            except Exception as e:
+                                logger.warning("Could not delete welcome message %s in guild %s: %s", old_message_id, guild.name, e)
+                        
+                        if deleted_count > 0:
+                            logger.info("Deleted %d previous welcome message(s) in guild %s", deleted_count, guild.name)
+                        
+                        # Clear the list after attempting deletions
+                        self._welcome_messages[guild.id] = []
+                    
                     embed = discord.Embed(
                         title="🦛 Baby Hippo is Online!",
                         description="Hello! I'm ready to help with translations, roles, and more. Use `/help` to see what I can do!",
                         color=discord.Color.green(),
                     )
-                    await channel.send(embed=embed)
+                    new_message = await channel.send(embed=embed)
+                    
+                    # Store message ID for next restart
+                    if guild.id not in self._welcome_messages:
+                        self._welcome_messages[guild.id] = []
+                    self._welcome_messages[guild.id].append(new_message.id)
+                    
                     logger.info("Sent startup message to guild %s in channel %s", guild.name, channel.name)
                 except Exception as e:
                     logger.warning("Failed to send startup message to guild %s: %s", guild.name, e)
@@ -153,11 +236,17 @@ class IntegrationLoader:
         self.event_bus = EventBus()
         self.registry = EngineRegistry(event_bus=self.event_bus)
         self.bot: Optional[HippoBot] = None
+        
+        # Guardian configuration
+        self._guardian_auto_disable = os.getenv("GUARDIAN_SAFE_MODE", "0") == "1"
 
         # Guardian error engine
         self.error_engine = GuardianErrorEngine(event_bus=self.event_bus)
         self.error_engine.attach_registry(self.registry)
-        self._guardian_auto_disable = str(os.getenv("GUARDIAN_SAFE_MODE", "0")).lower() in {"1", "true", "yes"}
+
+        # New KVK Tracking System
+        self.kvk_storage_engine = KVKStorageEngine()
+        self.kvk_tracker_engine = KVKTrackerEngine(storage_engine=self.kvk_storage_engine)
 
         # Language metadata helpers
         raw_language_map = load_language_map() if callable(load_language_map) else None
@@ -198,6 +287,7 @@ class IntegrationLoader:
         from discord_bot.games.pokemon_data_manager import PokemonDataManager
         
         self.game_storage = GameStorageEngine(db_path="data/game_data.db")
+        self.kvk_tracker_engine.attach_tracker(KVKTracker(storage=self.game_storage))
         self.relationship_manager = RelationshipManager(storage=self.game_storage)
         self.cookie_manager = CookieManager(
             storage=self.game_storage,
@@ -219,9 +309,19 @@ class IntegrationLoader:
         # Event reminder engine for Top Heroes events
         self.event_reminder_engine = EventReminderEngine(storage_engine=self.game_storage)
         logger.debug("Event reminder engine initialized")
-        self.kvk_tracker = KVKTracker(storage=self.game_storage)
+        self.kvk_tracker = self.kvk_tracker_engine
         logger.debug("KVK tracker initialized")
         self.event_reminder_engine.kvk_tracker = self.kvk_tracker
+        
+        # Rankings and modlog channel IDs for KVK visual system
+        self.rankings_channel_id = int(os.getenv("RANKINGS_CHANNEL_ID", "0")) or None
+        self.modlog_channel_id = int(os.getenv("MODLOG_CHANNEL_ID", "0")) or None
+        logger.debug(f"Rankings channel: {self.rankings_channel_id}, Modlog channel: {self.modlog_channel_id}")
+        
+        # Rankings and modlog channel IDs for KVK visual system
+        self.rankings_channel_id = int(os.getenv("RANKINGS_CHANNEL_ID", "0")) or None
+        self.modlog_channel_id = int(os.getenv("MODLOG_CHANNEL_ID", "0")) or None
+        logger.debug(f"Rankings channel: {self.rankings_channel_id}, Modlog channel: {self.modlog_channel_id}")
 
         self.ambiguity_resolver = (
             AmbiguityResolver(
@@ -366,7 +466,8 @@ class IntegrationLoader:
     # ------------------------------------------------------------------
     # Bot build
     # ------------------------------------------------------------------
-    def build(self) -> Tuple[HippoBot, EngineRegistry]:
+    def build_bot(self) -> HippoBot:
+        """Constructs the bot instance with necessary intents and settings."""
         intents = discord.Intents.default()
         intents.message_content = True
         intents.members = True
@@ -384,7 +485,8 @@ class IntegrationLoader:
             help_command=None,
         )
         self.event_reminder_engine.set_bot(self.bot)
-        self.kvk_tracker.set_bot(self.bot)
+        if hasattr(self.kvk_tracker_engine, "set_bot"):
+            self.kvk_tracker_engine.set_bot(self.bot)
 
         logger.info("🛠️ Preparing engines and integrations")
 
@@ -431,6 +533,23 @@ class IntegrationLoader:
         self.registry.inject("kvk_tracker", self.kvk_tracker)
         logger.debug("Game system engines registered")
 
+        # Event Engines
+        kvk_parser_engine = KVKParserEngine(event_bus=self.event_bus)
+        gar_parser_engine = GARParserEngine(event_bus=self.event_bus)
+        compare_engine = CompareEngine(event_bus=self.event_bus)
+        event_engine = EventEngine(
+            self.bot,  # Pass bot instance
+            event_bus=self.event_bus,
+            kvk_parser_engine=kvk_parser_engine,
+            gar_parser_engine=gar_parser_engine,
+            compare_engine=compare_engine,
+        )
+        self.registry.register(kvk_parser_engine)
+        self.registry.register(gar_parser_engine)
+        self.registry.register(compare_engine)
+        self.registry.register(event_engine)
+        self.event_engine = event_engine
+
         self._expose_bot_attributes()
 
         self.registry.enable("translation_ui_engine")
@@ -439,15 +558,27 @@ class IntegrationLoader:
         self._log_registry_snapshot(context="post-enable")
 
         self._attach_core_listeners()
+        
+        # Register command groups needed by ranking cog (kvk parent group)
+        # The kvk_ranking subgroup will be auto-registered when the cog is added
+        from discord_bot.core import ui_groups
+        self.bot.tree.add_command(ui_groups.kvk, override=True)
+        logger.info("✅ Registered kvk command group for ranking cog")
+        
         async def mount_cogs() -> None:
             await self._mount_cogs(owners)
 
         self.bot.add_post_setup_hook(mount_cogs)
 
+        # Resume KVK runs on bot ready (if the method exists)
         async def resume_kvk_runs() -> None:
-            await self.kvk_tracker.on_ready()
+            if hasattr(self.kvk_tracker_engine, 'on_ready'):
+                await self.kvk_tracker_engine.on_ready()
 
         self.bot.add_post_setup_hook(resume_kvk_runs)
+
+        # self.bot.add_post_setup_hook(self.registry.on_bot_ready)  # Method doesn't exist
+        self.bot.add_post_setup_hook(self.kvk_tracker_engine.on_startup)
 
         if self._guardian_auto_disable:
             logger.warning("Guardian SAFE MODE auto-disable is ENABLED (GUARDIAN_SAFE_MODE=1)")
@@ -455,7 +586,7 @@ class IntegrationLoader:
             logger.debug("Guardian running in semi-automatic mode (no auto-disable)")
 
         self._log_registry_snapshot(context="ready")
-        return self.bot, self.registry
+        return self.bot
 
     # ------------------------------------------------------------------
     # Helpers
@@ -531,20 +662,32 @@ class IntegrationLoader:
             return
         try:
             from discord_bot.cogs.translation_cog import setup_translation_cog
-            from discord_bot.cogs.admin_cog import setup_admin_cog
+            from discord_bot.cogs.admin_cog import AdminCog
             from discord_bot.cogs.help_cog import setup as setup_help_cog
             from discord_bot.cogs.role_management_cog import setup as setup_language_cog
             from discord_bot.cogs.sos_phrase_cog import setup as setup_sos_cog
             from discord_bot.cogs.easteregg_cog import EasterEggCog
             from discord_bot.cogs.game_cog import GameCog
             from discord_bot.cogs.event_management_cog import setup as setup_event_cog
+            from discord_bot.cogs.unified_ranking_cog import setup as setup_unified_ranking_cog
+            from discord_bot.core.engines.screenshot_processor import ScreenshotProcessor
+            from discord_bot.core.engines.ranking_storage_engine import RankingStorageEngine
 
             await setup_translation_cog(self.bot, ui_engine=self.translation_ui)
-            await setup_admin_cog(self.bot, ui_engine=self.admin_ui, owners=set(owners), storage=self.game_storage, cookie_manager=self.cookie_manager)
+            await self.bot.add_cog(AdminCog(self.bot, ui_engine=self.admin_ui, owners=set(owners), storage=self.game_storage, cookie_manager=self.cookie_manager, event_engine=self.event_engine))
             await setup_help_cog(self.bot)
             await setup_language_cog(self.bot)
             await setup_sos_cog(self.bot)
             await setup_event_cog(self.bot, event_reminder_engine=self.event_reminder_engine)
+            ranking_processor = ScreenshotProcessor()
+            ranking_storage = RankingStorageEngine(storage=self.game_storage)
+            
+            # Mount unified ranking cog with visual parsing support
+            await setup_unified_ranking_cog(
+                self.bot,
+                processor=ranking_processor,
+                storage=ranking_storage,
+            )
             
             # Mount game system cogs with dependency injection
             easter_egg_cog = EasterEggCog(
@@ -566,7 +709,9 @@ class IntegrationLoader:
             )
             await self.bot.add_cog(game_cog)
             
-            logger.info("⚙️ Mounted cogs: translation, admin, help, language, sos, events, easteregg, game")
+            setattr(self.bot, "ranking_processor", ranking_processor)
+            setattr(self.bot, "ranking_storage", ranking_storage)
+            logger.info("⚙️ Mounted cogs: translation, admin, help, language, sos, events, ranking, easteregg, game")
         except Exception as exc:
             logger.exception("Failed to mount cogs")
             try:
@@ -628,4 +773,5 @@ class IntegrationLoader:
 def build_application() -> Tuple[HippoBot, EngineRegistry]:
     """Entry point used by main.py."""
     loader = IntegrationLoader()
-    return loader.build()
+    bot = loader.build_bot()
+    return bot, loader.registry

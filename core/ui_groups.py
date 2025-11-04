@@ -14,6 +14,7 @@ language = app_commands.Group(name="language", description="🌍 Language and co
 games = app_commands.Group(name="games", description="🎮 Games and entertainment")
 kvk = app_commands.Group(name="kvk", description="Top Heroes / KVK tools")
 admin = app_commands.Group(name="admin", description="⚙️ Administrative tools")
+event = app_commands.Group(name="event", description="🎉 KVK and GAR event tracking")
 
 # Language subgroups
 language_translate = app_commands.Group(
@@ -47,6 +48,12 @@ games_battle = app_commands.Group(
     parent=games
 )
 
+games_ranking = app_commands.Group(
+    name="ranking",
+    description="🏆 Submit and view event rankings",
+    parent=games
+)
+
 games_fun = app_commands.Group(
     name="fun", 
     description="🎉 Fun games and entertainment!",
@@ -57,12 +64,6 @@ games_cookies = app_commands.Group(
     name="cookies",
     description="🍪 Manage your cookies and check stats",
     parent=games
-)
-
-kvk_ranking = app_commands.Group(
-    name="ranking",
-    description="📊 Top Heroes event rankings and leaderboards",
-    parent=kvk
 )
 
 
@@ -82,3 +83,4 @@ def register_command_groups(bot: commands.Bot) -> None:
     bot.tree.add_command(games, override=True)
     bot.tree.add_command(kvk, override=True)
     bot.tree.add_command(admin, override=True)
+    bot.tree.add_command(event, override=True)

@@ -1,0 +1,20 @@
+[
+  {
+    "event_id": "KVK",
+    "display_name": "Kingdom vs Kingdom",
+    "parser": "kvk_image_parser",
+    "active_days": 6,
+    "submission_format": "screenshot",
+    "comparison_enabled": true,
+    "percentile_enabled": true
+  },
+  {
+    "event_id": "GAR",
+    "display_name": "Guild Arms Race",
+    "parser": "gar_image_parser",
+    "active_days": 6,
+    "submission_format": "screenshot",
+    "comparison_enabled": true,
+    "percentile_enabled": true
+  }
+]

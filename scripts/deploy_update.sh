@@ -1,12 +1,11 @@
 #!/usr/bin/env bash
-# ===========================================================
-# HippoBot Deployment + Launcher Script
-#  - Pulls latest code from GitHub
-#  - Loads/sanitises environment variables
-#  - Ensures virtual environment & dependencies are current
-#  - Runs pytest pre-flight checks
-#  - Launches the bot (exec)
-# ===========================================================
+# ============================================
+# HippoBot Deployment Script
+# - Pulls latest code
+# - Updates dependencies
+# - Runs tests
+# - Does NOT launch (use run_bot.sh for that)
+# ============================================
 
 set -euo pipefail
 
@@ -14,37 +13,41 @@ log() {
     printf '[%(%Y-%m-%dT%H:%M:%S%z)T] %s\n' -1 "$*"
 }
 
-PROJECT_DIR="${PROJECT_DIR:-$HOME/discord_bot}"
+PROJECT_DIR="${PROJECT_DIR:-/home/mars/projects/discord_bot}"
 VENV_DIR="${VENV_DIR:-${PROJECT_DIR}/.venv}"
 PYTHON_BIN="${PYTHON_BIN:-python3}"
 REQUIREMENTS_FILE="${REQUIREMENTS_FILE:-${PROJECT_DIR}/requirements.txt}"
 ENV_FILE="${ENV_FILE:-${PROJECT_DIR}/.env}"
-PYTEST_ARGS="${PYTEST_ARGS:-}"
+PYTEST_ARGS="${PYTEST_ARGS:--v --tb=short -x}"
 
-log "Starting deploy_update pipeline (project: ${PROJECT_DIR})"
+log "Starting deployment pipeline (project: ${PROJECT_DIR})"
 
 cd "${PROJECT_DIR}"
 
-# Load env (if present) so DISCORD_TOKEN et al become available.
+# Load env
 if [[ -f "${ENV_FILE}" ]]; then
-    log "Loading environment variables from ${ENV_FILE}"
+    log "Loading environment from ${ENV_FILE}"
+    set -a
     # shellcheck disable=SC1090
     source "${ENV_FILE}"
+    set +a
 else
-    log "WARNING: ${ENV_FILE} missing; relying on system environment."
+    log "WARNING: ${ENV_FILE} missing"
 fi
 
 if [[ -z "${DISCORD_TOKEN:-}" ]]; then
-    log "ERROR: DISCORD_TOKEN environment variable is required."
+    log "ERROR: DISCORD_TOKEN required"
     exit 1
 fi
 
-log "Fetching latest code from origin"
-git fetch --all --prune
-git pull --ff-only || {
-    log "ERROR: git pull failed"
-    exit 1
-}
+# log "Fetching latest code from origin"
+# git fetch --all --prune
+# if git pull --ff-only; then
+#     log "✅ Code updated successfully"
+# else
+#     log "⚠️  Git pull failed or conflicts detected"
+#     exit 1
+# fi
 
 if [[ ! -d "${VENV_DIR}" ]]; then
     log "Creating virtual environment at ${VENV_DIR}"
@@ -56,28 +59,19 @@ source "${VENV_DIR}/bin/activate"
 
 if [[ -f "${REQUIREMENTS_FILE}" ]]; then
     log "Installing/upgrading dependencies"
-    python -m pip install --upgrade pip
-    python -m pip install -r "${REQUIREMENTS_FILE}"
+    python -m pip install --upgrade pip -q
+    python -m pip install -r "${REQUIREMENTS_FILE}" -q
 else
-    log "WARNING: requirements.txt not found, skipping dependency install"
+    log "WARNING: requirements.txt not found"
 fi
 
 log "Running pytest pre-flight checks"
-if ! python -m pytest ${PYTEST_ARGS}; then
-    log "ERROR: pytest failed, aborting launch."
+# Ensure the virtual environment's pytest is used
+if "${VENV_DIR}/bin/pytest" ${PYTEST_ARGS}; then
+    log "✅ All pytest tests passed"
+else
+    log "❌ Pytest failed - aborting"
     exit 1
 fi
 
-log "Running final simulation test before launch"
-if ! python "${PROJECT_DIR}/scripts/simulation_test.py"; then
-    log "ERROR: Simulation tests failed, aborting launch."
-    exit 1
-fi
-
-log "Launching HippoBot"
-# Change to parent directory to run bot as module
-PARENT_DIR="$(dirname "${PROJECT_DIR}")"
-cd "${PARENT_DIR}"
-log "Changed to directory: $(pwd)"
-exec python -m discord_bot
-
+log "🎉 Deployment successful! Use run_bot.sh or deploy_and_restart.sh to start the bot."

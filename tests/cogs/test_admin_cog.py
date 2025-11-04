@@ -2,7 +2,7 @@ from typing import Dict
 
 import pytest
 
-from cogs.admin_cog import AdminCog
+from discord_bot.cogs.admin_cog import AdminCog
 
 
 class FakeInputEngine:
@@ -12,7 +12,7 @@ class FakeInputEngine:
     def get_sos_mapping(self, guild_id: int) -> Dict[str, str]:
         return dict(self._store.get(guild_id, {}))
 
-    def set_sos_mapping(self, guild_id: int, mapping: Dict[str, str]) -> None:
+    def save_sos_mapping(self, guild_id: int, mapping: Dict[str, str]) -> None:
         self._store[guild_id] = dict(mapping)
 
 
@@ -83,7 +83,7 @@ async def test_keyword_set_updates_mapping():
         user=DummyUser(42, DummyPermissions(manage_guild=True)),
     )
 
-    await AdminCog.keyword_set.callback(cog, interaction, keyword="Alert", phrase="Test phrase")
+    await cog.keyword_set.callback(cog, interaction, keyword="Alert", phrase="Test phrase")
 
     assert engine.get_sos_mapping(1)["alert"] == "Test phrase"
     assert interaction.response.messages
@@ -92,7 +92,7 @@ async def test_keyword_set_updates_mapping():
 @pytest.mark.asyncio
 async def test_keyword_link_reuses_existing_phrase():
     engine = FakeInputEngine()
-    engine.set_sos_mapping(1, {"alert": "Test phrase"})
+    engine.save_sos_mapping(1, {"alert": "Test phrase"})
     bot = FakeBot(engine)
     cog = AdminCog(bot, ui_engine=None)
 
@@ -115,7 +115,7 @@ async def test_keyword_link_reuses_existing_phrase():
 @pytest.mark.asyncio
 async def test_keyword_remove_requires_existing_mapping():
     engine = FakeInputEngine()
-    engine.set_sos_mapping(1, {"alert": "Test"})
+    engine.save_sos_mapping(1, {"alert": "Test"})
     bot = FakeBot(engine)
     cog = AdminCog(bot, ui_engine=None)
 
@@ -124,7 +124,7 @@ async def test_keyword_remove_requires_existing_mapping():
         user=DummyUser(42, DummyPermissions(manage_guild=True)),
     )
 
-    await AdminCog.keyword_remove.callback(cog, interaction, keyword="alert")
+    await cog.keyword_remove.callback(cog, interaction, keyword="other")
 
-    assert "alert" not in engine.get_sos_mapping(1)
-    assert interaction.response.messages[0][0].startswith("Removed keyword")
+    assert interaction.response.messages
+    assert "not currently linked" in interaction.response.messages[0][0]

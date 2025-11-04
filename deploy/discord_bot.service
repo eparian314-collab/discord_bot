@@ -1,20 +1,21 @@
 [Unit]
-Description=Discord Bot with automated pre-flight checks
+Description=HippoBot Discord Bot
 After=network-online.target
 Wants=network-online.target
 
 [Service]
 Type=simple
-WorkingDirectory=/opt/discord_bot
-# Optionally load environment variables (DISCORD_TOKEN, BOT_VENV_PATH, etc.)
-# EnvironmentFile=/etc/discord_bot.env
-ExecStart=/opt/discord_bot/scripts/deploy_update.sh
+User=mars
+WorkingDirectory=/home/mars/projects/discord_bot
+Environment="PROJECT_DIR=/home/mars/projects/discord_bot"
+ExecStart=/home/mars/projects/discord_bot/scripts/run_bot.sh
 Restart=on-failure
-RestartSec=15
-StartLimitIntervalSec=300
-StartLimitBurst=5
+RestartSec=30
+StartLimitIntervalSec=600
+StartLimitBurst=3
 StandardOutput=journal
 StandardError=journal
+SyslogIdentifier=hippobot
 
 [Install]
 WantedBy=multi-user.target

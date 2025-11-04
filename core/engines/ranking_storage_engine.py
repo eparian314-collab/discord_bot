@@ -7,7 +7,7 @@ Handles database operations for storing and retrieving event rankings.
 from __future__ import annotations
 import sqlite3
 from typing import Optional, List, Dict, Any, TYPE_CHECKING
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from discord_bot.core.engines.screenshot_processor import RankingData, StageType, RankingCategory
@@ -21,24 +21,31 @@ class RankingStorageEngine:
     
     def __init__(
         self,
-    db_path: str = "data/event_rankings.db",
+        db_path: str = "data/event_rankings.db",
         storage: Optional["GameStorageEngine"] = None,
     ):
         self.db_path = db_path
         self.storage = storage
+        self._standalone_conn: Optional[sqlite3.Connection] = None
         self._ensure_tables()
     
     def _get_connection(self) -> sqlite3.Connection:
         """Get database connection."""
         if self.storage:
             return self.storage.conn  # type: ignore[attr-defined]
+        # For standalone mode, reuse connection for :memory: databases
+        if self.db_path == ":memory:":
+            if not self._standalone_conn:
+                self._standalone_conn = sqlite3.connect(self.db_path)
+                self._standalone_conn.row_factory = sqlite3.Row
+            return self._standalone_conn
         conn = sqlite3.connect(self.db_path)
         conn.row_factory = sqlite3.Row
         return conn
 
     def _maybe_close(self, conn: sqlite3.Connection) -> None:
         """Close connection when operating in standalone mode."""
-        if not self.storage:
+        if not self.storage and self.db_path != ":memory:":
             conn.close()
     
     def _ensure_tables(self):
@@ -105,6 +112,25 @@ class RankingStorageEngine:
                     error_message TEXT,
                     ranking_id INTEGER,
                     
+                    FOREIGN KEY(ranking_id) REFERENCES event_rankings(id)
+                )
+            """)
+            
+            # OCR corrections table
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS ocr_corrections (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    ranking_id INTEGER,
+                    user_id TEXT NOT NULL,
+                    submitted_at TEXT NOT NULL,
+                    image_url TEXT,
+                    initial_ocr_text TEXT,
+                    failure_category TEXT, -- New field for classification
+                    initial_rank INTEGER,
+                    initial_score INTEGER,
+                    corrected_rank INTEGER,
+                    corrected_score INTEGER,
+                    ai_analysis TEXT,
                     FOREIGN KEY(ranking_id) REFERENCES event_rankings(id)
                 )
             """)
@@ -451,36 +477,145 @@ class RankingStorageEngine:
             return
         conn = self._get_connection()
         try:
-            conn.execute("""
-                INSERT INTO event_submissions
-                (user_id, guild_id, submitted_at, status, error_message, ranking_id)
-                VALUES (?, ?, ?, ?, ?, ?)
-            """, (
+            params = (
                 user_id,
                 guild_id,
                 datetime.utcnow().isoformat(),
                 status,
-                error_message,
-                ranking_id
-            ))
+                ranking_id,
+                error_message
+            )
+            conn.execute("""
+                INSERT INTO event_submissions (user_id, guild_id, submitted_at, status, ranking_id, error_message) VALUES (?, ?, ?, ?, ?, ?)
+            """, params)
             conn.commit()
         finally:
             self._maybe_close(conn)
     
-    def get_submission_stats(
+    def save_ocr_correction(
         self,
-        guild_id: Optional[str] = None,
-        days: int = 7
-    ) -> Dict[str, Any]:
-        """Get submission statistics."""
+        ranking_id: int,
+        user_id: str,
+        image_url: str,
+        initial_text: str,
+        failure_category: str,
+        initial_rank: Optional[int],
+        initial_score: Optional[int],
+        corrected_rank: int,
+        corrected_score: int,
+        ai_analysis: Optional[str] = None,
+    ):
+        """Save a record of an OCR correction."""
+        params = (
+            ranking_id,
+            user_id,
+            datetime.now(timezone.utc).isoformat(),
+            image_url,
+            initial_text,
+            failure_category,
+            initial_rank,
+            initial_score,
+            corrected_rank,
+            corrected_score,
+            ai_analysis,
+        )
+        if self.storage:
+            self.storage.execute_query(
+                """
+                INSERT INTO ocr_corrections (
+                    ranking_id, user_id, submitted_at, image_url, initial_ocr_text,
+                    failure_category, initial_rank, initial_score, corrected_rank, corrected_score, ai_analysis
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                params,
+            )
+        else:
+            conn = self._get_connection()
+            try:
+                conn.execute(
+                    """
+                    INSERT INTO ocr_corrections (
+                        ranking_id, user_id, submitted_at, image_url, initial_ocr_text,
+                        failure_category, initial_rank, initial_score, corrected_rank, corrected_score, ai_analysis
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    params,
+                )
+                conn.commit()
+            finally:
+                self._maybe_close(conn)
+
+    def get_recent_corrections(self, limit: int = 5) -> List[Dict[str, Any]]:
+        """Fetch recent OCR corrections to use as few-shot examples."""
+        query = "SELECT * FROM ocr_corrections ORDER BY submitted_at DESC LIMIT ?"
+        rows = self.storage.fetch_all(query, (limit,))
+        return [dict(row) for row in rows]
+
+    def get_total_submission_count(self, guild_id: Optional[str] = None) -> int:
+        """
+        Get the total number of submissions logged.
+        
+        Args:
+            guild_id: If provided, count is scoped to this guild.
+            
+        Returns:
+            Total count of submissions.
+        """
+        conn = self._get_connection()
+        try:
+            if guild_id:
+                cursor = conn.execute(
+                    "SELECT COUNT(*) FROM event_submissions WHERE guild_id = ?",
+                    (guild_id,)
+                )
+            else:
+                cursor = conn.execute("SELECT COUNT(*) FROM event_submissions")
+            
+            count = cursor.fetchone()[0]
+            return count or 0
+        finally:
+            self._maybe_close(conn)
+    
+    def get_ocr_correction_stats(self, guild_id: Optional[str] = None) -> Dict[str, Any]:
+        """
+        Get statistics on OCR corrections.
+        
+        Args:
+            guild_id: If provided, scope stats to this guild.
+            
+        Returns:
+            Dictionary with total corrections and breakdown by category
+        """
+        if self.storage:
+            total_corrections = self.storage.fetch_one("SELECT COUNT(*) FROM ocr_corrections")[0]
+            category_query = "SELECT failure_category, COUNT(*) FROM ocr_corrections GROUP BY failure_category"
+            category_rows = self.storage.fetch_all(category_query)
+            category_stats = {row['failure_category']: row['COUNT(*)'] for row in category_rows}
+        else:
+            conn = self._get_connection()
+            try:
+                cursor = conn.execute("SELECT COUNT(*) FROM ocr_corrections")
+                total_corrections = cursor.fetchone()[0]
+                
+                cursor = conn.execute("SELECT failure_category, COUNT(*) as count FROM ocr_corrections GROUP BY failure_category")
+                category_rows = cursor.fetchall()
+                category_stats = {row['failure_category']: row['count'] for row in category_rows}
+            finally:
+                self._maybe_close(conn)
+
+        return {
+            "total_corrections": total_corrections,
+            "failure_categories": category_stats
+        }
+
+    def get_submission_stats(self, guild_id: str) -> Dict[str, int]:
+        """Get submission statistics for a guild."""
         if self.storage:
             return self.storage.get_event_submission_stats(  # type: ignore[attr-defined]
-                guild_id=guild_id, days=days
+                guild_id=guild_id
             )
         conn = self._get_connection()
         try:
-            cutoff = datetime.utcnow() - timedelta(days=days)
-            
             query = """
                 SELECT 
                     COUNT(*) as total_submissions,
@@ -488,13 +623,9 @@ class RankingStorageEngine:
                     SUM(CASE WHEN status = 'failed' THEN 1 ELSE 0 END) as failed,
                     COUNT(DISTINCT user_id) as unique_users
                 FROM event_submissions
-                WHERE submitted_at >= ?
+                WHERE guild_id = ?
             """
-            params = [cutoff.isoformat()]
-            
-            if guild_id:
-                query += " AND guild_id = ?"
-                params.append(guild_id)
+            params = [guild_id]
             
             cursor = conn.execute(query, params)
             row = cursor.fetchone()

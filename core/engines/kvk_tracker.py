@@ -87,6 +87,7 @@ class KVKTracker:
         channel_id: Optional[int],
         is_test: bool = False,
         event_id: Optional[str] = None,
+        duration_minutes: Optional[int] = None,
     ) -> Tuple[KVKRun, bool]:
         """
         Ensure there is an active run for the guild. Returns (run, created_flag).
@@ -110,7 +111,10 @@ class KVKTracker:
             max_num = cursor.fetchone()[0]
             run_number = (max_num or 0) + 1
 
-        ends_at = now + timedelta(days=self.reminder_days)
+        if duration_minutes is not None and duration_minutes > 0:
+            ends_at = now + timedelta(minutes=duration_minutes)
+        else:
+            ends_at = now + timedelta(days=self.reminder_days)
         insert = """
             INSERT INTO kvk_runs (
                 guild_id, title, initiated_by, event_id, channel_id,
@@ -180,6 +184,9 @@ class KVKTracker:
         is_test: bool,
     ) -> None:
         """Link a ranking entry to a specific KVK run/day. Uses upsert semantics."""
+        run = self._fetch_run_by_id(kvk_run_id)
+        is_test_submission = run.is_test if run else False
+
         with self.storage.conn:
             self.storage.conn.execute(
                 """
@@ -201,7 +208,7 @@ class KVKTracker:
                     day_number,
                     stage_type,
                     datetime.now(timezone.utc).isoformat(),
-                    1 if is_test else 0,
+                    1 if is_test_submission else 0,
                 ),
             )
 

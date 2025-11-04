@@ -10,9 +10,9 @@ from unittest.mock import AsyncMock, MagicMock, Mock
 import discord
 from discord.ext import commands
 
-from cogs.admin_cog import AdminCog
-from cogs.sos_phrase_cog import SOSPhraseCog
-from cogs.help_cog import HelpCog
+from discord_bot.cogs.admin_cog import AdminCog
+from discord_bot.cogs.sos_phrase_cog import SOSPhraseCog
+from discord_bot.cogs.help_cog import HelpCog
 
 
 # ============================================================================
