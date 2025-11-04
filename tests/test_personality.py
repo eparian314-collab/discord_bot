@@ -11,7 +11,7 @@ import os
 # Add the project root to Python path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from core.engines.personality_engine import PersonalityEngine
+from discord_bot.core.engines.personality_engine import PersonalityEngine
 
 
 class MockCacheManager:

@@ -2,7 +2,7 @@ from typing import Dict
 
 import pytest
 
-from cogs.admin_cog import AdminCog
+from discord_bot.cogs.admin_cog import AdminCog
 
 
 class FakeInputEngine:

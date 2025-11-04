@@ -2,7 +2,7 @@
 Quick test script for auto-translation language detection
 """
 
-from language_context.normalizer import detect_language_with_confidence
+from discord_bot.language_context.normalizer import detect_language_with_confidence
 
 # Test cases: (text, expected_language, min_confidence)
 test_cases = [

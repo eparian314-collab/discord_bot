@@ -4,7 +4,7 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from cogs.event_management_cog import EventManagementCog, RecurrenceType
+from discord_bot.cogs.event_management_cog import EventManagementCog, RecurrenceType
 
 
 class DummyResponse:

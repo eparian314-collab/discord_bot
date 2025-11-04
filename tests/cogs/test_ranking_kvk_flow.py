@@ -4,8 +4,8 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from cogs import ranking_cog
-from cogs.ranking_cog import RankingCog
+from discord_bot.cogs import ranking_cog
+from discord_bot.cogs.ranking_cog import RankingCog
 from discord_bot.core.engines.screenshot_processor import RankingData, StageType, RankingCategory
 from discord_bot.games.storage.game_storage_engine import GameStorageEngine
 
