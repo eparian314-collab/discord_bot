@@ -56,8 +56,17 @@ discord_bot/
 │
 └─ docs/ → Markdown system documentation & SOPs
 
-yaml
-Copy code
+📚 System Documentation is located in:
+    /workflow/instructions/master_bot.instructions.md
+    /workflow/md/ARCHITECTURE_OVERVIEW.md
+    /workflow/md/COG_DEPENDENCY_MAP.md
+    /workflow/md/ENGINE_REGISTRY_MAP.md
+    /workflow/md/FILE_STRUCTURE.md
+    /workflow/md/IMPORT_GRAPH.md
+
+Always check the system map before proposing refactors, modifying architecture,
+or adding new engines or cogs.
+
 
 ---
 

@@ -27,6 +27,7 @@ from discord_bot.core.engines.translation_orchestrator import TranslationOrchest
 from discord_bot.core.engines.translation_ui_engine import TranslationUIEngine
 from discord_bot.core.event_bus import EventBus
 from discord_bot.core.event_topics import ENGINE_ERROR
+from discord_bot.core.schema_hash import should_sync_commands, mark_synced
 from discord_bot.language_context import AmbiguityResolver, LanguageAliasHelper, load_language_map
 from discord_bot.language_context.context_engine import ContextEngine
 from discord_bot.language_context.context.policies import PolicyRepository
@@ -163,12 +164,29 @@ class HippoBot(commands.Bot):
         return targets, unresolved_primary
 
     async def _perform_command_sync(self, targets: Dict[int, str]) -> list[Tuple[str, int]]:
-        """Perform command sync across configured scopes."""
+        """
+        Perform command sync across configured scopes with hash-based change detection.
+        Only syncs when command schema has changed since last sync.
+        """
         summary: list[Tuple[str, int]] = []
+        force_sync = os.getenv("FORCE_COMMAND_SYNC", "").lower() in {"1", "true", "yes"}
 
         if self.sync_global_commands:
-            synced_global = await self.tree.sync()
-            summary.append(("global", len(synced_global)))
+            # Check if global sync is needed
+            if force_sync or should_sync_commands(self, scope="global"):
+                logger.info("Syncing global commands (schema changed or forced)")
+                synced_global = await self.tree.sync()
+                summary.append(("global", len(synced_global)))
+                # Mark as synced
+                mark_synced(self, scope="global")
+            else:
+                logger.info("Skipping global command sync (schema unchanged)")
+                # Still count existing commands for reporting
+                try:
+                    existing = await self.tree.fetch_commands()
+                    summary.append(("global (unchanged)", len(existing)))
+                except Exception:
+                    pass
 
         if targets:
             for guild_id, name in targets.items():
@@ -180,8 +198,23 @@ class HippoBot(commands.Bot):
                         guild_id,
                     )
                     continue
-                synced_guild = await self.tree.sync(guild=discord.Object(id=guild_id))
-                summary.append((f"{name} ({guild_id})", len(synced_guild)))
+                
+                scope = f"guild:{guild_id}"
+                # Check if guild sync is needed
+                if force_sync or should_sync_commands(self, scope=scope):
+                    logger.info(f"Syncing commands to guild {name} ({guild_id}) (schema changed or forced)")
+                    synced_guild = await self.tree.sync(guild=discord.Object(id=guild_id))
+                    summary.append((f"{name} ({guild_id})", len(synced_guild)))
+                    # Mark as synced
+                    mark_synced(self, scope=scope)
+                else:
+                    logger.info(f"Skipping guild {name} ({guild_id}) command sync (schema unchanged)")
+                    # Still count existing commands for reporting
+                    try:
+                        existing = await self.tree.fetch_commands(guild=discord.Object(id=guild_id))
+                        summary.append((f"{name} ({guild_id}) (unchanged)", len(existing)))
+                    except Exception:
+                        pass
         elif not self.sync_global_commands:
             logger.info(
                 "Global slash command sync disabled and no guild targets resolved; commands were not refreshed this cycle."

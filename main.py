@@ -127,11 +127,9 @@ async def _amain() -> None:
     set_correlation_id(instance_id)
     logger.info("🚀 Starting HippoBot (instance=%s)", instance_id)
 
-    try:
-        bot, _registry = build_application()
-    except Exception:
-        logger.exception("Failed to build application stack")
-        raise
+    # Build the bot application and engine registry
+    bot, registry = build_application()
+    logger.info("✅ Bot and registry built successfully")
 
     token = os.getenv("DISCORD_TOKEN")
     if not token:
