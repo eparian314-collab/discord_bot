@@ -410,7 +410,7 @@ class EventReminderEngine:
             'event_time_utc': event.event_time_utc.isoformat(),
             'recurrence': event.recurrence.value,
             'custom_interval_hours': event.custom_interval_hours,
-            'reminder_times': ','.join(map(str, event.reminder_times)),
+            'reminder_times': event.reminder_times,  # Pass as list, storage layer will json.dumps()
             'channel_id': event.channel_id,
             'role_to_ping': event.role_to_ping,
             'created_by': event.created_by,
@@ -461,10 +461,15 @@ class EventReminderEngine:
         """Convert database row to EventReminder object."""
         from datetime import datetime, timezone
         
-        # Parse reminder times
+        # Parse reminder times - handle both JSON list (from storage) and comma-separated string (legacy)
         reminder_times = []
         if data['reminder_times']:
-            reminder_times = [int(x.strip()) for x in data['reminder_times'].split(',') if x.strip()]
+            if isinstance(data['reminder_times'], list):
+                # Already parsed by storage layer's json.loads()
+                reminder_times = data['reminder_times']
+            elif isinstance(data['reminder_times'], str):
+                # Legacy comma-separated string format
+                reminder_times = [int(x.strip()) for x in data['reminder_times'].split(',') if x.strip()]
         
         return EventReminder(
             event_id=data['event_id'],

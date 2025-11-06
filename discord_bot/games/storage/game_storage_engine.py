@@ -806,14 +806,21 @@ class GameStorageEngine:
         """Store a new event reminder."""
         try:
             import json
+            import logging
+            from datetime import datetime, timezone
+            logger = logging.getLogger("hippo_bot.storage")
+            
+            # Explicitly set created_at if not provided (CURRENT_TIMESTAMP doesn't work reliably)
+            created_at = event_data.get('created_at') or datetime.now(timezone.utc).isoformat()
+            
             with self.conn:
                 self.conn.execute("""
                     INSERT INTO event_reminders (
                         event_id, guild_id, title, description, category,
                         event_time_utc, recurrence, custom_interval_hours,
                         reminder_times, channel_id, role_to_ping, created_by,
-                        is_active, auto_scraped, source_url
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        is_active, auto_scraped, source_url, created_at
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """, (
                     event_data['event_id'],
                     event_data['guild_id'],
@@ -829,10 +836,12 @@ class GameStorageEngine:
                     event_data.get('created_by', 0),
                     event_data.get('is_active', 1),
                     event_data.get('auto_scraped', 0),
-                    event_data.get('source_url')
+                    event_data.get('source_url'),
+                    created_at
                 ))
             return True
-        except Exception:
+        except Exception as e:
+            logger.exception("Failed to store event reminder: %s", e)
             return False
     
     def update_event_reminder(self, event_id: str, updates: Dict[str, Any]) -> bool:
@@ -1111,39 +1120,6 @@ class GameStorageEngine:
         cursor = self.conn.cursor()
         cursor.execute(query, params)
         return [dict(row) for row in cursor.fetchall()]
-
-    def get_current_event_week(self) -> str:
-        """Return the current event week identifier."""
-        from discord_bot.core.engines.screenshot_processor import ScreenshotProcessor
-
-        processor = ScreenshotProcessor()
-        return processor._get_current_event_week()
-
-    def prune_event_weeks(self, weeks_to_keep: int = 4) -> int:
-        """Remove ranking data older than the specified number of weeks."""
-        cursor = self.conn.cursor()
-        cursor.execute(
-            """
-            SELECT DISTINCT event_week
-              FROM event_rankings
-             ORDER BY event_week DESC
-            """
-        )
-        all_weeks = [row["event_week"] for row in cursor.fetchall()]
-        if len(all_weeks) <= weeks_to_keep:
-            return 0
-
-        weeks_to_delete = all_weeks[weeks_to_keep:]
-        placeholders = ", ".join("?" for _ in weeks_to_delete)
-        with self.conn:
-            cursor = self.conn.execute(
-                f"""
-                DELETE FROM event_rankings
-                      WHERE event_week IN ({placeholders})
-                """,
-                weeks_to_delete,
-            )
-        return cursor.rowcount
 
     def get_event_ranking_history(
         self,
