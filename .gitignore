@@ -78,6 +78,31 @@ prompts/**
 # Ignore WSL virtual environment
 .wslvenv/
 
+# Documentation and AI workflow files (organize before committing)
+# Architecture and implementation docs
+CANONICAL_*.md
+COG_MOUNT_COMPLETE.md
+KVK_*.md
+PHASE_DAY_*.md
+R8_*.md
+R10*.md
+R11*.md
+UTILITY_*.md
+VALIDATION_*.md
+
+# AI workflow and instructions
+worfklow/md/
+worfklow/instructions/*.md
+
+# Screenshots
+Screenshot*.png
+
+# Diagnostic and test scripts (keep for now)
+# diagnose_*.py
+# validate_*.py
+# check_*.py
+# migrate_*.py
+
 # ──────────────────────────────
 # END OF FILE
 # ──────────────────────────────
