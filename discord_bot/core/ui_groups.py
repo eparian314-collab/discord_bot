@@ -45,9 +45,20 @@ def register_command_groups(bot: commands.Bot) -> None:
     Args:
         bot: The Discord bot instance
     """
+    # Guard against double registration
+    if hasattr(bot, '_ui_groups_registered'):
+        import logging
+        logging.getLogger("ui_groups").warning(
+            "Command groups already registered - skipping duplicate registration"
+        )
+        return
+    
     # Add only the TOP-LEVEL groups - subgroups are automatically included
     # Use override=True to avoid CommandAlreadyRegistered errors
     bot.tree.add_command(language, override=True)
     bot.tree.add_command(games, override=True)
     bot.tree.add_command(kvk, override=True)
     # Admin group is registered when the admin cog mounts to avoid double registration.
+    
+    # Mark as registered
+    bot._ui_groups_registered = True

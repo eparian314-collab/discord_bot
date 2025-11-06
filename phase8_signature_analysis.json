@@ -1,0 +1,101 @@
+{
+  "command_path": "kvk/ranking/submit",
+  "live_signature": {
+    "found": true,
+    "signature": {
+      "name": "submit",
+      "description": "Submit a screenshot of your Top Heroes event ranking",
+      "type": "AppCommandOptionType.subcommand",
+      "parameters": [
+        {
+          "name": "screenshot",
+          "description": "Upload your ranking screenshot",
+          "type": "AppCommandOptionType.attachment",
+          "required": true,
+          "min_value": null,
+          "max_value": null
+        },
+        {
+          "name": "stage",
+          "description": "[OPTIONAL] Override auto-detected stage (Prep/War). Leave blank for auto-detect.",
+          "type": "AppCommandOptionType.string",
+          "required": false,
+          "choices": [
+            {
+              "name": "Prep Stage",
+              "value": "prep"
+            },
+            {
+              "name": "War Stage",
+              "value": "war"
+            }
+          ],
+          "min_value": null,
+          "max_value": null
+        },
+        {
+          "name": "day",
+          "description": "[OPTIONAL] Override auto-detected day (1-5 for Prep). Leave blank for auto-detect.",
+          "type": "AppCommandOptionType.integer",
+          "required": false,
+          "choices": [
+            {
+              "name": "Day 1 - Construction",
+              "value": 1
+            },
+            {
+              "name": "Day 2 - Research",
+              "value": 2
+            },
+            {
+              "name": "Day 3 - Resource & Mob",
+              "value": 3
+            },
+            {
+              "name": "Day 4 - Hero",
+              "value": 4
+            },
+            {
+              "name": "Day 5 - Troop Training",
+              "value": 5
+            },
+            {
+              "name": "Overall Prep",
+              "value": -1
+            }
+          ],
+          "min_value": null,
+          "max_value": null
+        }
+      ]
+    },
+    "error": null
+  },
+  "code_signature": {
+    "name": "submit",
+    "description": "",
+    "parameters": [
+      {
+        "name": "screenshot",
+        "type": "discord.Attachment",
+        "required": true,
+        "default": null
+      },
+      {
+        "name": "stage",
+        "type": "Optional[str]",
+        "required": false,
+        "default": "None"
+      },
+      {
+        "name": "day",
+        "type": "Optional[int]",
+        "required": false,
+        "default": "None"
+      }
+    ]
+  },
+  "comparison": {
+    "error": "Live signature error: None"
+  }
+}

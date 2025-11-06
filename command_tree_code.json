@@ -1,0 +1,598 @@
+{
+  "groups": [],
+  "commands": [
+    {
+      "name": "set",
+      "description": "Link or update a keyword with a phrase for this guild.",
+      "group_variable": "keyword",
+      "type": "group_command",
+      "file": "admin_cog.py",
+      "full_path": "set"
+    },
+    {
+      "name": "remove",
+      "description": "Remove a keyword mapping from this guild.",
+      "group_variable": "keyword",
+      "type": "group_command",
+      "file": "admin_cog.py",
+      "full_path": "remove"
+    },
+    {
+      "name": "list",
+      "description": "List the configured keywords for this guild.",
+      "group_variable": "keyword",
+      "type": "group_command",
+      "file": "admin_cog.py",
+      "full_path": "list"
+    },
+    {
+      "name": "clear",
+      "description": "Remove every keyword mapping for this guild.",
+      "group_variable": "keyword",
+      "type": "group_command",
+      "file": "admin_cog.py",
+      "full_path": "clear"
+    },
+    {
+      "name": "mute",
+      "description": "\u23f8\ufe0f Timeout a user for a specified duration",
+      "group_variable": "admin",
+      "type": "group_command",
+      "file": "admin_cog.py",
+      "full_path": "mute"
+    },
+    {
+      "name": "unmute",
+      "description": "\u25b6\ufe0f Remove timeout from a user",
+      "group_variable": "admin",
+      "type": "group_command",
+      "file": "admin_cog.py",
+      "full_path": "unmute"
+    },
+    {
+      "name": "give",
+      "description": "\ud83c\udf81 Share your daily helper cookies with a community member",
+      "group_variable": "admin",
+      "type": "group_command",
+      "file": "admin_cog.py",
+      "full_path": "give"
+    },
+    {
+      "name": "start",
+      "description": "\u2694\ufe0f Challenge someone to a Pokemon battle! (Costs 2 cookies)",
+      "group_variable": "battle",
+      "type": "group_command",
+      "file": "battle_cog.py",
+      "full_path": "start"
+    },
+    {
+      "name": "move",
+      "description": "\u26a1 Use a move in your current battle",
+      "group_variable": "battle",
+      "type": "group_command",
+      "file": "battle_cog.py",
+      "full_path": "move"
+    },
+    {
+      "name": "forfeit",
+      "description": "\ud83c\udff3\ufe0f Forfeit your current battle",
+      "group_variable": "battle",
+      "type": "group_command",
+      "file": "battle_cog.py",
+      "full_path": "forfeit"
+    },
+    {
+      "name": "status",
+      "description": "\ud83d\udcca Check your current battle status",
+      "group_variable": "battle",
+      "type": "group_command",
+      "file": "battle_cog.py",
+      "full_path": "status"
+    },
+    {
+      "name": "easteregg",
+      "description": "\ud83c\udfb2 Trigger a random easter egg surprise!",
+      "group_variable": "app_commands",
+      "type": "group_command",
+      "file": "easteregg_cog.py",
+      "full_path": "easteregg"
+    },
+    {
+      "name": "rps",
+      "description": "\u270a Play Rock, Paper, Scissors with Baby Hippo!",
+      "group_variable": "fun",
+      "type": "group_command",
+      "file": "easteregg_cog.py",
+      "full_path": "rps"
+    },
+    {
+      "name": "joke",
+      "description": "\ud83d\ude02 Get a random joke!",
+      "group_variable": "fun",
+      "type": "group_command",
+      "file": "easteregg_cog.py",
+      "full_path": "joke"
+    },
+    {
+      "name": "catfact",
+      "description": "\ud83d\udc31 Get a random cat fact!",
+      "group_variable": "fun",
+      "type": "group_command",
+      "file": "easteregg_cog.py",
+      "full_path": "catfact"
+    },
+    {
+      "name": "weather",
+      "description": "\ud83c\udf24\ufe0f Get weather for a location",
+      "group_variable": "fun",
+      "type": "group_command",
+      "file": "easteregg_cog.py",
+      "full_path": "weather"
+    },
+    {
+      "name": "8ball",
+      "description": "\ud83c\udfb1 Ask the magic 8-ball a question",
+      "group_variable": "fun",
+      "type": "group_command",
+      "file": "easteregg_cog.py",
+      "full_path": "8ball"
+    },
+    {
+      "name": "stats",
+      "description": "\ud83d\udcca Check your cookie stats and daily limits",
+      "group_variable": "cookies",
+      "type": "group_command",
+      "file": "easteregg_cog.py",
+      "full_path": "stats"
+    },
+    {
+      "name": "easteregg",
+      "description": "\ud83c\udfb2 Trigger a random easter egg surprise!",
+      "group_variable": null,
+      "type": "standalone",
+      "file": "easteregg_cog.py",
+      "full_path": "easteregg"
+    },
+    {
+      "name": "event_create",
+      "description": "\ud83d\udcc5 Create a new Top Heroes event reminder (Admin)",
+      "group_variable": "app_commands",
+      "type": "group_command",
+      "file": "event_management_cog.py",
+      "full_path": "event_create"
+    },
+    {
+      "name": "event_list",
+      "description": "\ud83d\udccb List all upcoming Top Heroes events (Admin)",
+      "group_variable": "app_commands",
+      "type": "group_command",
+      "file": "event_management_cog.py",
+      "full_path": "event_list"
+    },
+    {
+      "name": "event_delete",
+      "description": "\ud83d\uddd1\ufe0f Delete a Top Heroes event (Admin)",
+      "group_variable": "app_commands",
+      "type": "group_command",
+      "file": "event_management_cog.py",
+      "full_path": "event_delete"
+    },
+    {
+      "name": "events",
+      "description": "\ud83d\uddd3\ufe0f Show upcoming Top Heroes events (Public)",
+      "group_variable": "app_commands",
+      "type": "group_command",
+      "file": "event_management_cog.py",
+      "full_path": "events"
+    },
+    {
+      "name": "event_create",
+      "description": "\ud83d\udcc5 Create a new Top Heroes event reminder (Admin)",
+      "group_variable": null,
+      "type": "standalone",
+      "file": "event_management_cog.py",
+      "full_path": "event_create"
+    },
+    {
+      "name": "event_list",
+      "description": "\ud83d\udccb List all upcoming Top Heroes events (Admin)",
+      "group_variable": null,
+      "type": "standalone",
+      "file": "event_management_cog.py",
+      "full_path": "event_list"
+    },
+    {
+      "name": "event_delete",
+      "description": "\ud83d\uddd1\ufe0f Delete a Top Heroes event (Admin)",
+      "group_variable": null,
+      "type": "standalone",
+      "file": "event_management_cog.py",
+      "full_path": "event_delete"
+    },
+    {
+      "name": "events",
+      "description": "\ud83d\uddd3\ufe0f Show upcoming Top Heroes events (Public)",
+      "group_variable": null,
+      "type": "standalone",
+      "file": "event_management_cog.py",
+      "full_path": "events"
+    },
+    {
+      "name": "feed",
+      "description": "\ud83e\udd9b Feed 5 cookies to Baby Hippo to unlock the Pokemon game!",
+      "group_variable": "app_commands",
+      "type": "group_command",
+      "file": "game_cog.py",
+      "full_path": "feed"
+    },
+    {
+      "name": "help",
+      "description": "\ud83d\udcd6 Get help with the Pokemon game",
+      "group_variable": "pokemon",
+      "type": "group_command",
+      "file": "game_cog.py",
+      "full_path": "help"
+    },
+    {
+      "name": "balance",
+      "description": "\ud83d\udcb0 Check your cookie balance and stats",
+      "group_variable": "cookies",
+      "type": "group_command",
+      "file": "game_cog.py",
+      "full_path": "balance"
+    },
+    {
+      "name": "leaderboard",
+      "description": "\ud83c\udfc6 View the top cookie earners!",
+      "group_variable": "cookies",
+      "type": "group_command",
+      "file": "game_cog.py",
+      "full_path": "leaderboard"
+    },
+    {
+      "name": "catch",
+      "description": "\ud83c\udfaf Attempt to catch a random Pokemon! (Costs 1 cookie)",
+      "group_variable": "pokemon",
+      "type": "group_command",
+      "file": "game_cog.py",
+      "full_path": "catch"
+    },
+    {
+      "name": "fish",
+      "description": "\ud83c\udfa3 Fish for water-type Pokemon! (Costs 1 cookie)",
+      "group_variable": "pokemon",
+      "type": "group_command",
+      "file": "game_cog.py",
+      "full_path": "fish"
+    },
+    {
+      "name": "explore",
+      "description": "\ud83d\udd0d Explore for rare Pokemon! (Costs 3 cookies)",
+      "group_variable": "pokemon",
+      "type": "group_command",
+      "file": "game_cog.py",
+      "full_path": "explore"
+    },
+    {
+      "name": "collection",
+      "description": "\ud83d\udccb View your Pokemon collection",
+      "group_variable": "pokemon",
+      "type": "group_command",
+      "file": "game_cog.py",
+      "full_path": "collection"
+    },
+    {
+      "name": "train",
+      "description": "\ud83d\udcaa Train a Pokemon with cookies to level it up",
+      "group_variable": "pokemon",
+      "type": "group_command",
+      "file": "game_cog.py",
+      "full_path": "train"
+    },
+    {
+      "name": "evolve",
+      "description": "\u2728 Evolve a Pokemon using your duplicates",
+      "group_variable": "pokemon",
+      "type": "group_command",
+      "file": "game_cog.py",
+      "full_path": "evolve"
+    },
+    {
+      "name": "evolve_list",
+      "description": "\ud83d\udcdc View your evolution-ready Pokemon IDs",
+      "group_variable": "pokemon",
+      "type": "group_command",
+      "file": "game_cog.py",
+      "full_path": "evolve_list"
+    },
+    {
+      "name": "info",
+      "description": "\u2139\ufe0f Get detailed information about any Pokemon",
+      "group_variable": "pokemon",
+      "type": "group_command",
+      "file": "game_cog.py",
+      "full_path": "info"
+    },
+    {
+      "name": "feed",
+      "description": "\ud83e\udd9b Feed 5 cookies to Baby Hippo to unlock the Pokemon game!",
+      "group_variable": null,
+      "type": "standalone",
+      "file": "game_cog.py",
+      "full_path": "feed"
+    },
+    {
+      "name": "help",
+      "description": "\u2753 Show a quick overview of HippoBot features",
+      "group_variable": "app_commands",
+      "type": "group_command",
+      "file": "help_cog.py",
+      "full_path": "help"
+    },
+    {
+      "name": "help",
+      "description": "\u2753 Show a quick overview of HippoBot features",
+      "group_variable": null,
+      "type": "standalone",
+      "file": "help_cog.py",
+      "full_path": "help"
+    },
+    {
+      "name": "rankings",
+      "description": "View your KVK results for a specific run",
+      "group_variable": "app_commands",
+      "type": "group_command",
+      "file": "ranking_cog.py",
+      "full_path": "rankings"
+    },
+    {
+      "name": "ranking_compare_me",
+      "description": "Compare your performance between two KVK runs",
+      "group_variable": "app_commands",
+      "type": "group_command",
+      "file": "ranking_cog.py",
+      "full_path": "ranking_compare_me"
+    },
+    {
+      "name": "ranking_compare_others",
+      "description": "Compare your KVK results against peers or a friend",
+      "group_variable": "app_commands",
+      "type": "group_command",
+      "file": "ranking_cog.py",
+      "full_path": "ranking_compare_others"
+    },
+    {
+      "name": "rankings",
+      "description": "View your KVK results for a specific run",
+      "group_variable": null,
+      "type": "standalone",
+      "file": "ranking_cog.py",
+      "full_path": "rankings"
+    },
+    {
+      "name": "ranking_compare_me",
+      "description": "Compare your performance between two KVK runs",
+      "group_variable": null,
+      "type": "standalone",
+      "file": "ranking_cog.py",
+      "full_path": "ranking_compare_me"
+    },
+    {
+      "name": "ranking_compare_others",
+      "description": "Compare your KVK results against peers or a friend",
+      "group_variable": null,
+      "type": "standalone",
+      "file": "ranking_cog.py",
+      "full_path": "ranking_compare_others"
+    },
+    {
+      "name": "language_assign",
+      "description": "Assign a language role to yourself.",
+      "group_variable": "app_commands",
+      "type": "group_command",
+      "file": "role_management_cog.py",
+      "full_path": "language_assign"
+    },
+    {
+      "name": "language_remove",
+      "description": "Remove one of your language roles.",
+      "group_variable": "app_commands",
+      "type": "group_command",
+      "file": "role_management_cog.py",
+      "full_path": "language_remove"
+    },
+    {
+      "name": "language_list",
+      "description": "List your current language roles.",
+      "group_variable": "app_commands",
+      "type": "group_command",
+      "file": "role_management_cog.py",
+      "full_path": "language_list"
+    },
+    {
+      "name": "language_sync",
+      "description": "Sync language roles in this guild with known codes.",
+      "group_variable": "app_commands",
+      "type": "group_command",
+      "file": "role_management_cog.py",
+      "full_path": "language_sync"
+    },
+    {
+      "name": "language_assign",
+      "description": "Assign a language role to yourself.",
+      "group_variable": null,
+      "type": "standalone",
+      "file": "role_management_cog.py",
+      "full_path": "language_assign"
+    },
+    {
+      "name": "language_remove",
+      "description": "Remove one of your language roles.",
+      "group_variable": null,
+      "type": "standalone",
+      "file": "role_management_cog.py",
+      "full_path": "language_remove"
+    },
+    {
+      "name": "language_list",
+      "description": "List your current language roles.",
+      "group_variable": null,
+      "type": "standalone",
+      "file": "role_management_cog.py",
+      "full_path": "language_list"
+    },
+    {
+      "name": "language_sync",
+      "description": "Sync language roles in this guild with known codes.",
+      "group_variable": null,
+      "type": "standalone",
+      "file": "role_management_cog.py",
+      "full_path": "language_sync"
+    },
+    {
+      "name": "sos_add",
+      "description": "Add or update an SOS keyword for this guild.",
+      "group_variable": "app_commands",
+      "type": "group_command",
+      "file": "sos_phrase_cog.py",
+      "full_path": "sos_add"
+    },
+    {
+      "name": "sos_remove",
+      "description": "Remove an SOS keyword mapping.",
+      "group_variable": "app_commands",
+      "type": "group_command",
+      "file": "sos_phrase_cog.py",
+      "full_path": "sos_remove"
+    },
+    {
+      "name": "sos_list",
+      "description": "List configured SOS keywords for this guild.",
+      "group_variable": "app_commands",
+      "type": "group_command",
+      "file": "sos_phrase_cog.py",
+      "full_path": "sos_list"
+    },
+    {
+      "name": "sos_clear",
+      "description": "Remove all SOS keywords for this guild.",
+      "group_variable": "app_commands",
+      "type": "group_command",
+      "file": "sos_phrase_cog.py",
+      "full_path": "sos_clear"
+    },
+    {
+      "name": "sos_add",
+      "description": "Add or update an SOS keyword for this guild.",
+      "group_variable": null,
+      "type": "standalone",
+      "file": "sos_phrase_cog.py",
+      "full_path": "sos_add"
+    },
+    {
+      "name": "sos_remove",
+      "description": "Remove an SOS keyword mapping.",
+      "group_variable": null,
+      "type": "standalone",
+      "file": "sos_phrase_cog.py",
+      "full_path": "sos_remove"
+    },
+    {
+      "name": "sos_list",
+      "description": "List configured SOS keywords for this guild.",
+      "group_variable": null,
+      "type": "standalone",
+      "file": "sos_phrase_cog.py",
+      "full_path": "sos_list"
+    },
+    {
+      "name": "sos_clear",
+      "description": "Remove all SOS keywords for this guild.",
+      "group_variable": null,
+      "type": "standalone",
+      "file": "sos_phrase_cog.py",
+      "full_path": "sos_clear"
+    },
+    {
+      "name": "translate",
+      "description": "\ud83c\udf0d Translate text to any language",
+      "group_variable": "app_commands",
+      "type": "group_command",
+      "file": "translation_cog.py",
+      "full_path": "translate"
+    },
+    {
+      "name": "translate",
+      "description": "\ud83c\udf0d Translate text to any language",
+      "group_variable": null,
+      "type": "standalone",
+      "file": "translation_cog.py",
+      "full_path": "translate"
+    },
+    {
+      "name": "hippo",
+      "description": "Open the HippoBot help and control panel.",
+      "group_variable": "app_commands",
+      "type": "group_command",
+      "file": "ui_master_cog.py",
+      "full_path": "hippo"
+    },
+    {
+      "name": "hippo",
+      "description": "Open the HippoBot help and control panel.",
+      "group_variable": null,
+      "type": "standalone",
+      "file": "ui_master_cog.py",
+      "full_path": "hippo"
+    }
+  ],
+  "command_paths": [
+    "8ball",
+    "balance",
+    "catch",
+    "catfact",
+    "clear",
+    "collection",
+    "easteregg",
+    "event_create",
+    "event_delete",
+    "event_list",
+    "events",
+    "evolve",
+    "evolve_list",
+    "explore",
+    "feed",
+    "fish",
+    "forfeit",
+    "give",
+    "help",
+    "hippo",
+    "info",
+    "joke",
+    "language_assign",
+    "language_list",
+    "language_remove",
+    "language_sync",
+    "leaderboard",
+    "list",
+    "move",
+    "mute",
+    "ranking_compare_me",
+    "ranking_compare_others",
+    "rankings",
+    "remove",
+    "rps",
+    "set",
+    "sos_add",
+    "sos_clear",
+    "sos_list",
+    "sos_remove",
+    "start",
+    "stats",
+    "status",
+    "train",
+    "translate",
+    "unmute",
+    "weather"
+  ]
+}

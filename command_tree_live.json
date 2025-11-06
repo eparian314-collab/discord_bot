@@ -1,0 +1,71 @@
+{
+  "global": [
+    {
+      "id": "1435895654214799462",
+      "name": "language",
+      "description": "Language and communication tools",
+      "type": "chat_input"
+    },
+    {
+      "id": "1435895654214799463",
+      "name": "games",
+      "description": "Games and entertainment",
+      "type": "chat_input",
+      "has_subcommands": true,
+      "subcommands": [
+        {
+          "name": "pokemon",
+          "description": "Catch, train, and evolve Pokemon"
+        },
+        {
+          "name": "cookies",
+          "description": "Manage your cookies and check stats"
+        },
+        {
+          "name": "battle",
+          "description": "Pokemon battles and competitions"
+        },
+        {
+          "name": "fun",
+          "description": "Fun games and entertainment"
+        }
+      ]
+    },
+    {
+      "id": "1435895654214799464",
+      "name": "kvk",
+      "description": "Top Heroes / KVK tools",
+      "type": "chat_input",
+      "has_subcommands": true,
+      "subcommands": [
+        {
+          "name": "ranking",
+          "description": "Top Heroes event rankings and leaderboards"
+        }
+      ]
+    }
+  ],
+  "guilds": {
+    "1423768684572184700": {
+      "name": "mars._.3's server test2",
+      "commands": [
+        {
+          "id": "1435895892501598281",
+          "name": "language",
+          "description": "Language and communication tools"
+        },
+        {
+          "id": "1435895892501598282",
+          "name": "games",
+          "description": "Games and entertainment"
+        },
+        {
+          "id": "1435895892501598283",
+          "name": "kvk",
+          "description": "Top Heroes / KVK tools"
+        }
+      ]
+    }
+  },
+  "connected": true
+}
