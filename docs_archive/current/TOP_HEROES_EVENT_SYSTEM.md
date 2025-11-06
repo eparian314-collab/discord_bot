@@ -1,5 +1,8 @@
 # Top Heroes Event Reminder System
 
+> **Status**: ✅ Operational (Fixed 2025-11-05)  
+> **Recent Fixes**: Type mismatch in reminder_times parsing, missing created_at in INSERT
+
 ## Overview
 
 A comprehensive event scheduling and reminder system for Top Heroes game coordination, designed for international guilds requiring UTC-based timing and automated event management.

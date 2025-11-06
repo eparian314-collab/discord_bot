@@ -1,7 +1,11 @@
 # Top Heroes Event Ranking System
 
+> **Status**: ✅ Enhanced (Updated 2025-11-05)  
+> **Latest**: Phase/day logic, EasyOCR, validation pipeline, profile caching  
+> **See Also**: `worfklow/architecture/KVK_RANKING_PIPELINE_IMPLEMENTATION.md`
+
 ## Overview
-Track and display Top Heroes event rankings submitted by guild members through screenshot submissions with OCR processing.
+Track and display Top Heroes event rankings submitted by guild members through screenshot submissions with advanced OCR processing and validation.
 
 ## Features
 

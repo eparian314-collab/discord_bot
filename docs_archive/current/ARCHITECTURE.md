@@ -1,5 +1,8 @@
 ## HippoBot Architecture Overview
 
+> **Status**: ✅ Current (Last Updated: 2025-11-05)  
+> **See Also**: `worfklow/PROJECT_STRUCTURE_RULES.md` for detailed coding standards
+
 This document summarizes the dependency flow, wiring strategy, and anti-cycle rules for the bot. It complements OPERATIONS.md.
 
 ### Goals
@@ -48,6 +51,33 @@ Engines and cogs import topic constants from `core/event_topics.py`. The loader 
 ### Background Tasks and Shutdown
 - Background tasks register via `HippoBot.add_post_setup_hook`.
 - Subscribe to `shutdown.initiated` to perform graceful teardown.
+
+---
+
+## Recent Updates
+
+### Event Reminder System (2025-11-05)
+- Fixed type mismatch in `reminder_times` parsing (list vs string)
+- Fixed missing `created_at` in INSERT statements
+- System now fully operational
+
+### KVK Ranking System (2025-11-05)
+- Implemented phase/day logic for 14-day KVK windows
+- Added EasyOCR for screenshot processing
+- Multi-stage ranking (Militia, Clash, King's Tournament)
+- Validation pipeline with confidence scoring
+- Profile caching and duplicate detection
+- Interactive confirmation flow for low-confidence submissions
+
+### Project Organization (2025-11-05)
+- Created comprehensive `PROJECT_STRUCTURE_RULES.md` in `worfklow/`
+- Organized documentation into proper folders
+- Cleaned root directory (only essential files)
+- Established file placement guidelines for all future development
+
+---
+
+**For Latest Updates**: See `worfklow/architecture/` for new feature implementations
 
 ### Testing Strategy
 - Unit-test engines and the event bus using `pytest` and `pytest-asyncio`.
