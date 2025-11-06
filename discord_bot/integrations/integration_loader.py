@@ -958,6 +958,9 @@ class IntegrationLoader:
             from discord_bot.cogs.game_cog import GameCog
             from discord_bot.cogs.event_management_cog import setup as setup_event_cog
             from discord_bot.cogs.ranking_cog import setup as setup_ranking_cog
+            from discord_bot.cogs.battle_cog import setup as setup_battle_cog
+            # from discord_bot.cogs.training_cog import setup as setup_training_cog  # DISABLED: Old slash syntax
+            from discord_bot.cogs.ui_master_cog import setup as setup_ui_master_cog
 
             await setup_translation_cog(self.bot, ui_engine=self.translation_ui)
             await setup_admin_cog(self.bot, ui_engine=self.admin_ui, owners=set(owners), storage=self.game_storage, cookie_manager=self.cookie_manager)
@@ -991,7 +994,17 @@ class IntegrationLoader:
             )
             await self.bot.add_cog(game_cog, override=True)
             
-            logger.info("⚙️ Mounted cogs: translation, admin, help, language, sos, events, ranking, easteregg, game")
+            # Mount battle and UI master cogs with dependency injection
+            await setup_battle_cog(
+                self.bot,
+                storage=self.game_storage,
+                cookie_manager=self.cookie_manager,
+                relationship_manager=self.relationship_manager
+            )
+            # await setup_training_cog(self.bot)  # DISABLED: Old slash syntax
+            await setup_ui_master_cog(self.bot)
+            
+            logger.info("⚙️ Mounted cogs: translation, admin, help, language, sos, events, ranking, easteregg, game, battle, ui_master")
         except Exception as exc:
             logger.exception("Failed to mount cogs")
             try:

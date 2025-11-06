@@ -39,13 +39,14 @@ def get_allowed_channel_ids() -> Set[int]:
     Get all allowed interaction channel IDs from environment.
     
     Reads from ALLOWED_CHANNELS (comma/semicolon separated).
-    Falls back to GENERAL_CHANNEL_ID and MEMBERSHIP_CHANNEL_ID for backwards compatibility.
+    If not set, allows all channels (returns empty set).
     
     Example .env:
-        ALLOWED_CHANNELS=1423024480799817881,1426291734996062440,1234567890123456789
+        ALLOWED_CHANNELS=1234567890123456789,9876543210987654321
     
     Returns:
-        Set of channel IDs where bot can respond to commands
+        Set of channel IDs where bot can respond to commands.
+        Empty set means all channels are allowed.
     """
     allowed_ids: Set[int] = set()
     
@@ -59,16 +60,8 @@ def get_allowed_channel_ids() -> Set[int]:
                     allowed_ids.add(int(token))
                 except ValueError:
                     pass
-        return allowed_ids
     
-    # New fallback: check for specific channel names
-    guild = discord.utils.get(discord.Client().guilds)  # Get the first guild (adjust as needed)
-    if guild:
-        for name in ["bot-channel", "fun-games-with-our-bot-friend"]:
-            channel = discord.utils.get(guild.text_channels, name=name)
-            if channel:
-                allowed_ids.add(channel.id)
-
+    # If no ALLOWED_CHANNELS configured, return empty set (allows all channels)
     return allowed_ids
 
 

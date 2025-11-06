@@ -488,11 +488,7 @@ class BattleCog(commands.Cog):
             await interaction.response.send_message(embed=embed, ephemeral=True)
 
 
-async def setup(bot: commands.Bot):
-    """Setup function for the cog."""
-    # Get required managers from bot
-    storage = bot.storage
-    cookie_manager = bot.cookie_manager
-    relationship_manager = bot.relationship_manager
-    
+async def setup(bot: commands.Bot, storage: GameStorageEngine,
+                cookie_manager: CookieManager, relationship_manager: RelationshipManager):
+    """Setup function for the cog with proper dependency injection."""
     await bot.add_cog(BattleCog(bot, storage, cookie_manager, relationship_manager))

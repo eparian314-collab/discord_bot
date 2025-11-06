@@ -18,7 +18,6 @@ if str(_project_root) not in sys.path:
     sys.path.insert(0, str(_project_root))
 
 import discord
-pyth
 from discord_bot.integrations import build_application, load_config
 
 

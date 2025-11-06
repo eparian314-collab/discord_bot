@@ -18,7 +18,7 @@ from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
 import aiohttp
 import discord
-from discord import app_commands
+from discord import app_commands, ui, Interaction
 from discord.ext import commands
 
 from discord_bot.core import ui_groups
@@ -196,6 +196,41 @@ class RankingCog(commands.Cog):
             return runs[0], False
         return None, False
 
+    def _calculate_event_day(self, kvk_run: "KVKRun") -> tuple[str, Optional[int | str]]:
+        """
+        Calculate event phase and day based on kvk_run.started_at.
+        
+        6-Day Model:
+        - Days 1-5: PREP phase
+        - Day 6: WAR phase
+        - Day 7+: Late submissions (still allowed, map to day 6 WAR)
+        
+        Returns:
+            (phase, day) where phase is "prep" or "war"
+            day is 1-5 for prep, None for war
+        """
+        from datetime import datetime, timezone
+        
+        now = datetime.now(timezone.utc)
+        event_start = kvk_run.started_at
+        
+        if event_start.tzinfo is None:
+            event_start = event_start.replace(tzinfo=timezone.utc)
+        
+        # Calculate days elapsed since event start
+        elapsed = now - event_start
+        event_day = elapsed.days + 1  # Day 1 starts at elapsed=0
+        
+        if event_day <= 0:
+            # Before event start → default to Day 1 PREP
+            return "prep", 1
+        elif event_day <= 5:
+            # Days 1-5: PREP phase
+            return "prep", event_day
+        else:
+            # Day 6+: WAR phase (no day subdivision)
+            return "war", None
+    
     def _format_event_week_label(self, kvk_run: Optional["KVKRun"]) -> str:
         if not kvk_run:
             return self.storage.get_current_event_week()
@@ -210,22 +245,64 @@ class RankingCog(commands.Cog):
         *,
         interaction: discord.Interaction,
         screenshot: discord.Attachment,
-        stage_value: str,
-        day: int,
+        stage_value: Optional[str],
+        day: Optional[int],
         kvk_run: "KVKRun",
     ) -> SubmissionValidationResult:
-        stage_key = (stage_value or "").strip().lower()
-        stage_map = {"prep": StageType.PREP, "war": StageType.WAR}
-        stage_type = stage_map.get(stage_key)
-        if stage_type is None:
-            raise SubmissionValidationError("Stage must be 'Prep' or 'War'.")
-
-        if stage_type == StageType.PREP:
-            if day < 1 or day > 5:
-                raise SubmissionValidationError("Day must be between 1 and 5 for the prep stage.")
-            normalized_day = day
+        # AUTO-CALCULATION: If stage not provided, calculate from event start time
+        if stage_value is None:
+            phase, auto_day = self._calculate_event_day(kvk_run)
+            # Use auto-calculated values
+            stage_type = StageType.PREP if phase == "prep" else StageType.WAR
+            # If day also not provided, use auto-calculated day
+            if day is None:
+                normalized_day = auto_day
+            else:
+                # Manual day override
+                if day == -1:
+                    normalized_day = "overall"
+                elif 1 <= day <= 5:
+                    normalized_day = day
+                else:
+                    raise SubmissionValidationError(
+                        "Day must be 1-5 for specific prep days, or 'Overall' for prep aggregation."
+                    )
         else:
-            normalized_day = 6  # War stage aggregates into a single slot
+            # MANUAL OVERRIDE: User specified stage explicitly
+            stage_key = stage_value.strip().lower()
+            stage_map = {"prep": StageType.PREP, "war": StageType.WAR}
+            stage_type = stage_map.get(stage_key)
+            if stage_type is None:
+                raise SubmissionValidationError("Stage must be 'Prep' or 'War'.")
+
+            # CANONICAL PHASE/DAY LOGIC
+            # Convert stage_type to canonical phase string
+            phase = "prep" if stage_type == StageType.PREP else "war"
+            
+            if phase == "prep":
+                # PREP phase REQUIRES day
+                if day is None:
+                    raise SubmissionValidationError(
+                        "Prep phase requires a day selection (1-5 or Overall).\n"
+                        "Please select which prep day you're submitting."
+                    )
+                # Valid prep days: 1-5 or -1 (Overall)
+                if day == -1:
+                    normalized_day = "overall"  # Canonical: string "overall"
+                elif 1 <= day <= 5:
+                    normalized_day = day  # Canonical: integer 1-5
+                else:
+                    raise SubmissionValidationError(
+                        "Day must be 1-5 for specific prep days, or 'Overall' for prep aggregation."
+                    )
+            else:  # WAR phase
+                # WAR phase does NOT use day subdivisions
+                if day is not None:
+                    raise SubmissionValidationError(
+                        "War phase does not use day subdivisions.\n"
+                        "Please leave the 'day' field blank when submitting war scores."
+                    )
+                normalized_day = None  # Canonical: None for war
 
         content_type = (screenshot.content_type or "").lower()
         if not content_type.startswith("image/"):
@@ -238,12 +315,13 @@ class RankingCog(commands.Cog):
         guild_id = str(interaction.guild_id) if interaction.guild else None
         user_id = str(interaction.user.id)
 
+        # Use canonical phase/day for duplicate check
         existing = self.storage.check_duplicate_submission(
             user_id,
             guild_id or "0",
             event_week,
-            stage_type,
-            normalized_day,
+            phase,  # canonical "prep" or "war"
+            normalized_day,  # 1-5, "overall", or None
             kvk_run_id=kvk_run.id,
         )
 
@@ -291,28 +369,30 @@ class RankingCog(commands.Cog):
                 "Could not read ranking data from the screenshot. Please ensure all required information is visible."
             )
 
-        detected_stage = ranking.stage_type
-        if stage_type == StageType.PREP and ranking.day_number and ranking.day_number != normalized_day:
+        detected_phase = ranking.phase
+        
+        # Validate phase consistency
+        if detected_phase != phase:
             self.storage.log_submission(
                 user_id,
                 guild_id,
                 "failed",
-                error_message="Day mismatch between selection and OCR result",
+                error_message=f"Phase mismatch: selected={phase}, detected={detected_phase}",
             )
             raise SubmissionValidationError(
-                "The highlighted day in the screenshot does not match the selected day."
+                f"The screenshot appears to show {detected_phase} phase, but you selected {phase} phase."
             )
-
-        if detected_stage not in (StageType.UNKNOWN, stage_type):
-            self.storage.log_submission(
-                user_id,
-                guild_id,
-                "failed",
-                error_message="Stage mismatch between selection and OCR result",
-            )
-            raise SubmissionValidationError(
-                "The screenshot appears to show a different stage than selected."
-            )
+        
+        # Validate day consistency for PREP phase only
+        if phase == "prep":
+            detected_day = ranking.day
+            # Allow OCR to detect day, but warn if mismatch with user selection
+            if detected_day is not None and detected_day != normalized_day:
+                # Log warning but don't fail - OCR may be unreliable for day detection
+                logger.warning(
+                    "Day mismatch for user %s: selected=%s, detected=%s. Using selected day.",
+                    user_id, normalized_day, detected_day
+                )
 
         if ranking.rank <= 0:
             self.storage.log_submission(
@@ -332,14 +412,19 @@ class RankingCog(commands.Cog):
             )
             raise SubmissionValidationError("The extracted score cannot be negative.")
 
-        ranking.stage_type = stage_type
-        ranking.day_number = normalized_day
+        # Update ranking with canonical values
+        ranking.phase = phase  # Canonical: "prep" or "war"
+        ranking.day = normalized_day  # Canonical: 1-5, "overall", or None
         ranking.screenshot_url = screenshot.url
         ranking.event_week = event_week
         ranking.kvk_run_id = kvk_run.id
         ranking.is_test_run = kvk_run.is_test
         ranking.guild_id = guild_id
         ranking.username = interaction.user.display_name or interaction.user.name
+        
+        # Update legacy fields for backward compatibility
+        ranking.stage_type = stage_type
+        ranking.day_number = self._canonical_day_to_legacy(normalized_day, phase)
 
         return SubmissionValidationResult(
             ranking=ranking,
@@ -348,6 +433,16 @@ class RankingCog(commands.Cog):
             event_week=event_week,
             existing_entry=existing,
         )
+    
+    def _canonical_day_to_legacy(self, day: Optional[int | str], phase: str) -> Optional[int]:
+        """Convert canonical day format to legacy day_number format."""
+        if phase == "war":
+            return None
+        if day == "overall":
+            return -1
+        if isinstance(day, int):
+            return day
+        return None
 
     def _persist_validated_submission(
         self,
@@ -451,36 +546,67 @@ class RankingCog(commands.Cog):
         embed.set_footer(text="Data saved to rankings database")
         return embed
 
-    def _normalize_day(self, stage_type: "StageType", day: int) -> int:
+    def _normalize_day(self, stage_type: "StageType", day: Optional[int]) -> Optional[int]:
+        """
+        Normalize day value for storage consistency.
+        
+        Returns:
+        - 1-5: Specific prep days
+        - -1: Overall prep aggregation
+        - None: War stage (no day component)
+        """
         if stage_type == StageType.WAR:
-            return 6
-        return day
+            return None  # War has no day subdivision
+        return day  # Prep keeps its day value (1-5 or -1)
 
-    def _format_day_label(self, day: int, stage_type: "StageType") -> str:
-        if day == 6:
-            return "War Stage"
+    def _format_day_label(self, day: Optional[int], stage_type: "StageType") -> str:
+        """
+        Format day for display.
+        
+        Args:
+            day: 1-5 (prep days), -1 (overall prep), None (war), or legacy 6 (old war format)
+            stage_type: PREP or WAR
+        """
+        if day is None or stage_type == StageType.WAR:
+            return "War Stage Total"
         if day == -1:
-            return "Prep Stage Total"
+            return "Prep Stage Overall"
+        if day == 6:  # Legacy support for old war format
+            return "War Stage Total"
         if stage_type == StageType.PREP:
             mapping = {
-                1: "Construction Day",
-                2: "Research Day",
-                3: "Resource & Mob Day",
-                4: "Hero Day",
-                5: "Troop Training Day",
+                1: "Day 1 - Construction",
+                2: "Day 2 - Research",
+                3: "Day 3 - Resource & Mob",
+                4: "Day 4 - Hero",
+                5: "Day 5 - Troop Training",
             }
             return mapping.get(day, f"Day {day}")
         return f"Day {day}"
 
     def _resolve_entry_stage(self, entry: Dict[str, Any]) -> "StageType":
+        """
+        Determine stage type from entry data.
+        
+        Rules:
+        - Explicit stage_type field takes precedence
+        - day_number=None or 6 → WAR (6 is legacy support)
+        - day_number=1-5 or -1 → PREP
+        """
         stage_value = entry.get("stage_type")
         if isinstance(stage_value, StageType):
             return stage_value
-        if isinstance(stage_value, str) and stage_value.lower().startswith("war"):
-            return StageType.WAR
+        if isinstance(stage_value, str):
+            if stage_value.lower().startswith("war"):
+                return StageType.WAR
+            elif stage_value.lower().startswith("prep"):
+                return StageType.PREP
+        
+        # Infer from day_number
         day_number = entry.get("kvk_day") or entry.get("day_number")
-        if isinstance(day_number, int) and day_number == 6:
+        if day_number is None or day_number == 6:  # None or legacy 6 = WAR
             return StageType.WAR
+        # Any other day value = PREP
         return StageType.PREP
 
     def _aggregate_entries(
@@ -603,19 +729,27 @@ class RankingCog(commands.Cog):
         stage=[
             app_commands.Choice(name="Prep Stage", value="prep"),
             app_commands.Choice(name="War Stage", value="war"),
+        ],
+        day=[
+            app_commands.Choice(name="Day 1 - Construction", value=1),
+            app_commands.Choice(name="Day 2 - Research", value=2),
+            app_commands.Choice(name="Day 3 - Resource & Mob", value=3),
+            app_commands.Choice(name="Day 4 - Hero", value=4),
+            app_commands.Choice(name="Day 5 - Troop Training", value=5),
+            app_commands.Choice(name="Overall Prep", value=-1),
         ]
     )
     @app_commands.describe(
         screenshot="Upload your ranking screenshot",
-        day="Event day number (1-5 for prep, use 6 for the war stage total)",
-        stage="Which stage is this submission for?",
+        stage="[OPTIONAL] Override auto-detected stage (Prep/War). Leave blank for auto-detect.",
+        day="[OPTIONAL] Override auto-detected day (1-5 for Prep). Leave blank for auto-detect.",
     )
     async def submit_ranking(
         self,
         interaction: discord.Interaction,
         screenshot: discord.Attachment,
-        day: int,
-        stage: str
+        stage: Optional[str] = None,
+        day: Optional[int] = None
     ):
         """Submit an event ranking screenshot."""
         if not await self._check_rankings_channel(interaction):
@@ -656,19 +790,336 @@ class RankingCog(commands.Cog):
         normalized_day = validation.normalized_day
         stage_type = validation.stage_type
 
-        if validation.existing_entry:
-            await interaction.followup.send(
-                "You already submitted data for this run and day. The previous entry will be replaced.",
-                ephemeral=True,
+        # ═══════════════════════════════════════════════════════════════════
+        # R8 CONFIDENCE-BASED VALIDATION
+        # ═══════════════════════════════════════════════════════════════════
+        
+        # Extract confidence scores from ranking data
+        confidence = getattr(ranking, 'confidence', 1.0)  # Default to high if not present
+        confidence_map = getattr(ranking, 'confidence_map', {})
+        
+        # CASE 1: High confidence (≥ 0.99) → Auto-accept
+        if confidence >= 0.99:
+            if validation.existing_entry:
+                await interaction.followup.send(
+                    "You already submitted data for this run and day. The previous entry will be replaced.",
+                    ephemeral=True,
+                )
+            
+            # R9-P4 - Handle event cycle conflicts and duplicates
+            try:
+                _ranking_id, action = self._persist_validated_submission(
+                    interaction=interaction,
+                    ranking=ranking,
+                    kvk_run=kvk_run,
+                    normalized_day=normalized_day,
+                    existing=validation.existing_entry,
+                )
+            except ValueError as e:
+                if str(e) == "duplicate_submission":
+                    await interaction.followup.send(
+                        "⚠️ This submission was already logged. No changes made.",
+                        ephemeral=True
+                    )
+                    return
+                
+                if str(e) == "event_cycle_conflict":
+                    # Define nested View for cycle confirmation
+                    class CycleConfirmView(ui.View):
+                        def __init__(self, cog_self):
+                            super().__init__(timeout=120)
+                            self.cog_self = cog_self
+                        
+                        @ui.button(label="✅ This is from the CURRENT KVK", style=discord.ButtonStyle.green)
+                        async def confirm_btn(self, button_interaction: Interaction, button: ui.Button):
+                            await button_interaction.response.defer(ephemeral=False)
+                            
+                            try:
+                                _ranking_id, action = self.cog_self.storage.force_store_submission(
+                                    ranking=ranking,
+                                    kvk_run_id=kvk_run.id if kvk_run else None
+                                )
+                                
+                                embed = self.cog_self._build_submission_embed(
+                                    ranking=ranking,
+                                    kvk_run=kvk_run,
+                                    normalized_day=normalized_day,
+                                    run_is_active=run_is_active,
+                                    screenshot_url=screenshot.url,
+                                    action=f"{action} (Confirmed)",
+                                    interaction=button_interaction,
+                                )
+                                
+                                await button_interaction.followup.send(embed=embed, ephemeral=False)
+                            except Exception as ex:
+                                await button_interaction.followup.send(
+                                    f"❌ Failed to store submission: {ex}",
+                                    ephemeral=True
+                                )
+                            self.stop()
+                        
+                        @ui.button(label="❌ Cancel", style=discord.ButtonStyle.danger)
+                        async def cancel_btn(self, button_interaction: Interaction, button: ui.Button):
+                            await button_interaction.response.send_message(
+                                "❌ Submission cancelled.",
+                                ephemeral=True
+                            )
+                            self.stop()
+                    
+                    warning_embed = discord.Embed(
+                        title="⚠️ Event Cycle Conflict Detected",
+                        description=(
+                            "This screenshot appears to be from a **previous KVK cycle** based on score comparison.\n\n"
+                            "If you're certain this is from the **current** event, click **Confirm** below."
+                        ),
+                        color=discord.Color.orange()
+                    )
+                    warning_embed.add_field(name="Player", value=ranking.player_name or "Unknown", inline=True)
+                    warning_embed.add_field(name="Guild", value=ranking.guild_tag or "Unknown", inline=True)
+                    warning_embed.add_field(name="Score", value=f"{ranking.score:,}", inline=True)
+                    
+                    await interaction.followup.send(
+                        embed=warning_embed,
+                        view=CycleConfirmView(self),
+                        ephemeral=True
+                    )
+                    return
+                
+                # Unknown ValueError, re-raise
+                raise
+            # Continue to success embed below
+            
+        # CASE 2: Medium confidence (0.95-0.989) → Soft confirm
+        elif confidence >= 0.95:
+            
+            class ConfirmView(ui.View):
+                def __init__(self, cog_self):
+                    super().__init__(timeout=120)
+                    self.cog_self = cog_self
+                
+                @ui.button(label="✅ Confirm Submission", style=discord.ButtonStyle.success)
+                async def confirm_btn(self, button_interaction: Interaction, button: ui.Button):
+                    await button_interaction.response.defer(ephemeral=False)
+                    
+                    # R9 - learn confirmed names/guilds
+                    if ranking.player_name:
+                        self.cog_self.processor.normalization_cache[("player_name", ranking.player_name)] = ranking.player_name
+                    if ranking.guild_tag:
+                        self.cog_self.processor.normalization_cache[("guild", ranking.guild_tag)] = ranking.guild_tag
+                    
+                    # R9-P4 - Handle event cycle conflicts
+                    try:
+                        _ranking_id, action = self.cog_self._persist_validated_submission(
+                            interaction=button_interaction,
+                            ranking=ranking,
+                            kvk_run=kvk_run,
+                            normalized_day=normalized_day,
+                            existing=validation.existing_entry,
+                        )
+                        
+                        embed = self.cog_self._build_submission_embed(
+                            ranking=ranking,
+                            kvk_run=kvk_run,
+                            normalized_day=normalized_day,
+                            run_is_active=run_is_active,
+                            screenshot_url=screenshot.url,
+                            action=action,
+                            interaction=button_interaction,
+                        )
+                        
+                        await button_interaction.followup.send(embed=embed, ephemeral=False)
+                    
+                    except ValueError as e:
+                        if str(e) == "duplicate_submission":
+                            await button_interaction.followup.send(
+                                "⚠️ This submission was already logged. No changes made.",
+                                ephemeral=True
+                            )
+                        elif str(e) == "event_cycle_conflict":
+                            await button_interaction.followup.send(
+                                "⚠️ This screenshot appears to be from a previous KVK cycle. Please submit current event data only.",
+                                ephemeral=True
+                            )
+                        else:
+                            raise
+                    
+                    self.stop()
+                
+                @ui.button(label="❌ Cancel", style=discord.ButtonStyle.danger)
+                async def cancel_btn(self, button_interaction: Interaction, button: ui.Button):
+                    await button_interaction.response.send_message(
+                        "❌ Submission cancelled.",
+                        ephemeral=True
+                    )
+                    self.stop()
+            
+            # Build preview embed
+            preview_embed = discord.Embed(
+                title="⚠️ Please Confirm Submission",
+                description=f"**Confidence: {confidence:.1%}**\n\nPlease verify the extracted data is correct:",
+                color=discord.Color.orange()
             )
-
-        _ranking_id, action = self._persist_validated_submission(
-            interaction=interaction,
-            ranking=ranking,
-            kvk_run=kvk_run,
-            normalized_day=normalized_day,
-            existing=validation.existing_entry,
-        )
+            preview_embed.add_field(
+                name="Player",
+                value=ranking.player_name or "*Unknown*",
+                inline=True
+            )
+            preview_embed.add_field(
+                name="Guild",
+                value=f"[{ranking.guild_tag}]" if ranking.guild_tag else "*Unknown*",
+                inline=True
+            )
+            preview_embed.add_field(
+                name="Score",
+                value=f"{ranking.score:,}",
+                inline=True
+            )
+            preview_embed.add_field(
+                name="Phase",
+                value=f"{ranking.phase.title()}",
+                inline=True
+            )
+            if ranking.day:
+                preview_embed.add_field(
+                    name="Day",
+                    value=str(ranking.day).title(),
+                    inline=True
+                )
+            preview_embed.set_footer(text="Click 'Confirm' to proceed or 'Cancel' to abort")
+            
+            await interaction.followup.send(
+                embed=preview_embed,
+                view=ConfirmView(self),
+                ephemeral=True
+            )
+            return  # Exit early, wait for button interaction
+        
+        # CASE 3: Low confidence (< 0.95) → Correction modal
+        else:
+            
+            class CorrectionModal(ui.Modal, title='Correct Ranking Data'):
+                def __init__(self, cog_self):
+                    super().__init__()
+                    self.cog_self = cog_self
+                    
+                    self.player_name = ui.TextInput(
+                        label='Player Name',
+                        default=ranking.player_name or '',
+                        required=True,
+                        max_length=30
+                    )
+                    self.add_item(self.player_name)
+                    
+                    self.guild = ui.TextInput(
+                        label='Guild Tag',
+                        default=ranking.guild_tag or '',
+                        required=True,
+                        max_length=6
+                    )
+                    self.add_item(self.guild)
+                    
+                    self.score = ui.TextInput(
+                        label='Score (numbers only)',
+                        default=str(ranking.score),
+                        required=True,
+                        max_length=15
+                    )
+                    self.add_item(self.score)
+                
+                async def on_submit(self, modal_interaction: Interaction):
+                    await modal_interaction.response.defer(ephemeral=False)
+                    
+                    # Apply corrections
+                    try:
+                        corrected_score = int(str(self.score.value).replace(',', '').strip())
+                    except ValueError:
+                        await modal_interaction.followup.send(
+                            "❌ Invalid score format. Please use numbers only.",
+                            ephemeral=True
+                        )
+                        return
+                    
+                    # Store original OCR values before overwriting
+                    original_player_name = ranking.player_name
+                    original_guild_tag = ranking.guild_tag
+                    
+                    # Apply user corrections
+                    ranking.player_name = str(self.player_name.value).strip()
+                    ranking.guild_tag = str(self.guild.value).strip().upper()
+                    ranking.score = corrected_score
+                    
+                    # R9 - learn corrected canonical forms
+                    if original_player_name and original_player_name != ranking.player_name:
+                        self.cog_self.processor.normalization_cache[("player_name", original_player_name)] = ranking.player_name
+                    if original_guild_tag and original_guild_tag != ranking.guild_tag:
+                        self.cog_self.processor.normalization_cache[("guild", original_guild_tag)] = ranking.guild_tag
+                    
+                    # R9-P4 - Handle event cycle conflicts
+                    try:
+                        _ranking_id, action = self.cog_self._persist_validated_submission(
+                            interaction=modal_interaction,
+                            ranking=ranking,
+                            kvk_run=kvk_run,
+                            normalized_day=normalized_day,
+                            existing=validation.existing_entry,
+                        )
+                        
+                        embed = self.cog_self._build_submission_embed(
+                            ranking=ranking,
+                            kvk_run=kvk_run,
+                            normalized_day=normalized_day,
+                            run_is_active=run_is_active,
+                            screenshot_url=screenshot.url,
+                            action=f"{action} (Corrected)",
+                            interaction=modal_interaction,
+                        )
+                        
+                        await modal_interaction.followup.send(embed=embed, ephemeral=False)
+                    
+                    except ValueError as e:
+                        if str(e) == "duplicate_submission":
+                            await modal_interaction.followup.send(
+                                "⚠️ This submission was already logged. No changes made.",
+                                ephemeral=True
+                            )
+                        elif str(e) == "event_cycle_conflict":
+                            await modal_interaction.followup.send(
+                                "⚠️ This screenshot appears to be from a previous KVK cycle. Please submit current event data only.",
+                                ephemeral=True
+                            )
+                        else:
+                            raise
+            
+            warning_embed = discord.Embed(
+                title="🔍 Low Confidence Detected",
+                description=f"**Confidence: {confidence:.1%}**\n\nOCR had difficulty reading some values. Please review and correct:",
+                color=discord.Color.red()
+            )
+            warning_embed.add_field(
+                name="Detected Player",
+                value=ranking.player_name or "*Unknown*",
+                inline=True
+            )
+            warning_embed.add_field(
+                name="Detected Guild",
+                value=f"[{ranking.guild_tag}]" if ranking.guild_tag else "*Unknown*",
+                inline=True
+            )
+            warning_embed.add_field(
+                name="Detected Score",
+                value=f"{ranking.score:,}",
+                inline=True
+            )
+            warning_embed.set_footer(text="A correction form will appear - please verify all fields")
+            
+            await interaction.followup.send(embed=warning_embed, ephemeral=True)
+            await interaction.followup.send_modal(CorrectionModal(self))
+            return  # Exit early, wait for modal submission
+        
+        # ═══════════════════════════════════════════════════════════════════
+        # END R8 CONFIDENCE VALIDATION
+        # Continue with auto-accept path (confidence >= 0.99)
+        # ═══════════════════════════════════════════════════════════════════
 
         embed = self._build_submission_embed(
             ranking=ranking,
@@ -763,23 +1214,24 @@ class RankingCog(commands.Cog):
         await interaction.response.defer()
         
         # Parse filters
-        from discord_bot.core.engines.screenshot_processor import StageType
-        stage_type = None
+        # Convert stage to canonical phase
+        phase = None
         if stage:
             stage_lower = stage.lower()
             if stage_lower == 'prep':
-                stage_type = StageType.PREP
+                phase = "prep"
             elif stage_lower == 'war':
-                stage_type = StageType.WAR
+                phase = "war"
         
         # Default to current week unless show_all_weeks is True
         event_week = None if show_all_weeks else self.storage.get_current_event_week()
         
+        # Use canonical phase/day for leaderboard query
         leaderboard = self.storage.get_guild_leaderboard(
             str(interaction.guild.id),
             event_week=event_week,
-            stage_type=stage_type,
-            day_number=day,
+            phase=phase,
+            day=day,
             guild_tag=guild_tag,
             limit=20
         )
@@ -840,6 +1292,395 @@ class RankingCog(commands.Cog):
         await interaction.followup.send(embed=embed)
     
     @ranking.command(
+        name="guild_analytics",
+        description="🏰 View guild power bracket analysis and rankings"
+    )
+    @app_commands.describe(
+        event_week="Event week (e.g., 2025-45), leave empty for current event"
+    )
+    async def guild_analytics(
+        self,
+        interaction: discord.Interaction,
+        event_week: Optional[str] = None
+    ):
+        """
+        Display guild-aggregated analytics with power bracket distribution.
+        Shows top performers per guild with fair power-based comparisons.
+        """
+        if not interaction.guild:
+            await interaction.response.send_message(
+                "❌ This command can only be used in a server!",
+                ephemeral=True
+            )
+            return
+        
+        await interaction.response.defer()
+        
+        # Resolve KVK run to get event week
+        kvk_run, _ = self._resolve_kvk_run(interaction)
+        if not event_week:
+            if kvk_run:
+                event_week = self._format_event_week_label(kvk_run)
+            else:
+                event_week = self.storage.get_current_event_week()
+        
+        # Get guild analytics
+        guilds = self.storage.get_guild_analytics(event_week, str(interaction.guild.id))
+        
+        if not guilds:
+            await interaction.followup.send(
+                f"📭 No guild data found for event week: **{event_week}**\n\n"
+                f"Rankings will appear here once members submit their scores using `/kvk ranking submit`.",
+                ephemeral=True
+            )
+            return
+        
+        # Single guild focus - show detailed member analysis
+        if not guilds:
+            await interaction.followup.send(
+                f"📭 No data found for event week: **{event_week}**",
+                ephemeral=True
+            )
+            return
+        
+        # Get the first (and likely only) guild
+        guild_name, data = list(guilds.items())[0]
+        
+        # Build output embed
+        embed = discord.Embed(
+            title=f"🏰 Guild Performance Analytics - {event_week}",
+            description=f"**{guild_name}** - {len(data['members'])} active members",
+            color=discord.Color.blue()
+        )
+        
+        # Format brackets with emojis
+        bracket_text = (
+            f"🟫 Bronze: {data['brackets']['Bronze']}  "
+            f"⬜ Silver: {data['brackets']['Silver']}  "
+            f"🟨 Gold: {data['brackets']['Gold']}  "
+            f"💎 Diamond: {data['brackets']['Diamond']}"
+        )
+        if data['brackets']['Unranked'] > 0:
+            bracket_text += f"\n❓ Unranked: {data['brackets']['Unranked']}"
+        
+        embed.add_field(
+            name="📊 Power Distribution",
+            value=bracket_text,
+            inline=False
+        )
+        
+        # Show top performers by growth
+        top_by_growth = sorted(data['members'], key=lambda m: m[3], reverse=True)[:10]
+        growth_text = "\n".join([
+            f"{i+1}. **{name}** - `{score:,}` [{bracket}] **+{growth}%**"
+            for i, (name, score, bracket, growth) in enumerate(top_by_growth)
+        ])
+        
+        embed.add_field(
+            name="🔥 Top Performers by Growth",
+            value=growth_text or "No data",
+            inline=False
+        )
+        
+        # Show top performers by absolute score
+        top_by_score = sorted(data['members'], key=lambda m: m[1], reverse=True)[:10]
+        score_text = "\n".join([
+            f"{i+1}. **{name}** - `{score:,}` [{bracket}] (+{growth}%)"
+            for i, (name, score, bracket, growth) in enumerate(top_by_score)
+        ])
+        
+        embed.add_field(
+            name="💪 Top Performers by Score",
+            value=score_text or "No data",
+            inline=False
+        )
+        
+        embed.add_field(
+            name="📈 Guild Totals",
+            value=f"**Combined Power: `{data['total']:,}`**\nUse `/kvk ranking my_performance` to see your peer comparison!",
+            inline=False
+        )
+        
+        embed.set_footer(text=f"Power Brackets: Bronze (0-250k) | Silver (250k-800k) | Gold (800k-2M) | Diamond (2M+)")
+        
+        await interaction.followup.send(embed=embed)
+    
+    @ranking.command(
+        name="my_performance",
+        description="📊 View your personal performance and peer comparison"
+    )
+    @app_commands.describe(
+        event_week="Event week (e.g., 2025-45), leave empty for current event"
+    )
+    async def my_performance(
+        self,
+        interaction: discord.Interaction,
+        event_week: Optional[str] = None
+    ):
+        """
+        Show personalized performance review with peer comparison.
+        Compares you against players with similar power levels (±10%).
+        """
+        if not interaction.guild:
+            await interaction.response.send_message(
+                "❌ This command can only be used in a server!",
+                ephemeral=True
+            )
+            return
+        
+        await interaction.response.defer(ephemeral=True)
+        
+        # Resolve KVK run to get event week
+        kvk_run, _ = self._resolve_kvk_run(interaction)
+        if not event_week:
+            if kvk_run:
+                event_week = self._format_event_week_label(kvk_run)
+            else:
+                event_week = self.storage.get_current_event_week()
+        
+        # Get peer comparison
+        user_id = str(interaction.user.id)
+        guild_id = str(interaction.guild.id)
+        
+        comparison = self.storage.get_peer_comparison(user_id, event_week, guild_id)
+        
+        if not comparison:
+            await interaction.followup.send(
+                f"❌ No performance data found for you in event week: **{event_week}**\n\n"
+                f"Submit your rankings using `/kvk ranking submit` to see your analysis!",
+                ephemeral=True
+            )
+            return
+        
+        if 'error' in comparison:
+            error_type = comparison.get('error')
+            
+            if error_type == 'no_power':
+                embed = discord.Embed(
+                    title="⚡ Power Submission Required",
+                    description=comparison['message'],
+                    color=discord.Color.orange()
+                )
+                embed.add_field(
+                    name="📝 How to Submit Power",
+                    value=(
+                        f"Use `/kvk ranking set_power <your_power>` to submit your account power.\n\n"
+                        f"**Example:**\n"
+                        f"`/kvk ranking set_power 985000`"
+                    ),
+                    inline=False
+                )
+                embed.add_field(
+                    name="💡 Why Power Matters",
+                    value=(
+                        "Power determines your peer group (±10% range).\n"
+                        "This ensures you're compared against players of similar account strength!"
+                    ),
+                    inline=False
+                )
+                await interaction.followup.send(embed=embed, ephemeral=True)
+                return
+            
+            elif error_type == 'no_peers':
+                embed = discord.Embed(
+                    title="👥 No Peers Found",
+                    description=comparison['message'],
+                    color=discord.Color.blue()
+                )
+                embed.add_field(
+                    name="🔍 What This Means",
+                    value=(
+                        "No other players with similar power (±10%) have submitted rankings yet.\n"
+                        "Check back later as more submissions come in!"
+                    ),
+                    inline=False
+                )
+                await interaction.followup.send(embed=embed, ephemeral=True)
+                return
+            
+            else:
+                # Generic error fallback
+                await interaction.followup.send(
+                    f"❌ {comparison['message']}",
+                    ephemeral=True
+                )
+                return
+        
+        user = comparison['user']
+        peer_group = comparison['peer_group']
+        percentile = comparison['percentile']
+        
+        # Build personalized embed
+        embed = discord.Embed(
+            title=f"📊 Your Performance Review - {event_week}",
+            description=f"**{user['player_name']}** [{user['bracket']}]",
+            color=discord.Color.green() if percentile >= 75 else discord.Color.orange() if percentile >= 50 else discord.Color.red()
+        )
+        
+        # Performance stats
+        embed.add_field(
+            name="💪 Your Stats",
+            value=(
+                f"**Final Score:** `{user['power']:,}`\n"
+                f"**Growth:** **+{user['growth']}%** (Prep → War)\n"
+                f"**Power Bracket:** {user['bracket']}"
+            ),
+            inline=False
+        )
+        
+        # Peer comparison
+        embed.add_field(
+            name="👥 Peer Comparison (±10% Power)",
+            value=(
+                f"**Peer Group Size:** {peer_group['size']} players\n"
+                f"**Power Range:** `{peer_group['power_range'][0]:,}` - `{peer_group['power_range'][1]:,}`\n"
+                f"**Avg Peer Growth:** +{peer_group['avg_growth']}%"
+            ),
+            inline=False
+        )
+        
+        # Percentile ranking
+        rank_emoji = "🥇" if percentile >= 90 else "🥈" if percentile >= 75 else "🥉" if percentile >= 60 else "📊"
+        embed.add_field(
+            name=f"{rank_emoji} Your Percentile",
+            value=(
+                f"**{percentile}th Percentile**\n"
+                f"Ranked **#{comparison['rank_in_peers']}** of {peer_group['size']}\n"
+                f"Outperformed **{comparison['outperformed_count']}** peers"
+            ),
+            inline=False
+        )
+        
+        # Performance evaluation
+        if percentile >= 90:
+            evaluation = "🌟 **Outstanding!** You're in the top 10% of your power bracket."
+        elif percentile >= 75:
+            evaluation = "🔥 **Excellent!** You're performing in the top quartile."
+        elif percentile >= 60:
+            evaluation = "✅ **Good!** Above-average performance in your peer group."
+        elif percentile >= 40:
+            evaluation = "📈 **Average** - Room for improvement compared to similar players."
+        else:
+            evaluation = "💡 **Below Average** - Consider strategy adjustments for next event."
+        
+        # Growth analysis
+        if user['growth'] > peer_group['avg_growth']:
+            growth_eval = f"Your growth (+{user['growth']}%) **exceeds** the peer average (+{peer_group['avg_growth']}%)! 🚀"
+        elif user['growth'] > peer_group['avg_growth'] * 0.8:
+            growth_eval = f"Your growth (+{user['growth']}%) is **competitive** with peers (+{peer_group['avg_growth']}% avg)."
+        else:
+            growth_eval = f"Your growth (+{user['growth']}%) is **below** peer average (+{peer_group['avg_growth']}%). Focus on prep → war scaling!"
+        
+        embed.add_field(
+            name="🎯 Evaluation",
+            value=f"{evaluation}\n\n{growth_eval}",
+            inline=False
+        )
+        
+        # Day-by-day prep progression
+        if user['prep_scores']:
+            prep_text = "\n".join([
+                f"Day {day}: `{score:,}`" for day, score in sorted(user['prep_scores'].items()) if day != 'overall'
+            ])
+            if 'overall' in user['prep_scores']:
+                prep_text += f"\nOverall: `{user['prep_scores']['overall']:,}`"
+            
+            embed.add_field(
+                name="📅 Prep Phase Progression",
+                value=prep_text or "No prep data",
+                inline=True
+            )
+        
+        if user['war_score']:
+            embed.add_field(
+                name="⚔️ War Phase",
+                value=f"**`{user['war_score']:,}`**",
+                inline=True
+            )
+        
+        embed.set_footer(text=f"Compared against {peer_group['size']} players with similar power (±10%)")
+        
+        await interaction.followup.send(embed=embed, ephemeral=True)
+    
+    @ranking.command(
+        name="set_power",
+        description="⚡ Submit or update your account power for this event"
+    )
+    @app_commands.describe(
+        power="Your in-game account power (e.g., 985000 or 1200000)"
+    )
+    async def set_power(
+        self,
+        interaction: discord.Interaction,
+        power: int
+    ):
+        """
+        Submit or update your account power for the current event.
+        Power is used to find fair peer comparisons (±10% power range).
+        Submit at event start and optionally update at event end.
+        """
+        if not interaction.guild:
+            await interaction.response.send_message(
+                "❌ This command can only be used in a server!",
+                ephemeral=True
+            )
+            return
+        
+        if power < 0:
+            await interaction.response.send_message(
+                "❌ Power must be a positive number!",
+                ephemeral=True
+            )
+            return
+        
+        if power > 10_000_000_000:  # 10 billion sanity check
+            await interaction.response.send_message(
+                "❌ Power value seems unrealistic. Please check and try again.",
+                ephemeral=True
+            )
+            return
+        
+        # Get current event
+        kvk_run, _ = self._resolve_kvk_run(interaction)
+        if kvk_run:
+            event_week = self._format_event_week_label(kvk_run)
+        else:
+            event_week = self.storage.get_current_event_week()
+        
+        # Store power
+        user_id = str(interaction.user.id)
+        self.storage.set_power(user_id, event_week, power)
+        
+        # Check if this is an update
+        embed = discord.Embed(
+            title="⚡ Power Recorded",
+            description=f"Your account power for **{event_week}** has been set to **{power:,}**",
+            color=discord.Color.green()
+        )
+        
+        embed.add_field(
+            name="💡 What's Next?",
+            value=(
+                "• Submit your daily rankings with `/kvk ranking submit`\n"
+                "• View your performance with `/kvk ranking my_performance`\n"
+                "• Update power at event end if it changed significantly"
+            ),
+            inline=False
+        )
+        
+        embed.add_field(
+            name="🎯 How Power is Used",
+            value=(
+                "Your power determines your peer group (±10% range).\n"
+                "You'll be ranked against players with similar account strength,\n"
+                "ensuring fair performance comparisons!"
+            ),
+            inline=False
+        )
+        
+        await interaction.response.send_message(embed=embed, ephemeral=True)
+    
+    @ranking.command(
         name="report",
         description="📊 [ADMIN] Get current rankings report for the guild"
     )
@@ -867,24 +1708,24 @@ class RankingCog(commands.Cog):
         await interaction.response.defer(ephemeral=True)
         
         # Parse filters
-        from discord_bot.core.engines.screenshot_processor import StageType
-        stage_type = None
+        # Convert stage to canonical phase
+        phase = None
         if stage:
             stage_lower = stage.lower()
             if stage_lower == 'prep':
-                stage_type = StageType.PREP
+                phase = "prep"
             elif stage_lower == 'war':
-                stage_type = StageType.WAR
+                phase = "war"
         
         # Use provided week or current week
         event_week = week or self.storage.get_current_event_week()
         
-        # Get all submissions for this week
+        # Get all submissions for this week using canonical phase/day
         leaderboard = self.storage.get_guild_leaderboard(
             str(interaction.guild.id),
             event_week=event_week,
-            stage_type=stage_type,
-            day_number=day,
+            phase=phase,
+            day=day,
             guild_tag="TAO",  # Default to TAO guild
             limit=50
         )
@@ -1098,6 +1939,105 @@ class RankingCog(commands.Cog):
         
         embed.set_thumbnail(url=user.display_avatar.url)
         embed.set_footer(text=f"Requested by {interaction.user.name}")
+        
+        await interaction.followup.send(embed=embed, ephemeral=True)
+
+    @ranking.command(
+        name="validate",
+        description="🔍 [ADMIN] Run data integrity checks for the current KVK event"
+    )
+    @app_commands.checks.has_permissions(administrator=True)
+    async def validate_submissions(
+        self,
+        interaction: discord.Interaction,
+        event_week: Optional[str] = None
+    ):
+        """Admin command to validate event data integrity."""
+        if not interaction.guild:
+            await interaction.response.send_message(
+                "❌ This command can only be used in a server!",
+                ephemeral=True
+            )
+            return
+        
+        await interaction.response.defer(ephemeral=True)
+        
+        # Resolve event week
+        if not event_week:
+            kvk_run, _ = self._resolve_kvk_run(interaction)
+            if kvk_run:
+                event_week = self._format_event_week_label(kvk_run)
+            else:
+                event_week = self.storage.get_current_event_week()
+        
+        # Run validation checks
+        issues = self.storage.validate_event(
+            guild_id=str(interaction.guild.id),
+            event_week=event_week
+        )
+        
+        if not issues:
+            embed = discord.Embed(
+                title="✅ Validation Passed",
+                description=f"All submissions for **{event_week}** appear valid and consistent.",
+                color=discord.Color.green()
+            )
+            embed.add_field(
+                name="Checks Performed",
+                value=(
+                    "✓ Prep score progression\n"
+                    "✓ Duplicate war submissions\n"
+                    "✓ Missing power data\n"
+                    "✓ Data consistency"
+                ),
+                inline=False
+            )
+            await interaction.followup.send(embed=embed, ephemeral=True)
+            return
+        
+        # Build issues report
+        embed = discord.Embed(
+            title="⚠️ Validation Issues Found",
+            description=f"Found **{len(issues)}** potential issues in **{event_week}**:",
+            color=discord.Color.orange()
+        )
+        
+        # Group issues by type
+        prep_issues = [i for i in issues if "PREP" in i]
+        war_issues = [i for i in issues if "WAR" in i or "war" in i]
+        power_issues = [i for i in issues if "POWER" in i or "power" in i]
+        other_issues = [i for i in issues if i not in prep_issues + war_issues + power_issues]
+        
+        if prep_issues:
+            embed.add_field(
+                name="📊 Prep Stage Issues",
+                value="\n".join(f"• {issue}" for issue in prep_issues[:5]),
+                inline=False
+            )
+        
+        if war_issues:
+            embed.add_field(
+                name="⚔️ War Stage Issues",
+                value="\n".join(f"• {issue}" for issue in war_issues[:5]),
+                inline=False
+            )
+        
+        if power_issues:
+            embed.add_field(
+                name="⚡ Power Data Issues",
+                value="\n".join(f"• {issue}" for issue in power_issues[:5]),
+                inline=False
+            )
+        
+        if other_issues:
+            embed.add_field(
+                name="🔍 Other Issues",
+                value="\n".join(f"• {issue}" for issue in other_issues[:5]),
+                inline=False
+            )
+        
+        if len(issues) > 15:
+            embed.set_footer(text=f"Showing first 15 of {len(issues)} issues")
         
         await interaction.followup.send(embed=embed, ephemeral=True)
 
@@ -1406,6 +2346,220 @@ class RankingCog(commands.Cog):
         summary.append(f"Peers within range: {better}/{len(cohort)} scoring at or below you")
         embed.add_field(name="Summary", value="\n".join(summary), inline=False)
         await interaction.response.send_message(embed=embed, ephemeral=True)
+    
+    # ══════════════════════════════════════════════════════════════════
+    # PHASE R6: STANDARDIZED EMBED RESPONSE BUILDERS
+    # ══════════════════════════════════════════════════════════════════
+    
+    def _build_prep_day_success_embed(
+        self,
+        day: int,
+        score: int,
+        player_name: str,
+        guild_tag: str,
+        rank: Optional[int],
+        was_update: bool
+    ) -> discord.Embed:
+        """Build success embed for Prep Day submission."""
+        action = "Updated" if was_update else "Submitted"
+        title = f"✅ Prep Day {day} Ranking {action}!"
+        
+        embed = discord.Embed(
+            title=title,
+            description=f"Your **Day {day}** score has been recorded.",
+            color=discord.Color.green()
+        )
+        
+        embed.add_field(name="Player", value=f"{player_name} [{guild_tag}]", inline=True)
+        embed.add_field(name="Score", value=f"{score:,} points", inline=True)
+        if rank:
+            embed.add_field(name="Rank", value=f"#{rank}", inline=True)
+        
+        if was_update:
+            embed.set_footer(text="⚠️ Previous submission for this day was overwritten.")
+        else:
+            embed.set_footer(text="Day submission saved successfully.")
+        
+        return embed
+    
+    def _build_prep_overall_success_embed(
+        self,
+        score: int,
+        player_name: str,
+        guild_tag: str,
+        rank: Optional[int],
+        was_update: bool
+    ) -> discord.Embed:
+        """Build success embed for Prep Overall submission."""
+        action = "Updated" if was_update else "Submitted"
+        title = f"✅ Prep Overall Ranking {action}!"
+        
+        embed = discord.Embed(
+            title=title,
+            description="Your **Prep Stage Overall** score has been recorded.",
+            color=discord.Color.blue()
+        )
+        
+        embed.add_field(name="Player", value=f"{player_name} [{guild_tag}]", inline=True)
+        embed.add_field(name="Total Score", value=f"{score:,} points", inline=True)
+        if rank:
+            embed.add_field(name="Rank", value=f"#{rank}", inline=True)
+        
+        if was_update:
+            embed.set_footer(text="⚠️ Previous overall prep submission was overwritten.")
+        else:
+            embed.set_footer(text="Overall prep score saved successfully.")
+        
+        return embed
+    
+    def _build_war_success_embed(
+        self,
+        score: int,
+        player_name: str,
+        guild_tag: str,
+        rank: Optional[int],
+        was_update: bool
+    ) -> discord.Embed:
+        """Build success embed for War Day submission."""
+        action = "Updated" if was_update else "Submitted"
+        title = f"✅ War Stage Ranking {action}!"
+        
+        embed = discord.Embed(
+            title=title,
+            description="Your **War Stage** score has been recorded.",
+            color=discord.Color.red()
+        )
+        
+        embed.add_field(name="Player", value=f"{player_name} [{guild_tag}]", inline=True)
+        embed.add_field(name="Score", value=f"{score:,} points", inline=True)
+        if rank:
+            embed.add_field(name="Rank", value=f"#{rank}", inline=True)
+        
+        if was_update:
+            embed.set_footer(text="⚠️ Previous war submission was overwritten.")
+        else:
+            embed.set_footer(text="War stage score saved successfully.")
+        
+        return embed
+    
+    def _build_no_change_embed(self, phase: str, day: Optional[int | str]) -> discord.Embed:
+        """Build embed when score hasn't changed."""
+        if phase == "prep":
+            if day == "overall":
+                title = "Prep Overall - No Change"
+                desc = "Your overall prep score is already up to date."
+            else:
+                title = f"Prep Day {day} - No Change"
+                desc = f"Your Day {day} score is already up to date."
+        else:  # war
+            title = "War Stage - No Change"
+            desc = "Your war stage score is already up to date."
+        
+        embed = discord.Embed(
+            title=f"ℹ️ {title}",
+            description=desc,
+            color=discord.Color.greyple()
+        )
+        embed.set_footer(text="Submit a new screenshot if your score has changed.")
+        return embed
+    
+    def _build_out_of_phase_error_embed(
+        self,
+        submitted_phase: str,
+        current_phase: str,
+        current_day: int
+    ) -> discord.Embed:
+        """Build error embed for out-of-phase submission."""
+        embed = discord.Embed(
+            title="❌ Wrong Event Phase",
+            description=f"You submitted a **{submitted_phase.title()} Stage** screenshot, but the current phase is **{current_phase.title()} Stage**.",
+            color=discord.Color.orange()
+        )
+        
+        if current_phase == "prep":
+            embed.add_field(
+                name="Current Status",
+                value=f"📅 Prep Stage - Day {current_day}",
+                inline=False
+            )
+            embed.add_field(
+                name="What to do",
+                value="Please submit a screenshot from the **Prep Stage** rankings.",
+                inline=False
+            )
+        else:  # war
+            embed.add_field(
+                name="Current Status",
+                value="⚔️ War Stage - Active",
+                inline=False
+            )
+            embed.add_field(
+                name="What to do",
+                value="Please submit a screenshot from the **War Stage** rankings.",
+                inline=False
+            )
+        
+        return embed
+    
+    def _build_day_not_unlocked_error_embed(
+        self,
+        submitted_day: int,
+        current_day: int
+    ) -> discord.Embed:
+        """Build error embed for submitting a future day."""
+        embed = discord.Embed(
+            title="❌ Day Not Unlocked Yet",
+            description=f"You submitted a Day {submitted_day} screenshot, but we're currently on Day {current_day}.",
+            color=discord.Color.orange()
+        )
+        
+        embed.add_field(
+            name="Current Day",
+            value=f"📅 Day {current_day}",
+            inline=True
+        )
+        embed.add_field(
+            name="Your Submission",
+            value=f"Day {submitted_day}",
+            inline=True
+        )
+        
+        embed.add_field(
+            name="What to do",
+            value=f"Please submit a screenshot from **Day {current_day}** or earlier.",
+            inline=False
+        )
+        
+        return embed
+    
+    def _build_previous_day_update_warning_embed(
+        self,
+        day: int,
+        current_day: int,
+        score: int,
+        player_name: str,
+        guild_tag: str
+    ) -> discord.Embed:
+        """Build warning embed for updating a previous day (backfill)."""
+        embed = discord.Embed(
+            title=f"⚠️ Updating Previous Day",
+            description=f"You're submitting a Day {day} score, but we're currently on Day {current_day}.",
+            color=discord.Color.gold()
+        )
+        
+        embed.add_field(name="Submitted Day", value=f"Day {day}", inline=True)
+        embed.add_field(name="Current Day", value=f"Day {current_day}", inline=True)
+        embed.add_field(name="Score", value=f"{score:,} points", inline=True)
+        
+        embed.add_field(
+            name="✅ Submission Accepted",
+            value=f"Your Day {day} score has been updated (backfill).",
+            inline=False
+        )
+        
+        embed.set_footer(text=f"Player: {player_name} [{guild_tag}]")
+        
+        return embed
 
 async def setup(
     bot: commands.Bot,
