@@ -89,8 +89,13 @@ worfklow/instructions/*.md
 logs/diagnostics/
 logs/screenshots/
 
-# Diagnostic and test scripts
+# Scripts and utilities
 scripts/diagnostics/
+scripts/deployment/
+scripts/utilities/
+
+# Project files
+config/project/
 
 # ──────────────────────────────
 # END OF FILE
