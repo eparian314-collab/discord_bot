@@ -40,21 +40,30 @@ logger = logging.getLogger("hippo_bot.schema_hash")
 DEFAULT_HASH_FILE = Path("data") / "command_schema_hashes.json"
 
 
-def _normalize_command_for_hash(cmd: app_commands.Command | app_commands.Group) -> Dict[str, Any]:
+def _normalize_command_for_hash(cmd: app_commands.Command | app_commands.Group, tree: Optional[app_commands.CommandTree] = None) -> Dict[str, Any]:
     """
     Normalize a command to a dictionary suitable for hashing.
     Only includes schema-significant fields.
+    
+    Args:
+        cmd: The command or group to normalize
+        tree: Optional CommandTree instance (required for discord.py v2.x)
     """
     try:
         # Use to_dict if available
         if hasattr(cmd, 'to_dict'):
             try:
-                payload = cmd.to_dict()
-            except TypeError:
-                # Older discord.py versions don't accept tree parameter
-                if hasattr(cmd, 'binding'):
-                    payload = cmd.to_dict()
+                # Try with tree parameter first (discord.py v2.x)
+                if tree is not None:
+                    payload = cmd.to_dict(tree)
                 else:
+                    # Fallback without tree (older versions or missing tree)
+                    payload = cmd.to_dict()
+            except TypeError:
+                # Fallback if to_dict signature doesn't match
+                try:
+                    payload = cmd.to_dict()
+                except:
                     payload = {}
         else:
             payload = {}
@@ -133,7 +142,7 @@ def compute_command_schema_hash(bot: commands.Bot, scope: str = "global") -> str
         # Normalize each command
         normalized_commands = []
         for cmd in all_commands:
-            normalized = _normalize_command_for_hash(cmd)
+            normalized = _normalize_command_for_hash(cmd, tree=bot.tree)
             normalized_commands.append(normalized)
         
         # Sort by name for deterministic ordering

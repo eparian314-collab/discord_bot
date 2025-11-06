@@ -87,13 +87,14 @@ def storage(tmp_path):
 
 def _build_ranking_data(day: int) -> RankingData:
     now = datetime.now(timezone.utc)
+    # Canonical RankingData: phase, day, category
     return RankingData(
         user_id="100",
         username="Tester",
         guild_tag="TAG",
         event_week="placeholder",
-        stage_type=StageType.PREP,
-        day_number=day,
+        phase="prep",
+        day=day,
         category=RankingCategory.CONSTRUCTION,
         rank=12,
         score=222_000,
@@ -103,6 +104,8 @@ def _build_ranking_data(day: int) -> RankingData:
         guild_id="999",
         kvk_run_id=None,
         is_test_run=False,
+        stage_type=StageType.PREP,
+        day_number=day,
     )
 
 
@@ -110,7 +113,9 @@ def _build_ranking_data(day: int) -> RankingData:
 async def test_submit_ranking_requires_active_run(monkeypatch, storage):
     monkeypatch.setenv("RANKINGS_CHANNEL_ID", "555")
     monkeypatch.setenv("OWNER_IDS", "")
+    # Patch admin helper across all module aliases
     monkeypatch.setattr(ranking_cog, "is_admin_or_helper", lambda *_: False)
+    monkeypatch.setattr(RankingCog, "is_admin_or_helper", staticmethod(lambda *_: False))
 
     run = FakeKvkRun(active=True)
     tracker = FakeKvkTracker(run)
@@ -143,7 +148,9 @@ async def test_submit_ranking_requires_active_run(monkeypatch, storage):
 @pytest.mark.asyncio
 async def test_submit_ranking_blocks_when_window_closed(monkeypatch, storage):
     monkeypatch.setenv("RANKINGS_CHANNEL_ID", "555")
+    # Patch admin helper across all module aliases
     monkeypatch.setattr(ranking_cog, "is_admin_or_helper", lambda *args, **kwargs: False)
+    monkeypatch.setattr(RankingCog, "is_admin_or_helper", staticmethod(lambda *args, **kwargs: False))
 
     closed_run = FakeKvkRun(active=False)
     tracker = FakeKvkTracker(closed_run)
@@ -172,7 +179,9 @@ async def test_submit_ranking_blocks_when_window_closed(monkeypatch, storage):
 @pytest.mark.asyncio
 async def test_submit_ranking_allows_admin_when_closed(monkeypatch, storage):
     monkeypatch.setenv("RANKINGS_CHANNEL_ID", "555")
+    # Patch admin helper across all module aliases
     monkeypatch.setattr(ranking_cog, "is_admin_or_helper", lambda *args, **kwargs: True)
+    monkeypatch.setattr(RankingCog, "is_admin_or_helper", staticmethod(lambda *args, **kwargs: True))
 
     closed_run = FakeKvkRun(active=False)
     tracker = FakeKvkTracker(closed_run)

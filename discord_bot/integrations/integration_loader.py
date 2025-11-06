@@ -20,6 +20,7 @@ from discord_bot.core.engines.ranking_storage_engine import RankingStorageEngine
 from discord_bot.core.engines.input_engine import InputEngine
 from discord_bot.core.engines.output_engine import OutputEngine
 from discord_bot.core.engines.screenshot_processor import ScreenshotProcessor
+from discord_bot.core.engines.ocr_training_engine import OcrTrainingEngine
 from discord_bot.core.engines.personality_engine import PersonalityEngine
 from discord_bot.core.engines.processing_engine import ProcessingEngine
 from discord_bot.core.engines.role_manager import RoleManager
@@ -128,6 +129,9 @@ class HippoBot(commands.Bot):
 
         # Send startup message to bot channels
         await self._send_startup_message()
+        
+        # Run OCR training session if enabled
+        await self._run_ocr_training_if_enabled()
 
     def _resolve_target_guilds(self) -> Tuple[Dict[int, str], Optional[str]]:
         """Resolve guild IDs targeted for command sync."""
@@ -202,8 +206,31 @@ class HippoBot(commands.Bot):
                 scope = f"guild:{guild_id}"
                 # Check if guild sync is needed
                 if force_sync or should_sync_commands(self, scope=scope):
+                    # DIAGNOSTIC: Log tree state before sync
+                    all_commands = self.tree.get_commands()
+                    logger.info(f"🔍 DIAGNOSTIC: Tree contains {len(all_commands)} commands before guild sync")
+                    for cmd in all_commands[:10]:  # Log first 10 to avoid spam
+                        logger.info(f"  - {cmd.name} (type {getattr(cmd, 'type', 'unknown')})")
+                    if len(all_commands) > 10:
+                        logger.info(f"  ... and {len(all_commands) - 10} more commands")
+                    
                     logger.info(f"Syncing commands to guild {name} ({guild_id}) (schema changed or forced)")
-                    synced_guild = await self.tree.sync(guild=discord.Object(id=guild_id))
+                    
+                    # CRITICAL FIX: Clear any stale cached commands first
+                    # This ensures Discord doesn't hold onto old signatures
+                    guild_obj_clear = discord.Object(id=guild_id)
+                    self.tree.clear_commands(guild=guild_obj_clear)
+                    logger.info(f"🧹 Cleared stale guild commands for {name} ({guild_id})")
+                    
+                    # CRITICAL FIX: Copy global commands to guild before syncing
+                    # Discord.py requires this step for guild-specific syncs
+                    guild_obj_copy = discord.Object(id=guild_id)
+                    self.tree.copy_global_to(guild=guild_obj_copy)
+                    logger.info(f"🔧 Copied global command tree to guild {name} ({guild_id})")
+                    
+                    guild_obj_sync = discord.Object(id=guild_id)
+                    synced_guild = await self.tree.sync(guild=guild_obj_sync)
+                    logger.info(f"🔍 DIAGNOSTIC: Discord API returned {len(synced_guild)} commands synced")
                     summary.append((f"{name} ({guild_id})", len(synced_guild)))
                     # Mark as synced
                     mark_synced(self, scope=scope)
@@ -558,6 +585,42 @@ class HippoBot(commands.Bot):
                     logger.info("Sent startup message to guild %s in channel %s", guild.name, channel.name)
                 except Exception as e:
                     logger.warning("Failed to send startup message to guild %s: %s", guild.name, e)
+    
+    async def _run_ocr_training_if_enabled(self) -> None:
+        """Run OCR training session if enabled via environment variable."""
+        # Check if OCR training is enabled
+        enable_training = os.getenv("ENABLE_OCR_TRAINING", "").lower() in {"1", "true", "yes"}
+        
+        if not enable_training:
+            logger.debug("OCR training disabled (set ENABLE_OCR_TRAINING=true to enable)")
+            return
+        
+        # Get owner ID(s)
+        owner_ids_raw = os.getenv("OWNER_IDS", "")
+        if not owner_ids_raw:
+            logger.warning("OCR training enabled but OWNER_IDS not set")
+            return
+        
+        owner_ids = _parse_id_set(owner_ids_raw)
+        if not owner_ids:
+            logger.warning("OCR training enabled but no valid OWNER_IDS found")
+            return
+        
+        # Use first owner ID
+        owner_id = next(iter(owner_ids))
+        
+        # Get the OCR training engine from the bot's context
+        ocr_training = getattr(self, 'ocr_training_engine', None)
+        if not ocr_training:
+            logger.warning("OCR training enabled but engine not found")
+            return
+        
+        logger.info("Starting OCR training session for owner %s", owner_id)
+        
+        try:
+            await ocr_training.run_training_session(self, owner_id)
+        except Exception as e:
+            logger.error("OCR training session failed: %s", e, exc_info=True)
 
     def add_post_setup_hook(self, hook: Callable[[], Awaitable[None]]) -> None:
         self._post_setup_hooks.append(hook)
@@ -659,6 +722,16 @@ class IntegrationLoader:
         self.ranking_processor = ScreenshotProcessor()
         self.ranking_storage = RankingStorageEngine(storage=self.game_storage)
         logger.debug("Ranking system engines initialized")
+        
+        # OCR training engine for interactive learning
+        self.ocr_training = OcrTrainingEngine(
+            processor=self.ranking_processor,
+            training_data_path="data/ocr_training.json",
+            screenshots_dir="logs/screenshots"
+        )
+        # Wire training engine to processor for applying learned corrections
+        self.ranking_processor.set_training_engine(self.ocr_training)
+        logger.debug("OCR training engine initialized")
 
         self.ambiguity_resolver = (
             AmbiguityResolver(
@@ -831,6 +904,13 @@ class IntegrationLoader:
             help_command=None,
         )
         ui_groups.register_command_groups(self.bot)
+        
+        # DIAGNOSTIC: Verify command groups were registered
+        all_cmds_after_groups = self.bot.tree.get_commands()
+        logger.info(f"🔍 DIAGNOSTIC: After register_command_groups(), tree has {len(all_cmds_after_groups)} commands")
+        for cmd in all_cmds_after_groups:
+            logger.info(f"  - {cmd.name} (type {getattr(cmd, 'type', 'unknown')})")
+        
         self.event_reminder_engine.set_bot(self.bot)
         self.kvk_tracker.set_bot(self.bot)
 
@@ -879,6 +959,7 @@ class IntegrationLoader:
         self.registry.inject("kvk_tracker", self.kvk_tracker)
         self.registry.inject("ranking_processor", self.ranking_processor)
         self.registry.inject("ranking_storage", self.ranking_storage)
+        self.registry.inject("ocr_training", self.ocr_training)
         logger.debug("Game system engines registered")
 
         self._expose_bot_attributes()
@@ -945,6 +1026,7 @@ class IntegrationLoader:
             "kvk_tracker": self.kvk_tracker,
             "ranking_processor": self.ranking_processor,
             "ranking_storage": self.ranking_storage,
+            "ocr_training_engine": self.ocr_training,
         }
 
         orchestrator = getattr(self.processing_engine, "orchestrator", None) or self.orchestrator
@@ -1036,6 +1118,14 @@ class IntegrationLoader:
             )
             # await setup_training_cog(self.bot)  # DISABLED: Old slash syntax
             await setup_ui_master_cog(self.bot)
+            
+            # DIAGNOSTIC: Verify commands after all cogs mounted
+            all_cmds_after_mount = self.bot.tree.get_commands()
+            logger.info(f"🔍 DIAGNOSTIC: After mounting all cogs, tree has {len(all_cmds_after_mount)} commands")
+            for cmd in all_cmds_after_mount[:15]:  # Log first 15
+                logger.info(f"  - {cmd.name} (type {getattr(cmd, 'type', 'unknown')})")
+            if len(all_cmds_after_mount) > 15:
+                logger.info(f"  ... and {len(all_cmds_after_mount) - 15} more commands")
             
             logger.info("⚙️ Mounted cogs: translation, admin, help, language, sos, events, ranking, easteregg, game, battle, ui_master")
         except Exception as exc:

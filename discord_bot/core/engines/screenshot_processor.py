@@ -344,6 +344,9 @@ class ScreenshotProcessor:
             ranking.confidence = overall_confidence
             ranking.confidence_map = confidence_map
             
+            # Apply learned corrections from OCR training engine if available
+            ranking = self._apply_training_corrections(ranking)
+            
             return ranking
             
         except Exception:
@@ -892,3 +895,30 @@ class ScreenshotProcessor:
             
         except Exception as e:
             return False, f"Error processing image: {str(e)}"
+    
+    def _apply_training_corrections(self, ranking: RankingData) -> RankingData:
+        """
+        Apply learned corrections from OCR training engine if available.
+        
+        This method is called after OCR processing to apply any learned
+        correction patterns from the interactive training system.
+        """
+        # Check if training corrections are available
+        # This will be populated by the OCR training engine
+        if not hasattr(self, 'training_corrections'):
+            return ranking
+        
+        corrections = getattr(self, 'training_corrections', None)
+        if corrections and hasattr(corrections, 'apply_learned_corrections'):
+            try:
+                ranking = corrections.apply_learned_corrections(ranking)
+                logger.debug("Applied training corrections to OCR results")
+            except Exception as e:
+                logger.error("Failed to apply training corrections: %s", e)
+        
+        return ranking
+    
+    def set_training_engine(self, training_engine) -> None:
+        """Set the OCR training engine for applying learned corrections."""
+        self.training_corrections = training_engine
+        logger.info("OCR training engine connected to screenshot processor")

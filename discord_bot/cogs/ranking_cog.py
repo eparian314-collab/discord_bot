@@ -73,7 +73,11 @@ class RankingCog(commands.Cog):
                 pass
     """Top Heroes event ranking commands."""
     
-    # Register ranking commands under /kvk ranking
+    # Remove any stale /kvk ranking command registrations before rebuilding
+    if hasattr(ui_groups.kvk, 'commands'):
+        for cmd in list(ui_groups.kvk.commands):
+            if getattr(cmd, 'name', None) == ui_groups.KVK_RANKING_NAME:
+                ui_groups.kvk.remove_command(cmd.name)
     ranking = app_commands.Group(
         name=ui_groups.KVK_RANKING_NAME,
         description=ui_groups.KVK_RANKING_DESCRIPTION,
@@ -315,13 +319,15 @@ class RankingCog(commands.Cog):
         guild_id = str(interaction.guild_id) if interaction.guild else None
         user_id = str(interaction.user.id)
 
-        # Use canonical phase/day for duplicate check
+        # Normalize canonical phase/day to legacy values for duplicate check
+        legacy_day = self._canonical_day_to_legacy(normalized_day, phase)
+        legacy_phase = phase
         existing = self.storage.check_duplicate_submission(
             user_id,
             guild_id or "0",
             event_week,
-            phase,  # canonical "prep" or "war"
-            normalized_day,  # 1-5, "overall", or None
+            legacy_phase,  # "prep" or "war"
+            legacy_day,    # 1-5, -1 (overall), or None
             kvk_run_id=kvk_run.id,
         )
 
@@ -752,7 +758,18 @@ class RankingCog(commands.Cog):
         day: Optional[int] = None
     ):
         """Submit an event ranking screenshot."""
+        logger.info(
+            "📸 Ranking submission started: user=%s (%s), guild=%s, stage=%s, day=%s, filename=%s",
+            interaction.user.name,
+            interaction.user.id,
+            interaction.guild.name if interaction.guild else "DM",
+            stage,
+            day,
+            screenshot.filename
+        )
+        
         if not await self._check_rankings_channel(interaction):
+            logger.debug("Ranking submission rejected: not in rankings channel")
             return
 
         kvk_run, run_is_active = self._resolve_kvk_run(interaction)
@@ -773,6 +790,8 @@ class RankingCog(commands.Cog):
             return
 
         await interaction.response.defer(ephemeral=True)
+        
+        logger.debug("🔍 Starting validation pipeline for user %s", interaction.user.id)
 
         try:
             validation = await self._validate_submission_payload(
@@ -782,7 +801,15 @@ class RankingCog(commands.Cog):
                 day=day,
                 kvk_run=kvk_run,
             )
+            logger.info(
+                "✅ Validation passed: phase=%s, day=%s, rank=%s, score=%s",
+                validation.ranking.phase,
+                validation.ranking.day,
+                validation.ranking.rank,
+                validation.ranking.score
+            )
         except SubmissionValidationError as exc:
+            logger.warning("❌ Validation failed for user %s: %s", interaction.user.id, str(exc))
             await interaction.followup.send(str(exc), ephemeral=True)
             return
 
@@ -798,8 +825,15 @@ class RankingCog(commands.Cog):
         confidence = getattr(ranking, 'confidence', 1.0)  # Default to high if not present
         confidence_map = getattr(ranking, 'confidence_map', {})
         
+        logger.debug(
+            "🎯 OCR Confidence: overall=%.2f, fields=%s",
+            confidence,
+            {k: f"{v:.2f}" for k, v in confidence_map.items()} if confidence_map else "N/A"
+        )
+        
         # CASE 1: High confidence (≥ 0.99) → Auto-accept
         if confidence >= 0.99:
+            logger.info("✨ High confidence (%.2f) - auto-accepting submission", confidence)
             if validation.existing_entry:
                 await interaction.followup.send(
                     "You already submitted data for this run and day. The previous entry will be replaced.",
