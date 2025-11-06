@@ -60,5 +60,54 @@
       "water",
       "flying"
     ]
+  },
+  "dratini": {
+    "species": "dratini",
+    "hp": 41,
+    "attack": 64,
+    "defense": 45,
+    "special_attack": 50,
+    "special_defense": 50,
+    "speed": 50,
+    "types": [
+      "dragon"
+    ]
+  },
+  "eevee": {
+    "species": "eevee",
+    "hp": 55,
+    "attack": 55,
+    "defense": 50,
+    "special_attack": 45,
+    "special_defense": 65,
+    "speed": 55,
+    "types": [
+      "normal"
+    ]
+  },
+  "bulbasaur": {
+    "species": "bulbasaur",
+    "hp": 45,
+    "attack": 49,
+    "defense": 49,
+    "special_attack": 65,
+    "special_defense": 65,
+    "speed": 45,
+    "types": [
+      "grass",
+      "poison"
+    ]
+  },
+  "snorlax": {
+    "species": "snorlax",
+    "hp": 160,
+    "attack": 110,
+    "defense": 65,
+    "special_attack": 65,
+    "special_defense": 110,
+    "speed": 30,
+    "types": [
+      "normal"
+    ]
   }
 }
