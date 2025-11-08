@@ -18,7 +18,12 @@ from pathlib import Path
 from typing import Any, Dict, Optional
 
 from discord_bot.core.engines.base.logging_utils import get_logger
-from discord_bot.core.engines.kvk_image_parser import KVKImageParser, KVKParseResult
+from discord_bot.core.engines.kvk_image_parser import (
+    KVKImageParser,
+    KVKParseResult,
+    KVKStageType,
+    KVKLeaderboardEntry,
+)
 from discord_bot.core.engines.kvk_comparison_engine import KVKComparisonEngine, ComparisonResult
 
 logger = get_logger("hippo_bot.kvk_visual_manager")
@@ -148,6 +153,61 @@ class KVKVisualManager:
                 "error": str(e),
                 "phase": "workflow"
             }
+
+    async def process_manual_submission(self, manual_data: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Run the pipeline with user-provided data when OCR cannot parse the image.
+        """
+        workflow_start = datetime.now(timezone.utc)
+        try:
+            parse_result = self._build_manual_parse_result(manual_data)
+
+            snapshot_path = await self.image_parser.save_leaderboard_snapshot(parse_result)
+            score_updated = await self.image_parser.update_user_score(parse_result)
+            comparison_result = await self.comparison_engine.trigger_comparison_update(parse_result)
+
+            workflow_end = datetime.now(timezone.utc)
+            processing_time = (workflow_end - workflow_start).total_seconds()
+
+            summary = {
+                "success": True,
+                "manual_submission": True,
+                "processing_time_seconds": processing_time,
+                "parse_result": {
+                    "stage_type": parse_result.stage_type.value,
+                    "prep_day": parse_result.prep_day,
+                    "kingdom_id": parse_result.kingdom_id,
+                    "entries_count": len(parse_result.entries),
+                    "self_entry_found": parse_result.self_entry is not None,
+                },
+                "score_updated": score_updated,
+                "snapshot_path": snapshot_path,
+                "comparison_updated": comparison_result is not None,
+                "timestamp": workflow_end.isoformat(),
+            }
+
+            if parse_result.self_entry:
+                summary["self_score"] = {
+                    "rank": parse_result.self_entry.rank,
+                    "points": parse_result.self_entry.points,
+                    "player_name": parse_result.self_entry.player_name,
+                    "guild_tag": parse_result.self_entry.guild_tag,
+                }
+
+            if comparison_result:
+                summary["comparison"] = {
+                    "peer_count": len(comparison_result.peers),
+                    "user_power": comparison_result.user_power,
+                    "top_peer_ahead_by": comparison_result.peers[0].score_delta
+                    if comparison_result.peers
+                    else 0,
+                }
+
+            await self._announce_processing_complete(parse_result, comparison_result)
+            return summary
+        except Exception as exc:
+            logger.exception("Manual KVK submission failed: %s", exc)
+            return {"success": False, "error": str(exc), "phase": "manual"}
     
     async def _announce_processing_complete(self,
                                           parse_result: KVKParseResult,
@@ -162,7 +222,7 @@ class KVKVisualManager:
         stage_desc = f"{parse_result.stage_type.value} stage"
         day_desc = f"day {parse_result.prep_day}" if parse_result.prep_day else "unknown day"
         
-        announcement = f"⚔️ Comparison updated for @{parse_result.metadata.get('username', 'User')} — {stage_desc} {day_desc} synced."
+        announcement = f"⚔️ Comparison updated for @{parse_result.metadata.get('username', 'User')} - {stage_desc} {day_desc} synced."
         
         logger.info(announcement)
     
@@ -192,6 +252,48 @@ class KVKVisualManager:
                 "error": f"Validation error: {str(e)}",
                 "requirements_met": False
             }
+
+    def _build_manual_parse_result(self, manual_data: Dict[str, Any]) -> KVKParseResult:
+        """Construct a KVKParseResult object from manual inputs."""
+        stage_raw = manual_data.get("stage_type", "unknown")
+        if isinstance(stage_raw, KVKStageType):
+            stage_enum = stage_raw
+        else:
+            normalized = str(stage_raw).lower()
+            if normalized in ("prep", "prep stage"):
+                stage_enum = KVKStageType.PREP
+            elif normalized in ("war", "war stage"):
+                stage_enum = KVKStageType.WAR
+            else:
+                stage_enum = KVKStageType.UNKNOWN
+
+        self_entry = KVKLeaderboardEntry(
+            rank=int(manual_data["rank"]),
+            player_name=manual_data.get("player_name"),
+            kingdom_id=manual_data.get("kingdom_id"),
+            points=int(manual_data["score"]),
+            is_self=True,
+            guild_tag=manual_data.get("guild_tag"),
+        )
+
+        metadata = {
+            "user_id": manual_data.get("user_id"),
+            "username": manual_data.get("username"),
+            "guild_id": manual_data.get("guild_id"),
+            "guild_tag": manual_data.get("guild_tag"),
+            "screenshot_url": manual_data.get("screenshot_url"),
+            "kvk_run_id": manual_data.get("kvk_run_id"),
+            "is_manual_submission": True,
+        }
+
+        return KVKParseResult(
+            stage_type=stage_enum,
+            prep_day=manual_data.get("prep_day"),
+            kingdom_id=manual_data.get("kingdom_id"),
+            entries=[self_entry],
+            self_entry=self_entry,
+            metadata=metadata,
+        )
     
     async def get_user_comparison_status(self,
                                        user_id: str,

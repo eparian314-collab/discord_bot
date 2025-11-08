@@ -7,7 +7,7 @@ from pathlib import Path
 # Add parent to path
 sys.path.insert(0, str(Path(__file__).parent))
 
-from language_context.context_utils import map_alias_to_code, load_language_map, normalize_lang_code
+from language_context.context_utils import map_alias_to_code, load_language_map
 
 # Load language map
 lang_map = load_language_map()

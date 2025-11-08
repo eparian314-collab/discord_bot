@@ -95,11 +95,12 @@ class KVKTracker:
         """
         now = datetime.now(timezone.utc)
         guild_key = str(guild_id)
-        run: Optional[KVKRun] = None
-        if not is_test:
+        if is_test:
+            run = self._fetch_active_run(guild_key, include_tests=True, is_test=True)
+        else:
             run = self._fetch_active_run(guild_key, include_tests=False, is_test=False)
-            if run and run.is_active:
-                return run, False
+        if run and run.is_active:
+            return run, False
 
         run_number = None
         if not is_test:

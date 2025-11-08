@@ -72,7 +72,7 @@ async def main():
             bot.tree._guild_commands = temp_bot.tree._guild_commands
             bot.tree._global_commands = temp_bot.tree._global_commands
             
-            print(f"   ✅ Loaded commands from fully configured bot")
+            print("   ✅ Loaded commands from fully configured bot")
             
             # Close the temp bot
             await temp_bot.close()
@@ -80,7 +80,7 @@ async def main():
             print(f"   ❌ Error loading application: {e}")
             import traceback
             traceback.print_exc()
-            print(f"   Will sync empty command tree to clear old commands")
+            print("   Will sync empty command tree to clear old commands")
         
         print()
         print("=" * 80)
@@ -107,7 +107,7 @@ async def main():
                     
                     # List commands
                     if synced:
-                        print(f"   Commands:")
+                        print("   Commands:")
                         for cmd in synced:
                             print(f"      • /{cmd.name} - {cmd.description}")
                 except Exception as e:

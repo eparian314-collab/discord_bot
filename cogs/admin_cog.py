@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 import asyncio
+import os
 import time
 import psutil
-from typing import Dict, Iterable, Optional, Set, TYPE_CHECKING
+from typing import Any, Dict, Iterable, Optional, Set, TYPE_CHECKING
 from datetime import timedelta, datetime, timezone
 
 import discord
@@ -36,6 +37,11 @@ class AdminCog(commands.Cog):
         name="admin",
         description="🛡️ Moderation and administration tools"
     )
+    bot = app_commands.Group(
+        name="bot",
+        description="HippoBot health and diagnostics",
+    )
+
 
     def __init__(
         self,
@@ -107,6 +113,62 @@ class AdminCog(commands.Cog):
         self._cache[guild_id] = clean
         if self.input_engine and hasattr(self.input_engine, "save_sos_mapping"):
             self.input_engine.save_sos_mapping(guild_id, clean)  # type: ignore[attr-defined]
+
+    @bot.command(name="status", description="Summarise reminder, KVK, and OCR health.")
+    async def bot_status(self, interaction: discord.Interaction) -> None:
+        """Provide a quick operational snapshot for admins."""
+        try:
+            self._ensure_permitted(interaction)
+        except PermissionError:
+            await self._deny(interaction)
+            return
+
+        reminder_engine = getattr(self.bot, "event_reminder_engine", None)
+        kvk_tracker = getattr(self.bot, "kvk_tracker", None)
+
+        pending_reminders = 0
+        next_event_label = "No scheduled events"
+        if reminder_engine and interaction.guild:
+            try:
+                events = await reminder_engine.get_events_for_guild(interaction.guild.id)
+            except Exception:
+                events = []
+            now = datetime.now(timezone.utc)
+            upcoming: list[tuple[Any, datetime]] = []
+            for event in events:
+                if not getattr(event, "is_active", True):
+                    continue
+                next_time = event.get_next_occurrence(now)
+                if next_time:
+                    pending_reminders += 1
+                    upcoming.append((event, next_time))
+            upcoming.sort(key=lambda pair: pair[1])
+            if upcoming:
+                event, when = upcoming[0]
+                next_event_label = f"{event.title} @ {when.strftime('%Y-%m-%d %H:%M UTC')}"
+
+        run_summary = "Tracker unavailable"
+        if kvk_tracker and interaction.guild:
+            run = kvk_tracker.get_active_run(interaction.guild.id, include_tests=True)
+            if run:
+                label = "Test" if run.is_test else f"Run #{run.run_number}"
+                run_summary = f"{label} active until {run.ends_at.strftime('%Y-%m-%d %H:%M UTC')}"
+            else:
+                run_summary = "No active run"
+
+        ocr_enabled = os.getenv("ENABLE_OCR_TRAINING", "false").strip().lower() in {"1", "true", "yes"}
+
+        embed = discord.Embed(
+            title="HippoBot Status",
+            color=discord.Color.blurple(),
+            timestamp=datetime.now(timezone.utc),
+        )
+        embed.add_field(name="KVK", value=run_summary, inline=False)
+        embed.add_field(name="Pending reminders", value=str(pending_reminders), inline=True)
+        embed.add_field(name="Next event", value=next_event_label, inline=True)
+        embed.add_field(name="OCR training", value="enabled" if ocr_enabled else "disabled", inline=True)
+
+        await interaction.response.send_message(embed=embed, ephemeral=True)
 
     # ------------------------------------------------------------------
     # Keyword commands

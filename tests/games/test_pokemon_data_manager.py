@@ -5,7 +5,7 @@ Tests for Pokemon Data Manager - IV system, stat calculations, natures.
 import pytest
 from unittest.mock import patch, Mock
 from discord_bot.games.pokemon_data_manager import (
-    PokemonDataManager, PokemonBaseStats, PokemonIVs, NATURES
+    PokemonDataManager, NATURES
 )
 
 

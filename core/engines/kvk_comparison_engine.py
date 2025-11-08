@@ -149,7 +149,7 @@ class KVKComparisonEngine:
             # Log analysis
             await self._log_comparison_update(result)
             
-            logger.info("⚔️ Comparison updated for user %s — %s day %s synced", 
+            logger.info("⚔️ Comparison updated for user %s - %s day %s synced", 
                        user_id, parse_result.stage_type.value, parse_result.prep_day)
             
             return result

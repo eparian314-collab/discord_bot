@@ -10,7 +10,7 @@ from .base.logging_utils import get_logger
 from .kvk_parser_engine import KVKParserEngine
 from .gar_parser_engine import GARParserEngine
 from .compare_engine import CompareEngine
-from core.event_bus import EventBus
+from ..event_bus import EventBus
 
 
 class EventEngine(EnginePlugin):

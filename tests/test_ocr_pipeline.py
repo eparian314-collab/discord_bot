@@ -33,12 +33,18 @@ def processor() -> ScreenshotProcessor:
 @pytest.fixture(scope="module")
 def smart_processor() -> ScreenshotProcessor:
     """An instance of the ScreenshotProcessor with the smart parser enabled."""
-    # Assuming SmartImageParser exists and is available
     try:
         from discord_bot.core.engines.smart_image_parser import SmartImageParser
-        return ScreenshotProcessor(use_smart_parser=True)
     except ImportError:
         return ScreenshotProcessor(use_smart_parser=False)
+
+    parser = SmartImageParser()
+    if not parser.available:
+        return ScreenshotProcessor(use_smart_parser=False)
+
+    processor = ScreenshotProcessor(use_smart_parser=True)
+    processor.smart_parser = parser  # Ensure fixture uses the imported parser instance
+    return processor
 
 @pytest.fixture(scope="module")
 def mock_openai_engine() -> OpenAIEngine:
@@ -75,6 +81,9 @@ async def test_screenshot_processor_validation(processor: ScreenshotProcessor, t
     if image_path.stat().st_size == 0:
         pytest.skip(f"Test image is empty (placeholder): {image_path}")
 
+    if not processor.available:
+        pytest.skip("OCR dependencies are not installed in this environment.")
+
     image_data = image_path.read_bytes()
 
     # 1. Run ScreenshotProcessor.process_screenshot_v2()
@@ -90,6 +99,8 @@ async def test_screenshot_processor_validation(processor: ScreenshotProcessor, t
     # Skip if PIL can't identify the image (it's likely a placeholder)
     if result.error_message and "cannot identify image file" in result.error_message:
         pytest.skip(f"Test image cannot be identified by PIL (placeholder): {image_path}")
+    if result.error_message and "tesseract is not installed" in result.error_message.lower():
+        pytest.skip("Tesseract executable not installed in this environment.")
     
     assert result.raw_ocr_text is not None, "raw_ocr_text should be saved"
     
@@ -97,6 +108,7 @@ async def test_screenshot_processor_validation(processor: ScreenshotProcessor, t
     # We just want to see if the OCR is working at a basic level.
     if result.is_successful:
         assert result.ranking_data is not None
+        assert isinstance(result.ranking_data, RankingData)
         assert result.ranking_data.rank is not None
         assert result.ranking_data.score is not None
         # Player name and guild tag can be optional
@@ -114,6 +126,11 @@ async def test_smart_parser_fallback(smart_processor: ScreenshotProcessor, test_
     image_path = test_image_dir / "kvk_day1.png" # Use a reliable image
     if not image_path.exists():
         pytest.skip(f"Test image not found: {image_path}")
+    if image_path.stat().st_size == 0:
+        pytest.skip(f"Test image is empty (placeholder): {image_path}")
+
+    if not smart_processor.available:
+        pytest.skip("OCR dependencies are not installed in this environment.")
 
     image_data = image_path.read_bytes()
 
@@ -122,6 +139,11 @@ async def test_smart_parser_fallback(smart_processor: ScreenshotProcessor, test_
         user_id="test_user_456",
         username="SmartTest"
     )
+
+    if result.error_message and "cannot identify image file" in result.error_message:
+        pytest.skip(f"Smart parser fallback image cannot be identified (placeholder): {image_path}")
+    if result.error_message and "tesseract is not installed" in result.error_message.lower():
+        pytest.skip("Tesseract executable not installed in this environment.")
 
     assert result.is_successful, "Smart parser should successfully parse the golden image."
     assert result.confidence > 0.6

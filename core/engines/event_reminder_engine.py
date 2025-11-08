@@ -1,4 +1,4 @@
-﻿"""
+"""
 Event Reminder System for Top Heroes game coordination.
 
 Features:
@@ -18,6 +18,9 @@ from datetime import datetime, timedelta, timezone
 from typing import Dict, List, Optional, Set, Any, TYPE_CHECKING
 from dataclasses import dataclass, field
 from enum import Enum
+
+import discord
+from discord_bot.core.utils.channel_utils import find_bot_channel
 
 if TYPE_CHECKING:
     import discord
@@ -74,6 +77,7 @@ class EventReminder:
     # Auto-scraping
     auto_scraped: bool = False
     source_url: Optional[str] = None
+    display_id: Optional[str] = None
     
     def __post_init__(self):
         """Ensure UTC timezone."""
@@ -142,6 +146,17 @@ class EventReminderEngine:
         self.bot = bot
         if not self.kvk_tracker and hasattr(bot, "kvk_tracker"):
             self.kvk_tracker = getattr(bot, "kvk_tracker")
+
+    def allocate_display_index(self, guild_id: int, category: EventCategory) -> int:
+        """
+        Delegate short-ID allocation to the storage layer.
+
+        Raises RuntimeError if the storage backend does not expose the allocator.
+        """
+        allocator = getattr(self.storage, "allocate_event_display_index", None)
+        if not allocator:
+            raise RuntimeError("Storage engine missing allocate_event_display_index()")
+        return allocator(guild_id, category.value)
 
     def _get_rankings_channel_id(self) -> Optional[int]:
         raw = os.getenv("RANKINGS_CHANNEL_ID", "")
@@ -245,19 +260,19 @@ class EventReminderEngine:
         if not guild:
             return
         
-        channel = None
-        if event.channel_id:
-            channel = guild.get_channel(event.channel_id)
-
+        channel = self._resolve_reminder_channel(guild, event)
         if not channel:
-            # Try to find a general or announcements channel
-            for ch in guild.text_channels:
-                if ch.name.lower() in ['general', 'announcements', 'events', 'reminders']:
-                    channel = ch
-                    break
-        
-        if not channel:
-            logger.warning("No suitable channel found for reminder in guild %s", guild.id)
+            logger.warning(
+                "event.reminder.no_channel guild=%s event=%s title=%s",
+                guild.id,
+                event.event_id,
+                event.title,
+            )
+            await self._notify_creator_dm(
+                event,
+                guild,
+                reason="I was unable to find a channel where I have permission to post reminders.",
+            )
             return
         
         # Calculate time until event
@@ -324,7 +339,29 @@ class EventReminderEngine:
 
         try:
             await channel.send(content=content, embed=embed)
-            logger.debug("Sent reminder for event %s", event.event_id)
+            logger.info(
+                "event.reminder.sent guild=%s channel=%s event=%s display=%s",
+                guild.id,
+                channel.id,
+                event.event_id,
+                event.display_id,
+            )
+        except discord.Forbidden:
+            channel_name = getattr(channel, "name", channel.id)
+            logger.warning(
+                "event.reminder.forbidden guild=%s channel=%s event=%s",
+                guild.id,
+                channel_name,
+                event.event_id,
+            )
+            await self._notify_creator_dm(
+                event,
+                guild,
+                reason=(
+                    f"I cannot send reminders in #{channel_name}. "
+                    "Please grant Send Messages permissions or update BOT_CHANNEL_ID."
+                ),
+            )
         except Exception as exc:
             logger.error("Failed to send reminder for event %s: %s", event.event_id, exc)
     
@@ -456,6 +493,65 @@ class EventReminderEngine:
         """Get all active events across all guilds."""
         event_data = self.storage.get_event_reminders()
         return [self._data_to_event(data) for data in event_data]
+
+    def _resolve_reminder_channel(
+        self,
+        guild: discord.Guild,
+        event: EventReminder,
+    ) -> Optional[discord.TextChannel]:
+        if event.channel_id:
+            channel = guild.get_channel(event.channel_id)
+            if isinstance(channel, discord.TextChannel):
+                return channel
+        fallback = find_bot_channel(guild)
+        return fallback
+
+    async def _notify_creator_dm(
+        self,
+        event: EventReminder,
+        guild: discord.Guild,
+        *,
+        reason: str,
+    ) -> None:
+        """Inform the event creator that delivery failed so they can fix permissions."""
+        user = await self._resolve_user(event.created_by)
+        if not user:
+            return
+        try:
+            await user.send(
+                (
+                    f"Hi! I tried to announce **{event.title}** in **{guild.name}** "
+                    f"but couldn't: {reason}\n"
+                    "Please update the bot channel permissions or set BOT_CHANNEL_ID "
+                    "to a channel where I can talk."
+                )
+            )
+        except discord.Forbidden:
+            logger.warning(
+                "event.reminder.dm_blocked user=%s guild=%s event=%s",
+                event.created_by,
+                guild.id,
+                event.event_id,
+            )
+        except Exception:
+            logger.exception(
+                "event.reminder.dm_error user=%s guild=%s event=%s",
+                event.created_by,
+                guild.id,
+                event.event_id,
+            )
+
+    async def _resolve_user(self, user_id: Optional[int]) -> Optional[discord.abc.User]:
+        if not self.bot or not user_id:
+            return None
+        user = self.bot.get_user(user_id)
+        if user:
+            return user
+        try:
+            return await self.bot.fetch_user(user_id)
+        except Exception:
+            logger.warning("event.reminder.user_lookup_failed user=%s", user_id)
+            return None
     
     def _data_to_event(self, data: Dict[str, Any]) -> EventReminder:
         """Convert database row to EventReminder object."""

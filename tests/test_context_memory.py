@@ -2,14 +2,12 @@
 Tests for Context & Player Memory.
 """
 import pytest
-import asyncio
 from datetime import datetime, timedelta
 from unittest.mock import MagicMock
 
 # Assume these engines will be created
 # from discord_bot.core.engines.context_memory_engine import ContextMemory, PlayerMemory
 from discord_bot.core.engines.ranking_storage_engine import RankingStorageEngine
-from discord_bot.core.engines.screenshot_processor import RankingData, StageType, RankingCategory
 
 pytestmark = pytest.mark.asyncio
 
@@ -143,4 +141,8 @@ async def test_contextual_parsing_conceptual(player_memory: PlayerMemory):
     # assert corrected_score == 8000000
     # assert confidence_boost == 0.1
     
-    print(f"\nConceptual: OCR score {ocr_parsed_score} could be auto-corrected to something closer to {expected_score:,.0f} based on history.")
+    print(
+        f"\nConceptual: OCR score {ocr_parsed_score} could be auto-corrected to "
+        f"{corrected_score:,.0f} (confidence boost {confidence_boost:.1f}) "
+        f"based on history targeting ~{expected_score:,.0f}."
+    )

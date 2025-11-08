@@ -16,6 +16,7 @@ Exit codes:
 
 import sys
 import asyncio
+import random
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
 from typing import List, Tuple
@@ -136,7 +137,7 @@ class SimulationTest:
             for event in events:
                 next_time = event.get_next_occurrence(datetime.now(timezone.utc))
                 assert next_time is not None, f"Event {event.title} has no next occurrence"
-                assert next_time > datetime.now(timezone.utc), f"Next occurrence is in the past"
+                assert next_time > datetime.now(timezone.utc), "Next occurrence is in the past"
             
             self.record_pass("Event scheduling with various recurrence patterns")
         except Exception as e:
@@ -226,7 +227,7 @@ class SimulationTest:
             for encounter_type in encounter_types:
                 encounter = self.pokemon_game.generate_encounter(encounter_type)
                 assert encounter is not None, f"Failed to generate {encounter_type} encounter"
-                assert encounter.species is not None, f"Encounter has no species"
+                assert encounter.species is not None, "Encounter has no species"
                 assert 1 <= encounter.level <= 100, f"Invalid level: {encounter.level}"
             
             # Build relationship for better catch odds
@@ -254,7 +255,7 @@ class SimulationTest:
             
             # Test species lookup
             test_species = "pikachu"
-            stats = data_manager.get_base_stats(test_species)
+            data_manager.get_base_stats(test_species)
             
             # It's OK if it returns None (API might be down), just test the method exists
             assert hasattr(data_manager, 'get_base_stats'), "Missing get_base_stats method"
@@ -313,6 +314,101 @@ class SimulationTest:
             self.record_pass("Database CRUD operations")
         except Exception as e:
             self.record_fail("Database operations", str(e))
+
+    def test_cookie_economy_flow(self):
+        """Simulate cookie earning/spending loop with relationship bonuses."""
+        self.log("Testing cookie economy flow...")
+
+        try:
+            user_id = "sim_cookie_user_001"
+            random.seed(1337)
+
+            # Build some relationship history to boost drop chances.
+            for _ in range(10):
+                self.relationship_manager.record_interaction(user_id, 'mention')
+
+            earned_total = 0
+            drops_checked = ['mention', 'rps_win', 'trivia_correct', 'game_action']
+            for interaction in drops_checked:
+                award = self.cookie_manager.try_award_cookies(
+                    user_id=user_id,
+                    interaction_type=interaction,
+                    bot_mood='happy'
+                )
+                if award:
+                    earned_total += award
+
+            # Ensure we have a minimum balance to test spending.
+            _, provisional_balance = self.storage.get_user_cookies(user_id)
+            minimum_required = 5
+            if provisional_balance < minimum_required:
+                self.storage.add_cookies(user_id, minimum_required - provisional_balance)
+
+            _, before_balance = self.storage.get_user_cookies(user_id)
+            assert before_balance >= 3, "Insufficient cookies after simulated earnings"
+
+            spent = self.storage.spend_cookies(user_id, 3)
+            assert spent, "Spending cookies should succeed"
+            _, after_balance = self.storage.get_user_cookies(user_id)
+            assert after_balance == before_balance - 3, "Cookie balance did not decrease correctly"
+
+            self.record_pass("Cookie economy (earn/spend loop)")
+        except Exception as e:
+            self.record_fail("Cookie economy flow", str(e))
+
+    def test_event_recurrence_planning(self):
+        """Validate recurring event math and reminder scheduling windows."""
+        self.log("Testing event recurrence planning...")
+
+        try:
+            base_time = datetime.now(timezone.utc) + timedelta(hours=6)
+            reminder = EventReminder(
+                event_id="sim_recurrence_event",
+                guild_id=555123,
+                title="Simulation Recurring Drill",
+                description="Verify recurring math and reminder windows",
+                category=EventCategory.TOURNAMENT,
+                event_time_utc=base_time,
+                recurrence=RecurrenceType.CUSTOM_INTERVAL,
+                custom_interval_hours=12,
+                reminder_times=[240, 60, 5],
+                created_by=42
+            )
+
+            next_occurrence = reminder.get_next_occurrence(after=base_time + timedelta(hours=1))
+            assert next_occurrence is not None, "Next occurrence should exist for custom interval event"
+            assert next_occurrence > base_time, "Next occurrence must be in the future"
+
+            reminders = reminder.get_reminder_times(next_occurrence)
+            assert reminders, "Reminder times should be generated"
+            assert reminders == sorted(reminders), "Reminder times must be sorted"
+            assert all(rem < next_occurrence for rem in reminders), "Reminders must fire before event"
+
+            payload = {
+                'event_id': 'sim_db_recurrence_001',
+                'guild_id': reminder.guild_id,
+                'title': reminder.title,
+                'description': reminder.description,
+                'category': reminder.category.value,
+                'event_time_utc': reminder.event_time_utc.isoformat(),
+                'recurrence': reminder.recurrence.value,
+                'custom_interval_hours': reminder.custom_interval_hours,
+                'reminder_times': ",".join(map(str, reminder.reminder_times)),
+                'channel_id': 999111222,
+                'role_to_ping': None,
+                'created_by': reminder.created_by,
+                'is_active': 1,
+                'auto_scraped': 0,
+                'source_url': "http://example.com/sim"
+            }
+            stored = self.storage.store_event_reminder(payload)
+            assert stored, "Recurring event should store successfully"
+            fetched = self.storage.get_event_reminders(guild_id=reminder.guild_id)
+            assert any(evt['event_id'] == payload['event_id'] for evt in fetched), "Stored recurring event missing"
+
+            self.record_pass("Event recurrence planning")
+        except Exception as e:
+            self.record_fail("Event recurrence planning", str(e))
     
     def print_summary(self):
         """Print test summary and return exit code."""
@@ -351,6 +447,8 @@ class SimulationTest:
         await self.test_pokemon_mechanics()
         await self.test_data_manager_caching()
         await self.test_database_operations()
+        self.test_cookie_economy_flow()
+        self.test_event_recurrence_planning()
         
         self.log("")
         return self.print_summary()

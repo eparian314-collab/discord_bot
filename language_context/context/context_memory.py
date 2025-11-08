@@ -31,6 +31,83 @@ class MemoryRecord:
 
 
 class ContextMemory:
+    async def record_interaction(
+        self,
+        user_id: str,
+        interaction_type: str,
+        *,
+        context: Optional[Dict[str, Any]] = None,
+        timestamp: Optional[float] = None,
+    ) -> None:
+        """
+        Record a user interaction (message, thread, game, etc.) in memory.
+
+        Args:
+            user_id: Discord user ID (str)
+            interaction_type: Type of interaction (e.g., 'message', 'thread', 'game', 'command')
+            context: Optional dict with extra details (e.g., channel, thread_id, game_name)
+            timestamp: Optional float (epoch seconds); defaults to now
+
+        Stores a set of interaction types and a list of detailed events in metadata.
+        """
+        ns = f"user:{user_id}"
+        key = "interactions"
+        record = await self.get_record(ns, key)
+        interactions = set(record.value) if record else set()
+        interactions.add(interaction_type)
+
+        # Build event metadata
+        event = {
+            "type": interaction_type,
+            "timestamp": timestamp or time.time(),
+            "context": context or {},
+        }
+        metadata = record.metadata if record else {"events": []}
+        metadata.setdefault("events", []).append(event)
+
+        await self.set(ns, key, list(interactions), metadata=metadata)
+
+    async def has_interacted(
+        self,
+        user_id: str,
+        interaction_type: Optional[str] = None,
+    ) -> bool:
+        """
+        Check if a user has interacted before (optionally by type).
+
+        Args:
+            user_id: Discord user ID (str)
+            interaction_type: Optional type to check (e.g., 'game')
+
+        Returns True if any interaction exists, or if the specific type is present.
+        """
+        ns = f"user:{user_id}"
+        key = "interactions"
+        interactions = await self.get(ns, key, default=[])
+        if interaction_type:
+            return interaction_type in interactions
+        return bool(interactions)
+
+    async def get_interaction_history(
+        self,
+        user_id: str,
+        limit: int = 20,
+    ) -> list:
+        """
+        Get detailed interaction history for a user (most recent first).
+
+        Args:
+            user_id: Discord user ID (str)
+            limit: Max number of events to return
+
+        Returns a list of event dicts: {type, timestamp, context}
+        """
+        ns = f"user:{user_id}"
+        key = "interactions"
+        record = await self.get_record(ns, key)
+        if not record or "events" not in record.metadata:
+            return []
+        return list(reversed(record.metadata["events"][-limit:]))
     """
     Simple namespace-aware memory with TTL support.
 

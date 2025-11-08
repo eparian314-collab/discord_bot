@@ -2,10 +2,8 @@
 Tests for Discord UI Interactions.
 """
 import pytest
-import asyncio
 from unittest.mock import MagicMock, AsyncMock
 
-import discord
 
 # Assume these cogs and views will be created
 # from discord_bot.cogs.kvk_event_cog import KVKEventCog, EventView, CorrectionModal
@@ -42,6 +40,7 @@ async def test_event_command_flow_conceptual():
     # cog = KVKEventCog(bot=MagicMock(), kvk_tracker=mock_tracker, ...)
     
     interaction = MockInteraction()
+    assert interaction.user.name == "TestUser"
 
     # 2. Run /event command
     # await cog.event.callback(cog, interaction)
@@ -64,6 +63,7 @@ async def test_correction_flow_conceptual():
     #     ...
     
     interaction = MockInteraction()
+    assert interaction.user.id == 12345
     
     # 2. Bot sends the "Fix Data" embed
     # await trigger_feedback(interaction, failed_result)
@@ -100,6 +100,7 @@ async def test_pagination_consistency_conceptual():
     #     await interaction.response.edit_message(embed=new_embed, view=self)
 
     interaction = MockInteraction()
+    assert isinstance(interaction.response.edit_message, AsyncMock)
     # await page2_button_callback(interaction)
 
     # 5. Confirm pagination buttons update the same message

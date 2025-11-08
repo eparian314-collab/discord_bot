@@ -144,6 +144,28 @@ class GameStorageEngine:
             );
             """)
 
+            # Cached KVK user profiles for manual submissions
+            self.conn.execute("""
+            CREATE TABLE IF NOT EXISTS kvk_user_profiles (
+                user_id TEXT PRIMARY KEY,
+                player_name TEXT,
+                guild_tag TEXT,
+                kingdom_id INTEGER,
+                server_id TEXT,
+                updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+            );
+            """)
+
+            # Short ID allocation tracking (per guild/category)
+            self.conn.execute("""
+            CREATE TABLE IF NOT EXISTS event_display_sequences (
+                guild_id TEXT NOT NULL,
+                category TEXT NOT NULL,
+                next_index INTEGER NOT NULL DEFAULT 1,
+                PRIMARY KEY (guild_id, category)
+            );
+            """)
+
             # Event rankings for Top Heroes coordination
             self.conn.execute("""
             CREATE TABLE IF NOT EXISTS event_rankings (
@@ -789,7 +811,45 @@ class GameStorageEngine:
             LIMIT ?
         """, (limit,))
         return [dict(row) for row in cursor.fetchall()]
-    
+
+    # Event reminder helpers
+    def allocate_event_display_index(self, guild_id: int | str, category: str) -> int:
+        """
+        Atomically reserve the next short-ID index for the guild/category pair.
+
+        Returns the 1-based ordinal to translate into alpha suffixes.
+        """
+        gid = str(guild_id)
+        cat = category or "uncategorized"
+        with self.conn:
+            self.conn.execute(
+                """
+                INSERT INTO event_display_sequences (guild_id, category, next_index)
+                VALUES (?, ?, 1)
+                ON CONFLICT(guild_id, category) DO NOTHING
+                """,
+                (gid, cat),
+            )
+            self.conn.execute(
+                """
+                UPDATE event_display_sequences
+                   SET next_index = next_index + 1
+                 WHERE guild_id = ? AND category = ?
+                """,
+                (gid, cat),
+            )
+            cursor = self.conn.execute(
+                """
+                SELECT next_index FROM event_display_sequences
+                 WHERE guild_id = ? AND category = ?
+                """,
+                (gid, cat),
+            )
+            row = cursor.fetchone()
+        if not row:
+            raise RuntimeError("Failed to allocate next display index")
+        return max(int(row["next_index"]) - 1, 1)
+
     # Event Reminder Storage Methods
     def store_event_reminder(self, event_data: Dict[str, Any]) -> bool:
         """Store a new event reminder."""
@@ -881,6 +941,42 @@ class GameStorageEngine:
             results.append(event)
         
         return results
+
+    # KVK manual profile helpers
+    def get_kvk_user_profile(self, user_id: str) -> Optional[Dict[str, Any]]:
+        """Return cached KVK profile data for a user if available."""
+        cursor = self.conn.cursor()
+        cursor.execute("SELECT * FROM kvk_user_profiles WHERE user_id = ?", (user_id,))
+        row = cursor.fetchone()
+        return dict(row) if row else None
+
+    def upsert_kvk_user_profile(
+        self,
+        user_id: str,
+        *,
+        player_name: Optional[str] = None,
+        guild_tag: Optional[str] = None,
+        kingdom_id: Optional[int] = None,
+        server_id: Optional[str] = None,
+    ) -> None:
+        """Insert or update cached player metadata for manual submissions."""
+        timestamp = datetime.utcnow().isoformat()
+        with self.conn:
+            self.conn.execute(
+                """
+                INSERT INTO kvk_user_profiles (
+                    user_id, player_name, guild_tag, kingdom_id, server_id, updated_at
+                )
+                VALUES (?, ?, ?, ?, ?, ?)
+                ON CONFLICT(user_id) DO UPDATE SET
+                    player_name = COALESCE(EXCLUDED.player_name, kvk_user_profiles.player_name),
+                    guild_tag = COALESCE(EXCLUDED.guild_tag, kvk_user_profiles.guild_tag),
+                    kingdom_id = COALESCE(EXCLUDED.kingdom_id, kvk_user_profiles.kingdom_id),
+                    server_id = COALESCE(EXCLUDED.server_id, kvk_user_profiles.server_id),
+                    updated_at = ?
+                """,
+                (user_id, player_name, guild_tag, kingdom_id, server_id, timestamp, timestamp),
+            )
 
     # Event Rankings Management
     def save_event_ranking(self, ranking: RankingData) -> int:
@@ -1080,7 +1176,7 @@ class GameStorageEngine:
         if stage_type:
             query += " AND stage_type = ?"
             params.append(stage_type.value)
-        if day_number:
+        if day_number is not None:
             query += " AND day_number = ?"
             params.append(day_number)
         if category:

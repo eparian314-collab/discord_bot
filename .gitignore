@@ -9,7 +9,10 @@
 *.pem
 config/config.json
 config/*.secret.json
+.local*
+.local
 
+.instructions
 # Python cache / compiled files
 __pycache__/
 *.py[cod]
@@ -24,7 +27,6 @@ env.bak/
 pip-wheel-metadata/
 dist/
 build/
-
 # Logs and database files
 *.log
 *.sqlite

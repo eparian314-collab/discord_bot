@@ -3,7 +3,7 @@ Tests for SOS phrase translation and DM functionality.
 """
 
 import pytest
-from unittest.mock import AsyncMock, Mock, MagicMock, patch
+from unittest.mock import AsyncMock, Mock
 import discord
 from discord_bot.core.engines.input_engine import InputEngine
 

@@ -3,7 +3,7 @@ KVK Image Parser Engine
 
 Visual-aware screenshot parser for Top Heroes KVK rankings.
 Parses daily KVK ranking screenshots using visual cues to determine
-prep/war stage, prep day (1–5 or overall), and identify the submitting
+prep/war stage, prep day (1-5 or overall), and identify the submitting
 user's own score row for accurate personal tracking.
 """
 
@@ -21,7 +21,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 try:
-    from PIL import Image, ImageEnhance, ImageFilter
+    from PIL import Image, ImageEnhance, ImageFilter, ImageOps
     import cv2
     import numpy as np
     HAS_CV2 = True
@@ -35,6 +35,18 @@ try:
     HAS_OCR = True
 except ImportError:
     HAS_OCR = False
+
+try:
+    import easyocr
+    HAS_EASYOCR = True
+except ImportError:
+    HAS_EASYOCR = False
+
+try:
+    from craft_text_detector import Craft
+    HAS_CRAFT = True
+except ImportError:
+    HAS_CRAFT = False
 
 from discord_bot.core.engines.base.logging_utils import get_logger
 
@@ -99,12 +111,16 @@ class KVKImageParser:
         self.upload_folder = Path(upload_folder)
         self.log_folder = Path(log_folder)
         self.cache_folder = Path(cache_folder)
-        self.available = HAS_PIL and HAS_OCR and HAS_CV2
+        self.available = HAS_PIL and HAS_CV2 and (HAS_OCR or HAS_EASYOCR)
         
         # Ensure directories exist
         self.upload_folder.mkdir(parents=True, exist_ok=True)
         self.log_folder.mkdir(parents=True, exist_ok=True)
         self.cache_folder.mkdir(parents=True, exist_ok=True)
+        (self.cache_folder / "craft").mkdir(parents=True, exist_ok=True)
+
+        self._easyocr_reader: Optional[Any] = None
+        self._craft_detector: Optional[Any] = None
         
         # Pattern configurations for visual detection
         self.stage_patterns = {
@@ -277,61 +293,320 @@ class KVKImageParser:
     
     async def _preprocess_image(self, image: Image.Image) -> Image.Image:
         """
+        Offload the image preprocessing to a background thread.
+        """
+        return await asyncio.to_thread(self._preprocess_image_sync, image)
+
+    def _preprocess_image_sync(self, image: Image.Image) -> Image.Image:
+        """
         Preprocess image for better OCR results.
         
-        Args:
-            image: PIL Image object
-            
-        Returns:
-            Preprocessed PIL Image
+        Applies orientation fixes, trims low-signal safe areas (status bars / chats),
+        auto-crops around the detected leaderboard table, and sharpens the final image.
         """
-        # Convert to RGB if needed
-        if image.mode != 'RGB':
-            image = image.convert('RGB')
-        
-        # Enhance contrast for better text recognition
-        enhancer = ImageEnhance.Contrast(image)
-        image = enhancer.enhance(1.5)
-        
-        # Enhance sharpness
-        enhancer = ImageEnhance.Sharpness(image)
-        image = enhancer.enhance(1.2)
-        
-        return image
-    
-    async def _extract_text(self, image: Image.Image) -> str:
-        """
-        Extract text from image using OCR.
-        
-        Args:
-            image: PIL Image object
-            
-        Returns:
-            Extracted text string
-        """
+        # Convert to RGB if needed and normalize EXIF orientation
+        if image.mode != "RGB":
+            image = image.convert("RGB")
         try:
-            # Use different OCR configurations for better results
+            image = ImageOps.exif_transpose(image)
+        except Exception:
+            pass
+
+        image = self._normalize_orientation(image)
+        image = self._trim_safe_areas(image)
+        image = self._auto_crop_leaderboard_region(image)
+        image = self._resize_for_ocr(image)
+
+        # Enhance contrast and sharpness for OCR
+        contrast_enhancer = ImageEnhance.Contrast(image)
+        image = contrast_enhancer.enhance(1.4)
+
+        sharp_enhancer = ImageEnhance.Sharpness(image)
+        image = sharp_enhancer.enhance(1.15)
+
+        return image
+
+    def _normalize_orientation(self, image: Image.Image) -> Image.Image:
+        """Rotate landscape screenshots so the leaderboard is portrait oriented."""
+        width, height = image.size
+        if width > height * 1.2:
+            try:
+                return image.rotate(90, expand=True)
+            except Exception:
+                return image
+        return image
+
+    def _trim_safe_areas(self, image: Image.Image) -> Image.Image:
+        """Remove top status bars or side chat panes if they are low detail compared to the board."""
+        if not HAS_CV2:
+            return image
+
+        np_img = np.array(image)
+        gray = cv2.cvtColor(np_img, cv2.COLOR_RGB2GRAY)
+        height, width = gray.shape
+        laplacian = cv2.Laplacian(gray, cv2.CV_64F)
+
+        def _variance(region: np.ndarray) -> float:
+            if region.size == 0:
+                return 0.0
+            return float(cv2.Laplacian(region, cv2.CV_64F).var())
+
+        top_band = int(height * 0.12)
+        left_band = int(width * 0.08)
+        mid_slice = gray[top_band: min(height, top_band + int(height * 0.25)), :]
+        center_slice = gray[:, left_band: min(width, left_band + int(width * 0.4))]
+        if mid_slice.size == 0 or center_slice.size == 0:
+            return image
+
+        top_variance = _variance(gray[:top_band, :])
+        mid_variance = _variance(mid_slice)
+        if top_variance * 3 < mid_variance:
+            np_img = np_img[int(top_band * 0.8):, :]
+            gray = gray[int(top_band * 0.8):, :]
+            height = gray.shape[0]
+
+        left_variance = _variance(gray[:, :left_band])
+        center_variance = _variance(center_slice)
+        if left_variance * 2 < center_variance:
+            np_img = np_img[:, int(left_band * 0.8):]
+
+        return Image.fromarray(np_img)
+
+    def _auto_crop_leaderboard_region(self, image: Image.Image) -> Image.Image:
+        """Crop around the leaderboard table using contour heuristics."""
+        if not HAS_CV2:
+            return image
+
+        np_img = np.array(image)
+        height, width, _ = np_img.shape
+        search_top = int(height * 0.08)
+        search_bottom = int(height * 0.95)
+        search_left = int(width * 0.05)
+        search_right = int(width * 0.95)
+        working = np_img[search_top:search_bottom, search_left:search_right]
+
+        gray = cv2.cvtColor(working, cv2.COLOR_RGB2GRAY)
+        blur = cv2.GaussianBlur(gray, (5, 5), 0)
+        edges = cv2.Canny(blur, 60, 160)
+        kernel = cv2.getStructuringElement(
+            cv2.MORPH_RECT,
+            (
+                max(3, int(width * 0.015)),
+                max(3, int(height * 0.008)),
+            ),
+        )
+        closed = cv2.morphologyEx(edges, cv2.MORPH_CLOSE, kernel)
+        contours, _ = cv2.findContours(closed, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+        best_box = None
+        best_area = 0
+        for cnt in contours:
+            x, y, w_box, h_box = cv2.boundingRect(cnt)
+            area = w_box * h_box
+            if h_box < height * 0.3 or w_box < width * 0.4:
+                continue
+            if area > best_area:
+                best_area = area
+                best_box = (x, y, w_box, h_box)
+
+        if best_box:
+            x, y, w_box, h_box = best_box
+            pad_y = int(height * 0.01)
+            pad_x = int(width * 0.015)
+            y0 = max(0, search_top + y - pad_y)
+            y1 = min(height, search_top + y + h_box + pad_y)
+            x0 = max(0, search_left + x - pad_x)
+            x1 = min(width, search_left + x + w_box + pad_x)
+            cropped = np_img[y0:y1, x0:x1]
+            if cropped.shape[0] > height * 0.25 and cropped.shape[1] > width * 0.35:
+                return Image.fromarray(cropped)
+
+        # Fallback to central heuristic crop if contour detection fails
+        fallback = np_img[
+            int(height * 0.15): int(height * 0.93),
+            int(width * 0.1): int(width * 0.9),
+        ]
+        return Image.fromarray(fallback)
+
+    def _resize_for_ocr(self, image: Image.Image) -> Image.Image:
+        """Normalize output size so OCR sees consistent fonts."""
+        target_width = 1400
+        max_width = 1800
+        width, height = image.size
+        scale = 1.0
+        if width < target_width:
+            scale = target_width / width
+        elif width > max_width:
+            scale = max_width / width
+        if abs(scale - 1.0) < 0.05:
+            return image
+        new_size = (int(width * scale), int(height * scale))
+        return image.resize(new_size, Image.BICUBIC)
+    
+    def _ocr_with_easyocr(self, image: Image.Image) -> str:
+        """Use EasyOCR (if available) as the primary text extractor."""
+        reader = self._ensure_easyocr_reader()
+        if not reader:
+            return ""
+        try:
+            regions = self._detect_text_regions_for_ocr(image)
+            texts: List[str] = []
+            if regions:
+                for box in regions:
+                    crop = image.crop(box)
+                    lines = reader.readtext(
+                        np.array(crop),
+                        detail=0,
+                        paragraph=True,
+                    )
+                    texts.extend(lines)
+            else:
+                texts = reader.readtext(np.array(image), detail=0, paragraph=True)
+            joined = "\n".join(line.strip() for line in texts if line and line.strip())
+            return joined.strip()
+        except Exception as exc:
+            logger.warning("EasyOCR parsing failed: %s", exc)
+            return ""
+
+    def _ocr_with_tesseract(self, image: Image.Image) -> str:
+        """Fallback OCR using pytesseract."""
+        if not HAS_OCR:
+            return ""
+        try:
             configs = [
-                '--psm 6',  # Uniform block of text
-                '--psm 4',  # Single column of text
-                '--psm 11', # Sparse text
-                '--psm 13'  # Raw line
+                "--psm 6",
+                "--psm 4",
+                "--psm 11",
+                "--psm 13",
             ]
-            
             best_text = ""
             for config in configs:
                 try:
                     text = pytesseract.image_to_string(image, config=config)
                     if len(text.strip()) > len(best_text.strip()):
                         best_text = text
-                except:
+                except Exception:
                     continue
-            
             return best_text.strip()
-            
-        except Exception as e:
-            logger.warning("OCR extraction failed: %s", e)
+        except Exception as exc:
+            logger.warning("Tesseract extraction failed: %s", exc)
             return ""
+
+    def _detect_text_regions_for_ocr(self, image: Image.Image) -> List[Tuple[int, int, int, int]]:
+        """Detect high-density text regions via CRAFT to crop before OCR."""
+        detector = self._ensure_craft_detector()
+        if not detector:
+            return []
+        try:
+            np_img = np.array(image)
+            prediction = detector.detect_text(image=np_img)
+            boxes = prediction.get("boxes") if isinstance(prediction, dict) else None
+            if not boxes:
+                return []
+            rects: List[Tuple[int, int, int, int]] = []
+            height, width = np_img.shape[:2]
+            for box in boxes:
+                pts = np.array(box)
+                xs = pts[:, 0]
+                ys = pts[:, 1]
+                x0 = max(0, int(xs.min()))
+                x1 = min(width, int(xs.max()))
+                y0 = max(0, int(ys.min()))
+                y1 = min(height, int(ys.max()))
+                if (x1 - x0) < 30 or (y1 - y0) < 12:
+                    continue
+                pad_x = int((x1 - x0) * 0.08)
+                pad_y = int((y1 - y0) * 0.15)
+                rects.append((
+                    max(0, x0 - pad_x),
+                    max(0, y0 - pad_y),
+                    min(width, x1 + pad_x),
+                    min(height, y1 + pad_y),
+                ))
+            merged = self._merge_text_regions(rects)
+            return merged[:25]
+        except Exception as exc:
+            logger.warning("CRAFT region detection failed: %s", exc)
+            return []
+
+    def _merge_text_regions(self, rects: List[Tuple[int, int, int, int]]) -> List[Tuple[int, int, int, int]]:
+        """Merge overlapping / adjacent bounding boxes to reduce OCR calls."""
+        if not rects:
+            return []
+        rects = sorted(rects, key=lambda r: (r[1], r[0]))
+        merged: List[Tuple[int, int, int, int]] = []
+        for rect in rects:
+            if not merged:
+                merged.append(rect)
+                continue
+            last = merged[-1]
+            if self._should_merge_boxes(last, rect):
+                merged[-1] = (
+                    min(last[0], rect[0]),
+                    min(last[1], rect[1]),
+                    max(last[2], rect[2]),
+                    max(last[3], rect[3]),
+                )
+            else:
+                merged.append(rect)
+        return merged
+
+    def _should_merge_boxes(self, a: Tuple[int, int, int, int], b: Tuple[int, int, int, int]) -> bool:
+        """Decide if two bounding boxes belong to the same row/paragraph."""
+        ax0, ay0, ax1, ay1 = a
+        bx0, by0, bx1, by1 = b
+        vertical_overlap = min(ay1, by1) - max(ay0, by0)
+        if vertical_overlap > 0:
+            return True
+        gap = max(by0 - ay1, ay0 - by1)
+        avg_height = ((ay1 - ay0) + (by1 - by0)) / 2 or 1
+        return gap < avg_height * 0.35
+
+    def _ensure_easyocr_reader(self) -> Optional[Any]:
+        """Lazily load EasyOCR reader if the dependency is available."""
+        if self._easyocr_reader is not None:
+            return self._easyocr_reader
+        if not HAS_EASYOCR:
+            return None
+        try:
+            self._easyocr_reader = easyocr.Reader(["en"], gpu=False, verbose=False)
+        except Exception as exc:
+            logger.warning("EasyOCR unavailable: %s", exc)
+            self._easyocr_reader = None
+        return self._easyocr_reader
+
+    def _ensure_craft_detector(self) -> Optional[Any]:
+        """Lazily load the CRAFT detector used for text region proposals."""
+        if self._craft_detector is not None:
+            return self._craft_detector
+        if not HAS_CRAFT:
+            return None
+        try:
+            output_dir = self.cache_folder / "craft"
+            self._craft_detector = Craft(
+                output_dir=str(output_dir),
+                crop_type="poly",
+                cuda=False,
+            )
+        except Exception as exc:
+            logger.warning("CRAFT detector unavailable: %s", exc)
+            self._craft_detector = None
+        return self._craft_detector
+    
+    async def _extract_text(self, image: Image.Image) -> str:
+        """
+        Run the OCR extraction inside a thread to avoid blocking the event loop.
+        """
+        return await asyncio.to_thread(self._extract_text_sync, image)
+
+    def _extract_text_sync(self, image: Image.Image) -> str:
+        """
+        Extract text using EasyOCR + CRAFT when available, falling back to Tesseract.
+        """
+        easy_text = self._ocr_with_easyocr(image)
+        if easy_text:
+            return easy_text
+        return self._ocr_with_tesseract(image)
     
     async def _detect_stage_type(self, ocr_text: str, image: Image.Image) -> KVKStageType:
         """

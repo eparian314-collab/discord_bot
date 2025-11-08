@@ -1,4 +1,4 @@
-import asyncio
+from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
 
@@ -27,6 +27,7 @@ class DummyResponse:
 def event_engine():
     engine = AsyncMock()
     engine.create_event = AsyncMock(return_value=True)
+    engine.allocate_display_index = AsyncMock(return_value=1)
     return engine
 
 
@@ -37,7 +38,7 @@ def kvk_tracker():
         id=1,
         run_number=5,
         is_test=False,
-        ends_at=asyncio.get_event_loop().time(),
+        ends_at=datetime.now(timezone.utc) + timedelta(days=14),
     )
     tracker.ensure_run = AsyncMock(return_value=(run, True))
     return tracker

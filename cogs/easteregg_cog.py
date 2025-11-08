@@ -18,10 +18,11 @@ from __future__ import annotations
 import aiohttp
 import discord
 import random
+import re
 from datetime import datetime, timedelta
 from discord import app_commands
 from discord.ext import commands
-from typing import Optional, TYPE_CHECKING
+from typing import Optional, TYPE_CHECKING, Dict, Any, Set
 
 # Import GameCog to reference the shared cookies group
 from discord_bot.cogs.game_cog import GameCog
@@ -49,6 +50,8 @@ class EasterEggCog(commands.Cog):
     
     # Use the shared cookies group from GameCog
     cookies = GameCog.cookies
+    
+    PROMPT_TIMEOUT = timedelta(minutes=5)
     
     # RPS choices
     RPS_CHOICES = ['rock', 'paper', 'scissors']
@@ -579,24 +582,114 @@ class EasterEggCog(commands.Cog):
         
         return 'win' if wins[user_choice] == bot_choice else 'lose'
 
+
+    def _normalize_token(self, text: str) -> str:
+        """Normalize responses for reliable comparisons."""
+        return re.sub(r"[^a-z0-9]", "", text.lower())
+
+    def _candidate_tokens(self, content: str) -> Set[str]:
+        """Return possible tokens derived from a user's reply."""
+        lowered = re.sub(r"<@!?\d+>", "", content.lower()).strip()
+        tokens: Set[str] = set()
+        if lowered:
+            tokens.add(lowered)
+            tokens.add(self._normalize_token(lowered))
+        tokens.update(filter(None, re.split(r"[\s,.;!?]+", lowered)))
+        tokens.update(re.findall(r"\d+", lowered))
+        return {token for token in tokens if token}
+
+    def _create_prompt_session(self, *, valid_tokens: Set[str], channel_id: Optional[int]) -> Dict[str, Any]:
+        now = datetime.utcnow()
+        return {
+            "valid_tokens": {token for token in valid_tokens if token},
+            "channel_id": channel_id,
+            "prompt_ids": set(),
+            "started_at": now,
+            "expires_at": now + self.PROMPT_TIMEOUT,
+        }
+
+    async def _remember_prompt_message(self, interaction: discord.Interaction, session: Dict[str, Any]) -> None:
+        """Track the bot message ID so threaded replies count as answers."""
+        if not interaction.response.is_done():
+            return
+        try:
+            prompt_message = await interaction.original_response()
+        except (discord.NotFound, discord.HTTPException):
+            return
+        if prompt_message:
+            session["prompt_ids"].add(prompt_message.id)
+
+    def _message_matches_prompt(self, message: discord.Message, session: Dict[str, Any]) -> bool:
+        """Return True when the user reply should be treated as prompt input."""
+        now = datetime.utcnow()
+        if now > session["expires_at"]:
+            return False
+        channel_id = session.get("channel_id")
+        if channel_id and message.channel and message.channel.id != channel_id:
+            return False
+        created_at = message.created_at
+        if created_at:
+            created_at = created_at.replace(tzinfo=None)
+            if created_at < session["started_at"]:
+                return False
+        if message.reference and message.reference.message_id:
+            if message.reference.message_id in session["prompt_ids"]:
+                return True
+            ref_msg = getattr(message.reference, 'resolved', None) or message.reference.cached_message
+            if ref_msg and ref_msg.author == self.bot.user:
+                return True
+        return True
+
+    def _build_trivia_answers(self, question_data: Dict[str, Any]) -> Set[str]:
+        """Generate acceptable answers for a trivia question."""
+        answer = question_data['answer'].strip().lower()
+        tokens = {answer, self._normalize_token(answer)}
+        for idx, option in enumerate(question_data['options'], start=1):
+            if option.strip().lower() == answer:
+                tokens.add(str(idx))
+        return {token for token in tokens if token}
+
+    def _matches_valid_tokens(self, content: str, valid_tokens: Set[str]) -> bool:
+        """Check whether user tokens intersect the expected tokens."""
+        if not valid_tokens:
+            return False
+        user_tokens = self._candidate_tokens(content)
+        return any(token in valid_tokens for token in user_tokens)
+
     async def _start_trivia(self, interaction: discord.Interaction) -> None:
         """Start a trivia question."""
         question_data = random.choice(self.TRIVIA_QUESTIONS)
-        self.active_trivia[interaction.user.id] = question_data
+        session = self._create_prompt_session(
+            valid_tokens=self._build_trivia_answers(question_data),
+            channel_id=interaction.channel.id if interaction.channel else None,
+        )
+        self.active_trivia[interaction.user.id] = {
+            "question": question_data,
+            "session": session,
+        }
         
         options = "\n".join([f"{i+1}. {opt}" for i, opt in enumerate(question_data['options'])])
         await interaction.response.send_message(
             f"🧠 **Trivia Time!**\n{question_data['question']}\n\n{options}\n\nReply with the number or answer!"
         )
+        await self._remember_prompt_message(interaction, session)
 
     async def _start_riddle(self, interaction: discord.Interaction) -> None:
         """Start a riddle."""
         riddle_data = random.choice(self.RIDDLES)
-        self.active_riddles[interaction.user.id] = riddle_data
+        session = self._create_prompt_session(
+            valid_tokens={self._normalize_token(riddle_data['answer'])},
+            channel_id=interaction.channel.id if interaction.channel else None,
+        )
+        self.active_riddles[interaction.user.id] = {
+            "riddle": riddle_data,
+            "session": session,
+        }
         
         await interaction.response.send_message(
             f"🤔 **Riddle Time!**\n{riddle_data['question']}\n\nReply with your answer!"
         )
+        await self._remember_prompt_message(interaction, session)
 
     async def _fetch_joke(self) -> str:
         """Fetch a joke from an API."""
@@ -676,50 +769,69 @@ class EasterEggCog(commands.Cog):
         user_id = str(message.author.id)
         
         # Check for trivia answer
-        if message.author.id in self.active_trivia:
-            question_data = self.active_trivia[message.author.id]
-            user_answer = message.content.lower().strip()
-            
-            if user_answer == question_data['answer'] or user_answer in question_data['answer']:
+        trivia_state = self.active_trivia.get(message.author.id)
+        if trivia_state:
+            session = trivia_state["session"]
+            if datetime.utcnow() > session["expires_at"]:
                 del self.active_trivia[message.author.id]
-                self.relationship_manager.record_interaction(user_id, 'trivia_correct')
-                
-                cookies = self.cookie_manager.try_award_cookies(user_id, 'trivia_correct', self.personality_engine.get_mood())
-                response = "🎉 Correct! Great job!"
-                if cookies:
-                    response += f"\n{self.personality_engine.get_cookie_reward_message(cookies, message.author.display_name, str(message.author.id))}"
-                
-                await message.channel.send(response)
+            elif self._message_matches_prompt(message, session):
+                if self._matches_valid_tokens(message.content, session["valid_tokens"]):
+                    del self.active_trivia[message.author.id]
+                    self.relationship_manager.record_interaction(user_id, 'trivia_correct')
+                    cookies = self.cookie_manager.try_award_cookies(
+                        user_id, 'trivia_correct', self.personality_engine.get_mood()
+                    )
+                    response = "🎉 Correct! Great job!"
+                    if cookies:
+                        response += f"\n{self.personality_engine.get_cookie_reward_message(cookies, message.author.display_name, str(message.author.id))}"
+                    await message.channel.send(response)
+                else:
+                    await message.channel.send(
+                        f"{message.author.mention} almost! Try again with the correct option number or answer."
+                    )
                 return
         
         # Check for riddle answer
-        if message.author.id in self.active_riddles:
-            riddle_data = self.active_riddles[message.author.id]
-            user_answer = message.content.lower().strip()
-            
-            if user_answer == riddle_data['answer'] or user_answer in riddle_data['answer']:
+        riddle_state = self.active_riddles.get(message.author.id)
+        if riddle_state:
+            session = riddle_state["session"]
+            if datetime.utcnow() > session["expires_at"]:
                 del self.active_riddles[message.author.id]
-                self.relationship_manager.record_interaction(user_id, 'riddle_correct')
-                
-                cookies = self.cookie_manager.try_award_cookies(user_id, 'riddle_correct', self.personality_engine.get_mood())
-                response = "🎉 You got it! Well done!"
-                if cookies:
-                    response += f"\n{self.personality_engine.get_cookie_reward_message(cookies, message.author.display_name, str(message.author.id))}"
-                
-                await message.channel.send(response)
+            elif self._message_matches_prompt(message, session):
+                if self._matches_valid_tokens(message.content, session["valid_tokens"]):
+                    del self.active_riddles[message.author.id]
+                    self.relationship_manager.record_interaction(user_id, 'riddle_correct')
+                    cookies = self.cookie_manager.try_award_cookies(
+                        user_id, 'riddle_correct', self.personality_engine.get_mood()
+                    )
+                    response = "🦉 You got it! Well done!"
+                    if cookies:
+                        response += f"\n{self.personality_engine.get_cookie_reward_message(cookies, message.author.display_name, str(message.author.id))}"
+                    await message.channel.send(response)
+                else:
+                    await message.channel.send(
+                        f"{message.author.mention} close! Give that riddle another try."
+                    )
                 return
         
-        # Check for bot mention
-        if self.bot.user and self.bot.user.mentioned_in(message) and not message.mention_everyone:
+        # Check for bot mention or thread reply
+        is_mention = self.bot.user and self.bot.user.mentioned_in(message) and not message.mention_everyone
+        is_thread_reply = (
+            message.reference and message.reference.resolved and
+            getattr(message.reference.resolved, 'author', None) == self.bot.user
+        )
+        if is_mention or is_thread_reply:
             self.relationship_manager.record_interaction(user_id, 'mention')
-            
-            # Random mood shift
+            # Random mood shift for more dynamic replies
             self.personality_engine.random_mood_shift()
-            
-            # Generate response
-            greeting = self.personality_engine.greeting(message.author.display_name, str(message.author.id))
-            await message.channel.send(f"{greeting} Use `/easteregg` for a surprise!")
-            
+            # Compose AI personality reply
+            ai_reply = await self.personality_engine.generate_reply(
+                user_display_name=message.author.display_name,
+                user_id=str(message.author.id),
+                message_content=message.content,
+                context_type='mention' if is_mention else 'thread_reply'
+            )
+            await message.channel.send(ai_reply)
             # Try cookie reward
             cookies = self.cookie_manager.try_award_cookies(user_id, 'mention', self.personality_engine.get_mood())
             if cookies:

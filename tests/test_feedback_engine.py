@@ -100,17 +100,21 @@ async def test_vision_model_fallback(mock_openai_engine, test_image_dir):
     processor.process_screenshot_v2 = mock_process_v2
 
     # 3. Ensure process_screenshot_with_ai() triggers vision fallback
-    result = await processor.process_screenshot_with_ai(
-        image_data, "user1", "username1", "guild1", image_url
-    )
+    try:
+        result = await processor.process_screenshot_with_ai(
+            image_data, "user1", "username1", "guild1", image_url
+        )
 
-    # 4. Verify AI result fills the fields
-    mock_openai_engine.analyze_screenshot_with_vision.assert_called_once()
-    assert result.ranking_data.rank == 101
-    assert result.ranking_data.score == 1234567
-    assert result.ranking_data.player_name == "AIVision"
-    assert not result.fields_missing, "Fields should be filled by AI"
-    assert result.confidence == 0.8, "Confidence should be marked as AI-assisted"
+        # 4. Verify AI result fills the fields
+        mock_openai_engine.analyze_screenshot_with_vision.assert_called_once()
+        assert result.ranking_data.rank == 101
+        assert result.ranking_data.score == 1234567
+        assert result.ranking_data.player_name == "AIVision"
+        assert not result.fields_missing, "Fields should be filled by AI"
+        assert result.confidence == 0.8, "Confidence should be marked as AI-assisted"
+    finally:
+        # Restore the original processor method to avoid leaking patches to other tests
+        processor.process_screenshot_v2 = original_func
 
 async def test_feedback_engine_round_trip_placeholder(mock_storage_engine, mock_openai_engine):
     """
@@ -128,7 +132,7 @@ async def test_feedback_engine_round_trip_placeholder(mock_storage_engine, mock_
     
     # 2. Mock user answers
     corrected_score = 7948885
-    reason = "OCR missed commas"
+    correction_reason = "OCR missed commas"
 
     # 3. Save to database (simulating what the feedback engine would do)
     ranking_id = mock_storage_engine.save_ranking(initial_data)
@@ -137,7 +141,7 @@ async def test_feedback_engine_round_trip_placeholder(mock_storage_engine, mock_
     analysis = await mock_openai_engine.analyze_correction(
         image_url="http://example.com/img.png",
         original_text="Rank 50 Score O",
-        user_correction=f"Score: {corrected_score}",
+        user_correction=f"Score: {corrected_score} ({correction_reason})",
         fields_missing=["score"]
     )
 

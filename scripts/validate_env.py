@@ -57,7 +57,7 @@ def main() -> int:
     ok = True
     for name, mod in adapters:
         try:
-            m = importlib.import_module(mod)
+            importlib.import_module(mod)
             print(f"Imported {mod} OK")
         except Exception as exc:
             print(f"Adapter import failed: {name} ({mod}): {exc}")

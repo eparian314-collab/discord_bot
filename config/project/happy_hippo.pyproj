@@ -1,0 +1,138 @@
+<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003" ToolsVersion="4.0">
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <SchemaVersion>2.0</SchemaVersion>
+    <ProjectGuid>2e5786c7-1de9-411d-a0a5-319f82a91504</ProjectGuid>
+    <ProjectHome>.</ProjectHome>
+    <StartupFile>main.py</StartupFile>
+    <SearchPath>
+    </SearchPath>
+    <WorkingDirectory>.</WorkingDirectory>
+    <OutputPath>.</OutputPath>
+    <Name>happy_hippo</Name>
+    <RootNamespace>happy_hippo</RootNamespace>
+    <InterpreterId>Global|VisualStudio|master python venv</InterpreterId>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
+    <DebugSymbols>true</DebugSymbols>
+    <EnableUnmanagedDebugging>false</EnableUnmanagedDebugging>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)' == 'Release' ">
+    <DebugSymbols>true</DebugSymbols>
+    <EnableUnmanagedDebugging>false</EnableUnmanagedDebugging>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="discord_bot\cogs\admin_cog.py" />
+    <Compile Include="discord_bot\cogs\translation_cog.py" />
+    <Compile Include="discord_bot\cogs\__init__.py" />
+    <Compile Include="discord_bot\core\engines\admin_ui_engine.py" />
+    <Compile Include="discord_bot\core\engines\base\engine_plugin.py" />
+    <Compile Include="discord_bot\core\engines\base\engine_registry.py" />
+    <Compile Include="discord_bot\core\engines\base\logging_utils.py" />
+    <Compile Include="discord_bot\core\engines\base\__init__.py" />
+    <Compile Include="discord_bot\core\engines\cache_manager.py" />
+    <Compile Include="discord_bot\core\engines\error_engine.py" />
+    <Compile Include="discord_bot\core\engines\input_engine.py" />
+    <Compile Include="discord_bot\core\engines\output_engine.py" />
+    <Compile Include="discord_bot\core\engines\personality_engine.py" />
+    <Compile Include="discord_bot\core\engines\processing_engine.py" />
+    <Compile Include="discord_bot\core\engines\role_manager.py" />
+    <Compile Include="discord_bot\core\engines\translation_orchestrator.py" />
+    <Compile Include="discord_bot\core\engines\translation_ui_engine.py" />
+    <Compile Include="discord_bot\core\engines\__init__.py" />
+    <Compile Include="discord_bot\core\event_bus.py" />
+    <Compile Include="discord_bot\core\storage\storage_engine.py" />
+    <Compile Include="discord_bot\core\storage\__init__.py" />
+    <Compile Include="discord_bot\core\__init__.py" />
+    <Compile Include="discord_bot\integrations\integration_loader.py" />
+    <Compile Include="discord_bot\integrations\system_config.py" />
+    <Compile Include="discord_bot\integrations\__init__.py" />
+    <Compile Include="discord_bot\language_context\alias_helper.py" />
+    <Compile Include="discord_bot\language_context\ambiguity_resolver.py" />
+    <Compile Include="discord_bot\language_context\base_model.py" />
+    <Compile Include="discord_bot\language_context\context\context_memory.py" />
+    <Compile Include="discord_bot\language_context\context\policies.py" />
+    <Compile Include="discord_bot\language_context\context\session_memory.py" />
+    <Compile Include="discord_bot\language_context\context_engine.py" />
+    <Compile Include="discord_bot\language_context\context_models.py" />
+    <Compile Include="discord_bot\language_context\context_utils.py" />
+    <Compile Include="discord_bot\language_context\culture\contextual_phrases.py" />
+    <Compile Include="discord_bot\language_context\culture\cross_language_equivalents.py" />
+    <Compile Include="discord_bot\language_context\culture\profanity_map.py" />
+    <Compile Include="discord_bot\language_context\detectors\heuristics.py" />
+    <Compile Include="discord_bot\language_context\detectors\nlp_model.py" />
+    <Compile Include="discord_bot\language_context\detectors\noise_filter.py" />
+    <Compile Include="discord_bot\language_context\detectors\script_detector.py" />
+    <Compile Include="discord_bot\language_context\detectors\__init__.py" />
+    <Compile Include="discord_bot\language_context\localization\profile.py" />
+    <Compile Include="discord_bot\language_context\localization\registry.py" />
+    <Compile Include="discord_bot\language_context\localization\templates.py" />
+    <Compile Include="discord_bot\language_context\localization\__init__.py" />
+    <Compile Include="discord_bot\language_context\normalizer.py" />
+    <Compile Include="discord_bot\language_context\normalizer_rules.py" />
+    <Compile Include="discord_bot\language_context\router\ai_bridge.py" />
+    <Compile Include="discord_bot\language_context\router\fallbacks.py" />
+    <Compile Include="discord_bot\language_context\router\language_routing.py" />
+    <Compile Include="discord_bot\language_context\semantics\intent_classifier.py" />
+    <Compile Include="discord_bot\language_context\semantics\purpose_tagging.py" />
+    <Compile Include="discord_bot\language_context\semantics\tone_detector.py" />
+    <Compile Include="discord_bot\language_context\tokenizer.py" />
+    <Compile Include="discord_bot\language_context\translation_job.py" />
+    <Compile Include="discord_bot\language_context\translators\deepl_adapter.py" />
+    <Compile Include="discord_bot\language_context\translators\mymemory_adapter.py" />
+    <Compile Include="discord_bot\language_context\translators\openai_adapter.py" />
+    <Compile Include="discord_bot\language_context\__init__.py" />
+    <Compile Include="discord_bot\scripts\sanitize_encoding.py" />
+    <Compile Include="discord_bot\scripts\validate_env.py" />
+    <Compile Include="discord_bot\scripts\__init__.py" />
+    <Compile Include="discord_bot\__init__.py" />
+    <Compile Include="main.py" />
+  </ItemGroup>
+  <ItemGroup>
+    <Folder Include="discord_bot\" />
+    <Folder Include="discord_bot\cogs\" />
+    <Folder Include="discord_bot\core\" />
+    <Folder Include="discord_bot\core\engines\" />
+    <Folder Include="discord_bot\core\engines\base\" />
+    <Folder Include="discord_bot\core\engines\base\__pycache__\" />
+    <Folder Include="discord_bot\core\storage\" />
+    <Folder Include="discord_bot\core\__pycache__\" />
+    <Folder Include="discord_bot\integrations\" />
+    <Folder Include="discord_bot\integrations\__pycache__\" />
+    <Folder Include="discord_bot\language_context\" />
+    <Folder Include="discord_bot\language_context\detectors\" />
+    <Folder Include="discord_bot\language_context\localization\" />
+    <Folder Include="discord_bot\language_context\context\" />
+    <Folder Include="discord_bot\language_context\culture\" />
+    <Folder Include="discord_bot\language_context\router\" />
+    <Folder Include="discord_bot\language_context\semantics\" />
+    <Folder Include="discord_bot\language_context\translators\" />
+    <Folder Include="discord_bot\scripts\" />
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="discord_bot\core\engines\base\__pycache__\engine_plugin.cpython-311.pyc" />
+    <Content Include="discord_bot\core\engines\base\__pycache__\engine_registry.cpython-311.pyc" />
+    <Content Include="discord_bot\core\engines\base\__pycache__\logging_utils.cpython-311.pyc" />
+    <Content Include="discord_bot\core\engines\base\__pycache__\__init__.cpython-311.pyc" />
+    <Content Include="discord_bot\core\storage\schema.sql" />
+    <Content Include="discord_bot\core\__pycache__\event_bus.cpython-311.pyc" />
+    <Content Include="discord_bot\core\__pycache__\__init__.cpython-311.pyc" />
+    <Content Include="discord_bot\integrations\__pycache__\integration_loader.cpython-311.pyc" />
+    <Content Include="discord_bot\integrations\__pycache__\__init__.cpython-311.pyc" />
+    <Content Include="discord_bot\language_context\.txt" />
+    <Content Include="discord_bot\language_context\language_map.json" />
+    <Content Include="discord_bot\language_context\translation_result_schema.json" />
+  </ItemGroup>
+  <ItemGroup>
+    <InterpreterReference Include="Global|VisualStudio|master python venv" />
+  </ItemGroup>
+  <Import Project="$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\Python Tools\Microsoft.PythonTools.targets" />
+  <!-- Uncomment the CoreCompile target to enable the Build command in
+       Visual Studio and specify your pre- and post-build commands in
+       the BeforeBuild and AfterBuild targets below. -->
+  <!--<Target Name="CoreCompile" />-->
+  <Target Name="BeforeBuild">
+  </Target>
+  <Target Name="AfterBuild">
+  </Target>
+</Project>

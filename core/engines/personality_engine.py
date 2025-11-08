@@ -217,7 +217,7 @@ class PersonalityEngine:
 
     POKEMON_CATCH_FAIL_MESSAGES = {
         'happy': [
-            "😢 So close, {user}! {pokemon} slipped away — let's try again soon! 💪",
+            "😢 So close, {user}! {pokemon} slipped away - let's try again soon! 💪",
             "💫 {pokemon} dashed off, {user}! We'll get them next time! ✨",
             "🦅 {pokemon} said 'not yet!' but I believe in you, {user}! 💗"
         ],

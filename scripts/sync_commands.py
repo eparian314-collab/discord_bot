@@ -31,7 +31,6 @@ else:
 
 import discord
 from discord.ext import commands
-from core.bot_base import HippoBot
 
 
 async def sync_commands():

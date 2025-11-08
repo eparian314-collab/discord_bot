@@ -1,0 +1,285 @@
+# Project File Structure
+
+This document provides a snapshot of the current repository tree, excluding cache, logs, venv, and generated-data folders.
+
+## Root Directory
+
+- .env
+- .env.example
+- .git/
+- .gitattributes
+- .github/
+- .gitignore
+- .pytest_cache/
+- .venv/
+- .vs/
+- .vscode/
+- check_ec2_status.ps1
+- COMMAND_SYNC_RESOLUTION.md
+- config/
+- CURRENT_ACTIVE_ISSUES.txt
+- data/
+- deploy-ec2.sh
+- deploy_to_ec2.ps1
+- discord_bot/
+- docs_archive/
+- EC2_DEPLOYMENT_GUIDE.md
+- happy_hippo.pyproj
+- hippobot.egg-info/
+- main.py
+- pytest.ini
+- QUICK_DEPLOY_REFERENCE.md
+- README.md
+- requirements.txt
+- Screenshot 2025-11-03 115514.png
+- Screenshot 2025-11-04 003607.png
+- Screenshot 2025-11-04 003643.png
+- tests/
+- view_ec2_logs.ps1
+- worfklow/
+- __main__.py
+
+## config/
+- config.example.json
+
+## data/
+- event_rankings.db
+- game_data.db
+- integrations/
+- language_context/
+- pokemon_base_stats_cache.json
+- scripts/
+- storage_backup.json
+- tmp_debug/
+
+### data/integrations/
+- integration_loader.py
+- system_config.py
+- __init__.py
+
+### data/language_context/
+- .txt
+- alias_helper.py
+- ambiguity_resolver.py
+- base_model.py
+- context/
+- context_engine.py
+- context_models.py
+- context_utils.py
+- culture/
+- detectors/
+- language_map.json
+- localization/
+- normalizer.py
+- normalizer_rules.py
+- quick_start_guides.py
+- router/
+- semantics/
+- tokenizer.py
+- translation_job.py
+- translation_result_schema.json
+- translators/
+- __init__.py
+
+### data/scripts/
+- backup_databases.ps1
+- check_cookies_db.py
+- check_schema.py
+- check_sos_config.py
+- force_sync_commands.py
+- migrate_add_pokemon_stats.py
+- nuclear_sync.py
+- sanitize_encoding.py
+- start_bot.ps1
+- start_production.ps1
+- sync_commands.py
+- validate_env.py
+- __init__.py
+
+### data/tmp_debug/
+- error_logs.jsonl
+
+## discord_bot/
+- cogs/
+- core/
+- data/
+- games/
+- integrations/
+- language_context/
+- scripts/
+- test_sim_cache.json
+- __init__.py
+- __main__.py
+
+### discord_bot/cogs/
+- admin_cog.py
+- battle_cog.py
+- easteregg_cog.py
+- event_management_cog.py
+- game_cog.py
+- help_cog.py
+- ranking_cog.py
+- role_management_cog.py
+- sos_phrase_cog.py
+- training_cog.py
+- translation_cog.py
+- ui_master_cog.py
+- __init__.py
+
+### discord_bot/core/
+- engines/
+- event_bus.py
+- event_topics.py
+- security/
+- storage/
+- ui_groups.py
+- utils/
+- __init__.py
+
+### discord_bot/data/
+- pokemon_base_stats_cache.json
+
+### discord_bot/games/
+- battle_system.py
+- pokemon_api_integration.py
+- pokemon_data_manager.py
+- pokemon_game.py
+- storage/
+- __init__.py
+
+### discord_bot/integrations/
+- integration_loader.py
+- system_config.py
+- __init__.py
+
+### discord_bot/language_context/
+- .txt
+- alias_helper.py
+- ambiguity_resolver.py
+- base_model.py
+- context/
+- context_engine.py
+- context_models.py
+- context_utils.py
+- culture/
+- detectors/
+- language_map.json
+- localization/
+- normalizer.py
+- normalizer_rules.py
+- quick_start_guides.py
+- router/
+- semantics/
+- tokenizer.py
+- translation_job.py
+- translation_result_schema.json
+- translators/
+- __init__.py
+
+### discord_bot/scripts/
+- backup_databases.ps1
+- check_cookies_db.py
+- check_schema.py
+- check_sos_config.py
+- count_languages.py
+- data/
+- deploy.sh
+- deploy_update.sh
+- diagnose_commands.py
+- force_sync_commands.py
+- full_sync_commands.py
+- live_test_suite.py
+- migrate_add_pokemon_stats.py
+- nuclear_sync.py
+- preflight_check.py
+- push_and_deploy.ps1
+- push_and_deploy.sh
+- push_update.ps1
+- runtime_diagnostic.py
+- sanitize_encoding.py
+- simulation_test.py
+- start_bot.ps1
+- start_production.ps1
+- sync_commands.py
+- test_group_structure.py
+- validate_env.py
+- __init__.py
+
+## docs_archive/
+- ARCHITECTURE.md
+- AUTO_TRANSLATE_SYSTEM.md
+- BATTLE_SYSTEM.md
+- CHANNEL_ROUTING_SETUP.md
+- COOKIE_TRACKING_IMPLEMENTATION.md
+- EASTER_EGG_LIMITS_GUIDE.md
+- EVOLUTION_SYSTEM.md
+- FEATURE_IMPLEMENTATION_PLAN.md
+- GOOGLE_TRANSLATE_QUICKSTART.md
+- HELPER_ROLE_GUIDE.md
+- IMPLEMENTATION_SUMMARY.md
+- LANGUAGE_CODES.md
+- LANGUAGE_NORMALIZATION.md
+- LANGUAGE_ROLE_REACTIONS.md
+- LOCALIZATION_GUIDE.md
+- LOCALIZATION_IMPLEMENTATION.md
+- LOCALIZATION_QUICK_REF.md
+- MASTER_IDE_INSTRUCTIONS.md
+- OPENAI_ENHANCEMENT_IDEAS.md
+- OPENAI_SETUP_GUIDE.md
+- OPERATIONS.md
+- POKEMON_DATA_MANAGER_REFACTOR.md
+- POKEMON_DETAILS_IMPLEMENTATION.md
+- POKEMON_STAT_SYSTEM.md
+- QUICK_START_GUIDE.md
+- RANKING_ADMIN_COMMANDS.md
+- RANKING_DATA_STORAGE.md
+- RANKING_IMPLEMENTATION.md
+- RANKING_SETUP.md
+- RANKING_SETUP_CHECKLIST.md
+- RANKING_SYSTEM.md
+- RANKING_WEEKLY_SYSTEM.md
+- SECURITY_FIXES_SUMMARY.md
+- SECURITY_GUIDE.md
+- SECURITY_IMPLEMENTATION.md
+- SIMULATION_TEST_GUIDE.md
+- SOS_IMPLEMENTATION.md
+- SOS_QUICKSTART.md
+- SOS_TRANSLATION.md
+- SOS_VISUAL_FLOW.md
+- TEST_IMPLEMENTATION_SUMMARY.md
+- TEST_SOS_SYSTEM.md
+- THREE_TIER_TRANSLATION_SUMMARY.md
+- TOP_HEROES_EVENT_SYSTEM.md
+- TRANSLATION_FIX_SUMMARY.md
+- TRANSLATION_LOGIC_FIX.md
+
+## hippobot.egg-info/
+- dependency_links.txt
+- PKG-INFO
+- requires.txt
+- SOURCES.txt
+- top_level.txt
+
+## tests/
+- cogs/
+- conftest.py
+- core/
+- games/
+- health_check.py
+- language_context/
+- pytest.ini
+- stubs/
+- test_architecture.py
+- test_auto_translate.py
+- test_event_bus_and_errors.py
+- test_event_topics_usage.py
+- test_language_normalization.py
+- test_personality.py
+- test_processing_engine.py
+- test_sim_cache.json
+- test_storage_engine_fallback.py
+- __init__.py
+
+## worfklow/
+- instructions/
+- prompts/

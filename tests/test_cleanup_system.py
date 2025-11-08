@@ -5,10 +5,9 @@ from __future__ import annotations
 
 import pytest
 from datetime import datetime, timedelta, timezone
-from unittest.mock import AsyncMock, MagicMock, patch
-from pathlib import Path
+from unittest.mock import AsyncMock, MagicMock
 
-from discord_bot.core.engines.session_manager import SessionManager, get_session_manager
+from discord_bot.core.engines.session_manager import SessionManager
 from discord_bot.core.engines.cleanup_engine import CleanupEngine
 
 

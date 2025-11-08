@@ -11,10 +11,10 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import uuid
 import os
 from datetime import datetime, timezone, timedelta
-from typing import List, Optional
+import inspect
+from typing import Any, Dict, List, Optional
 
 import discord
 from discord import app_commands
@@ -40,6 +40,19 @@ class EventManagementCog(commands.Cog):
         if isinstance(value, app_commands.Command):
             return value.callback.__get__(self, type(self))
         return value
+
+    EVENT_ID_PREFIX = 8
+    EVENT_ID_DELIMITER = ":"
+    CATEGORY_TYPE_CODES: Dict[EventCategory, str] = {
+        EventCategory.GUILD_WAR: "1",
+        EventCategory.RAID: "2",
+        EventCategory.TOURNAMENT: "3",
+        EventCategory.ALLIANCE_EVENT: "4",
+        EventCategory.DAILY_RESET: "5",
+        EventCategory.WEEKLY_RESET: "6",
+        EventCategory.SPECIAL_EVENT: "7",
+        EventCategory.CUSTOM: "8",
+    }
 
     def __init__(self, bot: commands.Bot, event_engine: Optional[EventReminderEngine] = None) -> None:
         self.bot = bot
@@ -135,6 +148,143 @@ class EventManagementCog(commands.Cog):
             return int(raw.strip())
         except ValueError:
             return None
+
+    def _compose_event_storage_id(self, guild_id: int, display_id: str) -> str:
+        return f"{guild_id}{self.EVENT_ID_DELIMITER}{display_id}"
+
+    def _parse_display_id_from_raw(self, event_id: str) -> Optional[str]:
+        if not event_id:
+            return None
+        if self.EVENT_ID_DELIMITER in event_id:
+            _, suffix = event_id.split(self.EVENT_ID_DELIMITER, 1)
+            if suffix:
+                return suffix
+        return None
+
+    def _get_display_id(self, event: EventReminder) -> str:
+        existing = getattr(event, "display_id", None)
+        if existing:
+            return existing
+        computed = self._parse_display_id_from_raw(event.event_id) or (event.event_id or "")[-self.EVENT_ID_PREFIX:]
+        event.display_id = computed  # cache for later use
+        return computed
+
+    def _letters_to_index(self, letters: str) -> int:
+        value = 0
+        for ch in letters.upper():
+            if not ch.isalpha():
+                continue
+            value = value * 26 + (ord(ch) - ord("A") + 1)
+        return value
+
+    def _index_to_letters(self, index: int) -> str:
+        if index <= 0:
+            return "A"
+        result = ""
+        while index > 0:
+            index, rem = divmod(index - 1, 26)
+            result = chr(ord("A") + rem) + result
+        return result or "A"
+
+    async def _allocate_display_id(
+        self,
+        guild_id: int,
+        category: EventCategory,
+    ) -> str:
+        type_code = self.CATEGORY_TYPE_CODES.get(category, "9")
+        allocator = getattr(self.event_engine, "allocate_display_index", None) if self.event_engine else None
+        if allocator:
+            try:
+                next_index = allocator(guild_id, category)
+                if inspect.isawaitable(next_index):
+                    next_index = await next_index
+                if isinstance(next_index, int) and next_index > 0:
+                    return f"{type_code}{self._index_to_letters(next_index)}"
+            except Exception as exc:
+                logger.warning(
+                    "event.display_id.sequence_fallback guild=%s category=%s reason=%s",
+                    guild_id,
+                    category.value,
+                    exc,
+                )
+
+        existing_events = []
+        if self.event_engine:
+            existing_events = await self.event_engine.get_events_for_guild(guild_id)
+        max_index = 0
+        for event in existing_events:
+            if event.guild_id != guild_id:
+                continue
+            display_id = self._get_display_id(event)
+            if not display_id.upper().startswith(type_code):
+                continue
+            suffix = display_id[len(type_code):] or "A"
+            index = self._letters_to_index(suffix)
+            max_index = max(max_index, index)
+        next_index = max_index + 1
+        return f"{type_code}{self._index_to_letters(next_index)}"
+
+    def _match_events_by_identifier(
+        self,
+        events: List[EventReminder],
+        token: str,
+        *,
+        exact: bool = False,
+        active_only: bool = True,
+    ) -> List[EventReminder]:
+        normalized = token.strip().lower()
+        if not normalized:
+            return []
+        matches: List[EventReminder] = []
+        for event in events:
+            if active_only and not event.is_active:
+                continue
+            display_id = self._get_display_id(event).lower()
+            event_id_lower = (event.event_id or "").lower()
+            if exact:
+                if display_id == normalized or event_id_lower == normalized:
+                    matches.append(event)
+            else:
+                if display_id.startswith(normalized) or event_id_lower.startswith(normalized):
+                    matches.append(event)
+        return matches
+
+    def _format_event_label(self, event: EventReminder) -> str:
+        """Return a short label for an event with ID prefix."""
+        display_id = self._get_display_id(event)
+        return f"{event.title} (`{display_id}`)"
+
+    def _match_events_by_id_prefix(self, events: List[EventReminder], token: str) -> List[EventReminder]:
+        """Return events whose IDs (storage or display) start with the provided token (case-insensitive)."""
+        return self._match_events_by_identifier(events, token, exact=False)
+
+    def _match_events_by_title(self, events: List[EventReminder], fragment: str) -> List[EventReminder]:
+        """Return events whose titles contain the fragment."""
+        normalized = fragment.strip().lower()
+        if not normalized:
+            return []
+        return [
+            event
+            for event in events
+            if normalized in event.title.lower()
+        ]
+
+    async def _cleanup_test_kvk_events(self, guild_id: int) -> List[EventReminder]:
+        """Remove any lingering 'test kvk' events so new ones do not stack up."""
+        if not self.event_engine:
+            return []
+        existing = await self.event_engine.get_events_for_guild(guild_id)
+        stale = [
+            event
+            for event in existing
+            if event.is_active and "test kvk" in event.title.lower()
+        ]
+        removed: List[EventReminder] = []
+        for event in stale:
+            success = await self.event_engine.delete_event(event.event_id)
+            if success:
+                removed.append(event)
+        return removed
     
     @app_commands.command(name="event_create", description="📅 Create a new Top Heroes event reminder (Admin)")
     @app_commands.describe(
@@ -199,6 +349,10 @@ class EventManagementCog(commands.Cog):
             return
         
         try:
+            removed_test_events: List[EventReminder] = []
+            if is_test_kvk:
+                removed_test_events = await self._cleanup_test_kvk_events(interaction.guild.id)
+
             # Parse time
             event_time = self._parse_time_utc(time_utc)
             if not event_time:
@@ -235,9 +389,12 @@ class EventManagementCog(commands.Cog):
                 )
                 return
 
+            display_id = await self._allocate_display_id(interaction.guild.id, category_enum)
+            storage_event_id = self._compose_event_storage_id(interaction.guild.id, display_id)
+
             # Create event
             event = EventReminder(
-                event_id=str(uuid.uuid4()),
+                event_id=storage_event_id,
                 guild_id=interaction.guild.id,
                 title=title,
                 description=description,
@@ -247,12 +404,20 @@ class EventManagementCog(commands.Cog):
                 custom_interval_hours=custom_interval_hours,
                 reminder_times=reminder_times,
                 channel_id=interaction.channel_id,
-                created_by=interaction.user.id
+                created_by=interaction.user.id,
+                display_id=display_id,
             )
             
             success = await self.event_engine.create_event(event)
             
             if success:
+                logger.info(
+                    "event.create.success guild=%s event_id=%s display=%s title=%s",
+                    interaction.guild.id,
+                    event.event_id,
+                    display_id,
+                    title,
+                )
                 # Add personality to the title
                 title_text = await self._add_personality(
                     "Event Created",
@@ -270,25 +435,27 @@ class EventManagementCog(commands.Cog):
                 recurrence_label = self._format_recurrence_label(recurrence_enum, custom_interval_hours)
                 embed.add_field(name="Recurrence", value=recurrence_label, inline=True)
                 embed.add_field(name="Reminders", value=f"{', '.join(map(str, reminder_times))} min before", inline=True)
+                embed.add_field(
+                    name="Event ID",
+                    value=f"`{self._get_display_id(event)}` (use with `/event_edit` or `/event_delete`)",
+                    inline=False,
+                )
 
                 if is_kvk_event and self.kvk_tracker:
                     try:
                         run, is_new = await self.kvk_tracker.ensure_run(
                             guild_id=interaction.guild.id,
                             title=title,
+                            initiated_by=interaction.user.id,
                             is_test=is_test_kvk,
-                            channel_id=self.rankings_channel_id or interaction.channel_id
+                            channel_id=self.rankings_channel_id or interaction.channel_id,
+                            event_id=event.event_id,
                         )
                         if is_new:
                             logger.info("Started new KVK run #%d for guild %d", run.id, interaction.guild.id)
-                            status_line = (
-                                "Started new KVK tracking window"
-                                if is_new else
-                                "Reusing active KVK tracking window"
-                            )
-                            status_line += f" (Run #{run.run_number})"
+                            status_line = f"Started new KVK tracking window (Run #{run.run_number})"
                         else:
-                            status_line = "Test KVK tracking window ready" if is_new else "Existing test KVK window reused"
+                            status_line = f"Reusing active KVK tracking window (Run #{run.run_number})"
                         closes = run.ends_at.strftime("%Y-%m-%d %H:%M UTC") if hasattr(run.ends_at, 'strftime') else str(run.ends_at)
                         embed.add_field(
                             name="KVK Tracking",
@@ -299,13 +466,23 @@ class EventManagementCog(commands.Cog):
                         await self._log_error(kvk_exc, context="event.kvk-start")
                         embed.add_field(
                             name="KVK Tracking",
-                            value="⚠️ Failed to initialise KVK tracking window. See logs for details.",
+                            value=f"⚠️ Failed to initialise KVK tracking window.\n`{kvk_exc}`",
                             inline=False
                         )
 
                 if description:
                     embed.add_field(name="Description", value=description, inline=False)
-                
+
+                if removed_test_events:
+                    removed_lines = "\n".join(f"\u2022 {self._format_event_label(evt)}" for evt in removed_test_events[:5])
+                    if len(removed_test_events) > 5:
+                        removed_lines += f"\n\u2026{len(removed_test_events) - 5} more."
+                    embed.add_field(
+                        name="Test KVK Cleanup",
+                        value=f"Removed {len(removed_test_events)} prior test KVK event(s):\n{removed_lines}",
+                        inline=False,
+                    )
+
                 await interaction.response.send_message(embed=embed, ephemeral=True)
             else:
                 fail_msg = await self._add_personality(
@@ -364,7 +541,7 @@ class EventManagementCog(commands.Cog):
                 time_str = next_time.strftime("%m/%d %H:%M UTC")
                 category_str = event.category.value.replace('_', ' ').title()
                 
-                value = f"**Time:** {time_str}\n**Type:** {category_str}"
+                value = f"**ID:** `{self._get_display_id(event)}`\n**Time:** {time_str}\n**Type:** {category_str}"
                 if event.recurrence != RecurrenceType.ONCE:
                     recurrence_label = self._format_recurrence_label(event.recurrence, event.custom_interval_hours)
                     value += f"\n**Repeats:** {recurrence_label}"
@@ -387,11 +564,134 @@ class EventManagementCog(commands.Cog):
             else:
                 await interaction.response.send_message("An error occurred while fetching events.", ephemeral=True)
     
-    @app_commands.command(name="event_delete", description="🗑️ Delete a Top Heroes event (Admin)")
-    @app_commands.describe(title="Title of the event to delete (partial match)")
-    async def delete_event(self, interaction: discord.Interaction, title: str) -> None:
-        """Delete an event by title."""
+    @app_commands.command(name="event_delete", description="🗑️ Delete one or more Top Heroes events (Admin)")
+    @app_commands.describe(
+        identifier="Event ID/prefix or title fragment. Use commas to delete multiple IDs."
+    )
+    async def delete_event(self, interaction: discord.Interaction, identifier: str) -> None:
+        """Delete events via ID prefix or title fragment."""
         
+        if not interaction.guild:
+            await interaction.response.send_message("This command must be used in a server.", ephemeral=True)
+            return
+        
+        if not self._has_permission(interaction):
+            await self._deny_permission(interaction)
+            return
+        
+        if not self.event_engine:
+            await interaction.response.send_message("Event system not available.", ephemeral=True)
+            return
+        
+        raw_identifier = identifier.strip()
+        if not raw_identifier:
+            await interaction.response.send_message("Provide an event ID/prefix or part of the title.", ephemeral=True)
+            return
+        
+        try:
+            events = await self.event_engine.get_events_for_guild(interaction.guild.id)
+            active_events = [event for event in events if event.is_active]
+            tokens = [token.strip() for token in raw_identifier.split(",") if token.strip()]
+            multi_mode = len(tokens) > 1
+            
+            deleted: List[str] = []
+            failures: List[str] = []
+            
+            async def delete_single(event: EventReminder) -> None:
+                success = await self.event_engine.delete_event(event.event_id)
+                label = self._format_event_label(event)
+                if success:
+                    deleted.append(label)
+                else:
+                    failures.append(f"{label} - delete failed")
+            
+            if multi_mode:
+                for token in tokens:
+                    matches = self._match_events_by_identifier(active_events, token, exact=True)
+                    if not matches:
+                        failures.append(f"`{token}` - no matching event ID")
+                        continue
+                    if len(matches) > 1:
+                        preview = ', '.join(self._format_event_label(evt) for evt in matches[:3])
+                        failures.append(f"`{token}` - matched multiple events: {preview}")
+                        continue
+                    await delete_single(matches[0])
+            else:
+                token = tokens[0] if tokens else raw_identifier
+                matches = self._match_events_by_identifier(active_events, token, exact=False)
+                if not matches:
+                    matches = self._match_events_by_title(active_events, token)
+                if not matches:
+                    await interaction.response.send_message(
+                        f"No active event matched `{token}`. Use `/event_list` to copy IDs.",
+                        ephemeral=True
+                    )
+                    return
+                if len(matches) > 1:
+                    preview = "\n".join(f"• {self._format_event_label(evt)}" for evt in matches[:5])
+                    await interaction.response.send_message(
+                        f"Multiple events matched `{token}`. Specify the ID prefix:\n{preview}",
+                        ephemeral=True
+                    )
+                    return
+                await delete_single(matches[0])
+            if deleted:
+                message = "Deleted events:\n" + "\n".join(f"• {label}" for label in deleted)
+                if failures:
+                    message += "\n\nIssues:\n" + "\n".join(f"- {note}" for note in failures)
+                await interaction.response.send_message(message, ephemeral=True)
+            else:
+                failure_text = "\n".join(f"- {note}" for note in failures) if failures else "No matching events."
+                await interaction.response.send_message(f"Nothing was deleted:\n{failure_text}", ephemeral=True)
+                
+        except Exception as exc:
+            await self._log_error(exc, context="event.delete")
+            if interaction.response.is_done():
+                await interaction.followup.send("An error occurred while deleting the event.", ephemeral=True)
+            else:
+                await interaction.response.send_message("An error occurred while deleting the event.", ephemeral=True)
+
+    @app_commands.command(name="event_edit", description="✏️ Edit an existing Top Heroes event (Admin)")
+    @app_commands.describe(
+        event_id="Event ID or prefix (see /event_list)",
+        title="New title",
+        time_utc="New time in UTC (same formats as /event_create)",
+        description="Updated description",
+        remind_minutes="Comma-separated reminder minutes (e.g., 60,30,5)",
+        custom_interval_days="If recurrence is 'Every 2-6 days', provide the interval",
+        active="Set to False to disable the event without deleting it"
+    )
+    @app_commands.choices(category=[
+        app_commands.Choice(name="Raid", value="raid"),
+        app_commands.Choice(name="Guild War", value="guild_war"),
+        app_commands.Choice(name="Tournament", value="tournament"),
+        app_commands.Choice(name="Alliance Event", value="alliance_event"),
+        app_commands.Choice(name="Daily Reset", value="daily_reset"),
+        app_commands.Choice(name="Weekly Reset", value="weekly_reset"),
+        app_commands.Choice(name="Special Event", value="special_event"),
+        app_commands.Choice(name="Custom", value="custom"),
+    ])
+    @app_commands.choices(recurrence=[
+        app_commands.Choice(name="Once", value="once"),
+        app_commands.Choice(name="Daily", value="daily"),
+        app_commands.Choice(name="Weekly", value="weekly"),
+        app_commands.Choice(name="Monthly", value="monthly"),
+        app_commands.Choice(name="Every 2-6 days", value="custom"),
+    ])
+    async def edit_event(
+        self,
+        interaction: discord.Interaction,
+        event_id: str,
+        title: Optional[str] = None,
+        time_utc: Optional[str] = None,
+        description: Optional[str] = None,
+        remind_minutes: Optional[str] = None,
+        category: Optional[str] = None,
+        recurrence: Optional[str] = None,
+        custom_interval_days: app_commands.Range[int, 2, 6] | None = None,
+        active: Optional[bool] = None,
+    ) -> None:
+        """Edit stored event metadata without recreating it."""
         if not interaction.guild:
             await interaction.response.send_message("This command must be used in a server.", ephemeral=True)
             return
@@ -406,40 +706,112 @@ class EventManagementCog(commands.Cog):
         
         try:
             events = await self.event_engine.get_events_for_guild(interaction.guild.id)
-            
-            # Find matching event
-            matching_events = [
-                event for event in events 
-                if title.lower() in event.title.lower() and event.is_active
-            ]
-            
-            if not matching_events:
-                await interaction.response.send_message(f"No active event found with title containing '{title}'.", ephemeral=True)
-                return
-            
-            if len(matching_events) > 1:
-                titles = [f"• {event.title}" for event in matching_events[:5]]
+            matches = self._match_events_by_identifier(events, event_id, exact=False, active_only=False)
+            if not matches:
                 await interaction.response.send_message(
-                    f"Multiple events found. Be more specific:\n" + "\n".join(titles),
-                    ephemeral=True
+                    f"No event found with ID `{event_id}`. Use `/event_list` to copy IDs.",
+                    ephemeral=True,
+                )
+                return
+            if len(matches) > 1:
+                preview = "\n".join(f"- {self._format_event_label(evt)}" for evt in matches[:5])
+                await interaction.response.send_message(
+                    f"Multiple events share that ID. Use a longer identifier:\n{preview}",
+                    ephemeral=True,
+                )
+                return
+            event = matches[0]
+            
+            updates: Dict[str, Any] = {}
+            summary: List[str] = []
+            
+            if title:
+                updates["title"] = title
+                summary.append(f"- Title -> **{title}**")
+            
+            if time_utc:
+                new_time = self._parse_time_utc(time_utc)
+                if not new_time:
+                    await interaction.response.send_message(
+                        "Invalid time format. Use 'YYYY-MM-DD HH:MM' or 'HH:MM' (UTC).",
+                        ephemeral=True,
+                    )
+                    return
+                updates["event_time_utc"] = new_time
+                summary.append(f"- Time -> {new_time.strftime('%Y-%m-%d %H:%M UTC')}")
+            
+            if description is not None:
+                updates["description"] = description
+                summary.append("- Description updated")
+            
+            if remind_minutes:
+                reminder_times = self._parse_reminder_times(remind_minutes)
+                updates["reminder_times"] = reminder_times
+                summary.append(f"- Reminders -> {', '.join(map(str, reminder_times))} min")
+            
+            if category:
+                try:
+                    category_enum = EventCategory(category)
+                except ValueError:
+                    await interaction.response.send_message("Invalid category value.", ephemeral=True)
+                    return
+                updates["category"] = category_enum
+                summary.append(f"- Category -> {category_enum.value.replace('_', ' ').title()}")
+            else:
+                category_enum = event.category
+            
+            recurrence_enum = None
+            if recurrence:
+                try:
+                    recurrence_enum = RecurrenceType(recurrence)
+                except ValueError:
+                    await interaction.response.send_message("Invalid recurrence value.", ephemeral=True)
+                    return
+                updates["recurrence"] = recurrence_enum
+                summary.append(f"- Recurrence -> {recurrence_enum.value.replace('_', ' ').title()}")
+            target_recurrence = recurrence_enum or event.recurrence
+            
+            if custom_interval_days is not None:
+                if target_recurrence != RecurrenceType.CUSTOM_INTERVAL:
+                    await interaction.response.send_message(
+                        "Custom interval days can only be set when recurrence is 'Every 2-6 days'.",
+                        ephemeral=True,
+                    )
+                    return
+                updates["custom_interval_hours"] = custom_interval_days * 24
+                summary.append(f"- Interval -> every {custom_interval_days} day(s)")
+            
+            if active is not None:
+                updates["is_active"] = 1 if active else 0
+                summary.append(f"- Active -> {'Yes' if active else 'No'}")
+            
+            if not updates:
+                await interaction.response.send_message(
+                    "Provide at least one field to update.",
+                    ephemeral=True,
                 )
                 return
             
-            event = matching_events[0]
-            success = await self.event_engine.delete_event(event.event_id)
+            success = await self.event_engine.update_event(event.event_id, **updates)
+            if not success:
+                await interaction.response.send_message("Failed to update event. Please try again.", ephemeral=True)
+                return
             
-            if success:
-                await interaction.response.send_message(f"✅ Deleted event: **{event.title}**", ephemeral=True)
-            else:
-                await interaction.response.send_message("Failed to delete event. Please try again.", ephemeral=True)
-                
+            embed = discord.Embed(
+                title="?? Event updated",
+                description=self._format_event_label(event),
+                color=discord.Color.orange(),
+            )
+            embed.add_field(name="Changes", value="\n".join(summary), inline=False)
+            await interaction.response.send_message(embed=embed, ephemeral=True)
+        
         except Exception as exc:
-            await self._log_error(exc, context="event.delete")
+            await self._log_error(exc, context="event.edit")
             if interaction.response.is_done():
-                await interaction.followup.send("An error occurred while deleting the event.", ephemeral=True)
+                await interaction.followup.send("An error occurred while editing the event.", ephemeral=True)
             else:
-                await interaction.response.send_message("An error occurred while deleting the event.", ephemeral=True)
-    
+                await interaction.response.send_message("An error occurred while editing the event.", ephemeral=True)
+
     @app_commands.command(name="events", description="🗓️ Show upcoming Top Heroes events (Public)")
     async def show_public_events(self, interaction: discord.Interaction) -> None:
         """Show upcoming events in a public message."""
@@ -594,3 +966,4 @@ async def setup(
     event_reminder_engine: Optional[EventReminderEngine] = None
 ) -> None:
     await bot.add_cog(EventManagementCog(bot, event_engine=event_reminder_engine))
+

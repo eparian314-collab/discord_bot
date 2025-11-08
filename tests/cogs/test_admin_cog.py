@@ -1,3 +1,5 @@
+from datetime import datetime, timedelta, timezone
+from types import SimpleNamespace
 from typing import Dict
 
 import pytest
@@ -42,9 +44,9 @@ class DummyResponse:
     def is_done(self) -> bool:
         return self._done
 
-    async def send_message(self, content: str, *, ephemeral: bool) -> None:
+    async def send_message(self, content=None, *, embed=None, ephemeral: bool) -> None:
         self._done = True
-        self.messages.append((content, ephemeral))
+        self.messages.append({"content": content, "embed": embed, "ephemeral": ephemeral})
 
 
 class DummyFollowup:
@@ -127,4 +129,64 @@ async def test_keyword_remove_requires_existing_mapping():
     await cog.keyword_remove.callback(cog, interaction, keyword="other")
 
     assert interaction.response.messages
-    assert "not currently linked" in interaction.response.messages[0][0]
+    assert "not currently linked" in interaction.response.messages[0]["content"]
+
+
+class FakeReminderEvent:
+    def __init__(self, title: str, delta_minutes: int):
+        self.title = title
+        self.is_active = True
+        self._delta = delta_minutes
+
+    def get_next_occurrence(self, now: datetime):
+        return now + timedelta(minutes=self._delta)
+
+
+class FakeReminderEngine:
+    async def get_events_for_guild(self, guild_id: int):
+        return [
+            FakeReminderEvent("KVK Warmup", 30),
+            FakeReminderEvent("Alliance Defense", 90),
+        ]
+
+
+class FakeKVKTracker:
+    def __init__(self):
+        self._run = SimpleNamespace(
+            is_test=False,
+            run_number=7,
+            ends_at=datetime.now(timezone.utc) + timedelta(days=7),
+        )
+
+    def get_active_run(self, guild_id: int, include_tests: bool = True):
+        return self._run
+
+
+@pytest.mark.asyncio
+async def test_bot_status_reports_metrics():
+    engine = FakeReminderEngine()
+    tracker = FakeKVKTracker()
+    bot = SimpleNamespace(
+        event_reminder_engine=engine,
+        kvk_tracker=tracker,
+    )
+    cog = AdminCog(
+        bot,
+        ui_engine=None,
+        owners={42},
+        storage=None,
+        cookie_manager=None,
+        event_engine=None,
+    )
+
+    interaction = DummyInteraction(
+        guild=DummyGuild(1, owner_id=99),
+        user=DummyUser(42, DummyPermissions(manage_guild=True)),
+    )
+
+    await AdminCog.bot_status.callback(cog, interaction)
+
+    assert interaction.response.messages
+    payload = interaction.response.messages[0]
+    assert payload["embed"] is not None
+    assert "Pending reminders" in [field.name for field in payload["embed"].fields]

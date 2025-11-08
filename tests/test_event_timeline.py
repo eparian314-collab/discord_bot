@@ -2,7 +2,6 @@
 Tests for the Event Timeline Logic.
 """
 import pytest
-import asyncio
 from datetime import datetime, timedelta
 
 from discord_bot.core.engines.event_timeline import EventTimeline, EventPhase

@@ -1,5 +1,3 @@
-import os
-import sqlite3
 import pytest
 from discord_bot.games.storage.game_storage_engine import GameStorageEngine
 

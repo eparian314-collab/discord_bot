@@ -67,7 +67,7 @@ def validate_sos_config():
         
         # Check for trailing commas
         if channel_id_str.endswith(","):
-            print(f"   ⚠️  Warning: Trailing comma found! Remove it.")
+            print("   ⚠️  Warning: Trailing comma found! Remove it.")
             issues_found = True
         
         # Validate it's a number
@@ -78,10 +78,10 @@ def validate_sos_config():
             # Check length (Discord IDs are typically 17-19 digits)
             if len(channel_id_str) < 17 or len(channel_id_str) > 20:
                 print(f"   ⚠️  Warning: ID length unusual ({len(channel_id_str)} digits)")
-                print(f"      Discord IDs are usually 17-19 digits")
+                print("      Discord IDs are usually 17-19 digits")
                 issues_found = True
         except ValueError:
-            print(f"   ❌ Invalid: Not a valid number!")
+            print("   ❌ Invalid: Not a valid number!")
             issues_found = True
     
     print()

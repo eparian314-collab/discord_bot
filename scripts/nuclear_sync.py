@@ -8,16 +8,33 @@ import os
 import sys
 from pathlib import Path
 
-# Ensure parent directory is in path
+
+
+# Ensure project root and discord_bot are in sys.path for imports
 _current_file = Path(__file__).resolve()
 _project_root = _current_file.parent.parent
-if str(_project_root) not in sys.path:
-    sys.path.insert(0, str(_project_root))
+_discord_bot_dir = _project_root / "discord_bot"
+for p in [str(_project_root), str(_discord_bot_dir)]:
+    if p not in sys.path:
+        sys.path.insert(0, p)
 
 import discord
-from discord.ext import commands
 
-from discord_bot.integrations import load_config, build_application
+import importlib.util
+import sys
+
+# Absolute path to integrations module
+integrations_path = os.path.join(os.path.dirname(__file__), '..', 'integrations', 'system_config.py')
+spec = importlib.util.spec_from_file_location('system_config', integrations_path)
+system_config = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(system_config)
+load_config = system_config.load_config
+
+integration_loader_path = os.path.join(os.path.dirname(__file__), '..', 'integrations', 'integration_loader.py')
+spec_loader = importlib.util.spec_from_file_location('integration_loader', integration_loader_path)
+integration_loader = importlib.util.module_from_spec(spec_loader)
+spec_loader.loader.exec_module(integration_loader)
+build_application = integration_loader.build_application
 
 
 async def main():

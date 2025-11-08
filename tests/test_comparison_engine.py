@@ -2,7 +2,6 @@
 Tests for the Comparison Engine.
 """
 import pytest
-import asyncio
 from unittest.mock import MagicMock
 
 # Assume this engine will be created

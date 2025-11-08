@@ -8,9 +8,9 @@ import uuid
 from pathlib import Path
 from typing import Mapping
 
-# Ensure parent directory is in path for proper package imports
+# Ensure imports resolve even when executing from outside the repo root.
 _current_file = Path(__file__).resolve()
-_project_root = _current_file.parent.parent
+_project_root = _current_file.parent
 if str(_project_root) not in sys.path:
     sys.path.insert(0, str(_project_root))
 

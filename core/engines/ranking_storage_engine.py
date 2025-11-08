@@ -354,7 +354,7 @@ class RankingStorageEngine:
                 query += " AND stage_type = ?"
                 params.append(stage_type.value)
             
-            if day_number:
+            if day_number is not None:
                 query += " AND day_number = ?"
                 params.append(day_number)
             

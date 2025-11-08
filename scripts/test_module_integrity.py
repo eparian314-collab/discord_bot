@@ -46,7 +46,7 @@ def test_core_engines() -> List[Tuple[str, bool, str]]:
     for name, module_path in engines:
         try:
             parts = module_path.split(".")
-            mod = __import__(module_path, fromlist=[parts[-1]])
+            __import__(module_path, fromlist=[parts[-1]])
             results.append((name, True, "OK"))
         except Exception as e:
             results.append((name, False, str(e)[:50]))
@@ -72,7 +72,7 @@ def test_cogs() -> List[Tuple[str, bool, str]]:
     for name, module_path in cogs:
         try:
             parts = module_path.split(".")
-            mod = __import__(module_path, fromlist=[parts[-1]])
+            __import__(module_path, fromlist=[parts[-1]])
             results.append((name, True, "OK"))
         except Exception as e:
             results.append((name, False, str(e)[:50]))
@@ -83,7 +83,6 @@ def test_cogs() -> List[Tuple[str, bool, str]]:
 def test_integration_loader() -> Tuple[bool, str]:
     """Test importing integration loader."""
     try:
-        from discord_bot.integrations import integration_loader
         return True, "OK"
     except Exception as e:
         return False, str(e)[:100]

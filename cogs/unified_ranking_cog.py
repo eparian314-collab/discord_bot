@@ -15,6 +15,7 @@ Commands:
 - /ranking_power - Set power level for peer comparisons
 """
 
+import logging
 from typing import Optional, TYPE_CHECKING, List, Dict, Any
 from datetime import datetime, timezone
 import aiohttp
@@ -23,9 +24,8 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 
-from discord_bot.core.engines.screenshot_processor import StageType
+from discord_bot.core.engines.screenshot_processor import StageType, ScreenshotProcessor
 from discord_bot.core.utils import find_bot_channel, is_admin_or_helper
-from discord_bot.core.engines.screenshot_processor import ScreenshotProcessor
 from discord_bot.core.engines.ranking_storage_engine import RankingStorageEngine
 from discord_bot.core.engines.kvk_visual_manager import KVKVisualManager, create_kvk_visual_manager
 from discord_bot.core.engines.kvk_tracker import KVKRun
@@ -34,6 +34,8 @@ from discord_bot.core.engines.openai_engine import OpenAIEngine
 
 if TYPE_CHECKING:
     pass
+
+logger = logging.getLogger("hippo_bot.unified_ranking_cog")
 
 
 class UnifiedRankingCog(commands.Cog):
@@ -45,7 +47,8 @@ class UnifiedRankingCog(commands.Cog):
         processor: ScreenshotProcessor,
         storage: RankingStorageEngine,
         kvk_tracker=None,
-        openai_engine: Optional[OpenAIEngine] = None
+        openai_engine: Optional[OpenAIEngine] = None,
+        guardian: Optional[Any] = None,
     ):
         self.bot = bot
         self.processor = processor
@@ -63,6 +66,7 @@ class UnifiedRankingCog(commands.Cog):
         self.upload_folder = "uploads/screenshots"
         self.log_folder = "logs"
         self.cache_folder = "cache"
+        self.guardian = guardian or getattr(bot, "error_engine", None)
         
         # Post guidance message once bot is ready
         if hasattr(self.bot, 'loop') and self.bot.loop:
@@ -177,6 +181,42 @@ class UnifiedRankingCog(commands.Cog):
                 await modlog.send(embed=embed)
             except:
                 pass  # Silently fail if can't post
+
+    async def _log_guardian_error(
+        self,
+        *,
+        interaction: discord.Interaction,
+        category: str,
+        error: Exception | str,
+        kvk_run: Optional["KVKRun"] = None,
+        stage_type: Optional[StageType] = None,
+        day: Optional[int] = None,
+        confidence: Optional[float] = None,
+        screenshot_url: Optional[str] = None,
+        context: str = "",
+        **extra_metadata: Any,
+    ) -> None:
+        """Best-effort bridge into GuardianErrorEngine for ranking failures."""
+        guardian = getattr(self, "guardian", None)
+        if not guardian or not hasattr(guardian, "log_ranking_error"):
+            return
+        exc = error if isinstance(error, Exception) else RuntimeError(str(error))
+        try:
+            await guardian.log_ranking_error(
+                exc,
+                category=category,
+                user_id=str(interaction.user.id),
+                guild_id=str(interaction.guild_id) if interaction.guild else None,
+                kvk_run_id=getattr(kvk_run, "id", None),
+                stage=stage_type.name.lower() if stage_type else None,
+                day=day,
+                confidence=confidence,
+                screenshot_url=screenshot_url,
+                context=context,
+                **extra_metadata,
+            )
+        except Exception:
+            logger.exception("Guardian logging failed for %s error", category)
 
     def _resolve_kvk_run(self, interaction: discord.Interaction) -> tuple[Optional["KVKRun"], bool]:
         """Resolve the current KVK run for the guild."""
@@ -453,6 +493,16 @@ class UnifiedRankingCog(commands.Cog):
                 "failed",
                 error_message=error_msg,
             )
+            await self._log_guardian_error(
+                interaction=interaction,
+                category="validation",
+                error=ValueError(error_msg or "Screenshot validation failed"),
+                kvk_run=kvk_run,
+                stage_type=stage_type,
+                day=normalized_day,
+                screenshot_url=screenshot.url,
+                context="Screenshot validation failed",
+            )
             await interaction.followup.send(
                 f"Screenshot validation failed: {error_msg}",
                 ephemeral=True,
@@ -488,6 +538,17 @@ class UnifiedRankingCog(commands.Cog):
         )
 
         if not ranking_result.is_successful:
+            await self._log_guardian_error(
+                interaction=interaction,
+                category="ocr",
+                error=RuntimeError(getattr(ranking_result, "error_message", "OCR parsing failed")),
+                kvk_run=kvk_run,
+                stage_type=stage_type,
+                day=normalized_day,
+                confidence=getattr(ranking_result, "confidence", None),
+                screenshot_url=screenshot.url,
+                context="Ranking screenshot parsing failed",
+            )
             # If parsing fails, start interactive correction
             await self.start_correction_flow(interaction, ranking_result)
             return
@@ -500,6 +561,17 @@ class UnifiedRankingCog(commands.Cog):
                 str(interaction.guild_id) if interaction.guild else None,
                 "failed",
                 error_message="Could not extract ranking data from image",
+            )
+            await self._log_guardian_error(
+                interaction=interaction,
+                category="submission",
+                error=RuntimeError("Ranking data missing after OCR"),
+                kvk_run=kvk_run,
+                stage_type=stage_type,
+                day=normalized_day,
+                confidence=getattr(ranking_result, "confidence", None),
+                screenshot_url=screenshot.url,
+                context="Ranking data missing after OCR",
             )
             await interaction.followup.send(
                 "Could not read ranking data from the screenshot. Please ensure all required information is visible.",
@@ -1387,7 +1459,8 @@ class CorrectionModal(discord.ui.Modal):
 async def setup(
     bot: commands.Bot,
     processor: Optional[ScreenshotProcessor] = None,
-    storage: Optional[RankingStorageEngine] = None
+    storage: Optional[RankingStorageEngine] = None,
+    guardian: Optional[Any] = None,
 ):
     """Setup function for the unified ranking cog."""
     if processor is None:
@@ -1407,4 +1480,14 @@ async def setup(
             pass # OpenAI engine is optional
 
     kvk_tracker = getattr(bot, "kvk_tracker", None)
-    await bot.add_cog(UnifiedRankingCog(bot, processor, storage, kvk_tracker=kvk_tracker, openai_engine=openai_engine))
+    guardian = guardian or getattr(bot, "error_engine", None)
+    await bot.add_cog(
+        UnifiedRankingCog(
+            bot,
+            processor,
+            storage,
+            kvk_tracker=kvk_tracker,
+            openai_engine=openai_engine,
+            guardian=guardian,
+        )
+    )

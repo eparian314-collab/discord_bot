@@ -72,7 +72,7 @@ class HippoBot(commands.Bot):
         self._welcome_messages: dict[int, list[int]] = {}  # guild_id -> list of message_ids
 
     async def on_ready(self) -> None:
-        logger.info("🦛 HippoBot logged in as %s (%s)", self.user, getattr(self.user, "id", "-"))
+        logger.info("≡ƒª¢ HippoBot logged in as %s (%s)", self.user, getattr(self.user, "id", "-"))
         
         # Don't sync on every reconnect, only on first ready
         if self._synced:
@@ -86,7 +86,7 @@ class HippoBot(commands.Bot):
         if cleanup_enabled:
             last_session_time = get_last_session_time()
             if last_session_time:
-                logger.info("🧹 Starting cleanup of messages since %s", last_session_time)
+                logger.info("≡ƒº╣ Starting cleanup of messages since %s", last_session_time)
                 try:
                     # Get cleanup configuration from environment
                     cleanup_config = {
@@ -105,7 +105,7 @@ class HippoBot(commands.Bot):
                     )
                     
                     logger.info(
-                        "🧹 Cleanup complete: deleted %d messages across %d channels (took %.2fs)",
+                        "≡ƒº╣ Cleanup complete: deleted %d messages across %d channels (took %.2fs)",
                         stats.get("messages_deleted", 0),
                         stats.get("channels_cleaned", 0),
                         stats.get("duration_seconds", 0)
@@ -113,7 +113,7 @@ class HippoBot(commands.Bot):
                 except Exception as e:
                     logger.error("Cleanup failed: %s", e, exc_info=True)
             else:
-                logger.info("🧹 No previous session found, skipping cleanup (first run)")
+                logger.info("≡ƒº╣ No previous session found, skipping cleanup (first run)")
             
             # Update session timestamp for next restart
             session_id = update_session_start()
@@ -126,13 +126,13 @@ class HippoBot(commands.Bot):
             if self.test_guild_ids:
                 # Always perform a global sync first so legacy global commands are cleaned up.
                 await self.tree.sync()
-                logger.info("✅ Synced app commands globally (cleanup)")
+                logger.info("Γ£à Synced app commands globally (cleanup)")
                 for guild_id in self.test_guild_ids:
                     synced = await self.tree.sync(guild=discord.Object(id=guild_id))
-                    logger.info("✅ Synced %d app commands for guild %s", len(synced), guild_id)
+                    logger.info("Γ£à Synced %d app commands for guild %s", len(synced), guild_id)
             else:
                 synced = await self.tree.sync()
-                logger.info("✅ Synced %d app commands globally", len(synced))
+                logger.info("Γ£à Synced %d app commands globally", len(synced))
             self._synced = True
         except Exception:
             logger.exception("Failed to sync application commands on ready")
@@ -195,7 +195,7 @@ class HippoBot(commands.Bot):
                         self._welcome_messages[guild.id] = []
                     
                     embed = discord.Embed(
-                        title="🦛 Baby Hippo is Online!",
+                        title="≡ƒª¢ Baby Hippo is Online!",
                         description="Hello! I'm ready to help with translations, roles, and more. Use `/help` to see what I can do!",
                         color=discord.Color.green(),
                     )
@@ -435,7 +435,7 @@ class IntegrationLoader:
                 detection_service=self.detector,
                 nlp_processor=self.nlp_processor,
             )
-            logger.info("TranslationOrchestratorEngine created (DeepL ➜ MyMemory ➜ Google Translate)")
+            logger.info("TranslationOrchestratorEngine created (DeepL Γ₧£ MyMemory Γ₧£ Google Translate)")
         except Exception:
             self.orchestrator = None
             logger.exception("Failed to create TranslationOrchestratorEngine")
@@ -488,7 +488,7 @@ class IntegrationLoader:
         if hasattr(self.kvk_tracker_engine, "set_bot"):
             self.kvk_tracker_engine.set_bot(self.bot)
 
-        logger.info("🛠️ Preparing engines and integrations")
+        logger.info("≡ƒ¢á∩╕Å Preparing engines and integrations")
 
         self.input_engine = InputEngine(
             bot=self.bot,
@@ -563,7 +563,7 @@ class IntegrationLoader:
         # The kvk_ranking subgroup will be auto-registered when the cog is added
         from discord_bot.core import ui_groups
         self.bot.tree.add_command(ui_groups.kvk, override=True)
-        logger.info("✅ Registered kvk command group for ranking cog")
+        logger.info("Γ£à Registered kvk command group for ranking cog")
         
         async def mount_cogs() -> None:
             await self._mount_cogs(owners)
@@ -645,7 +645,7 @@ class IntegrationLoader:
 
         parts: list[str] = []
         if ready:
-            parts.append(f"✅ ready: {', '.join(ready)}")
+            parts.append(f"Γ£à ready: {', '.join(ready)}")
         if waiting:
             waiting_parts = []
             for name, deps in waiting.items():
@@ -653,9 +653,9 @@ class IntegrationLoader:
                     waiting_parts.append(f"{name} (waiting: {', '.join(deps)})")
                 else:
                     waiting_parts.append(name)
-            parts.append(f"⏳ waiting: {', '.join(waiting_parts)}")
+            parts.append(f"ΓÅ│ waiting: {', '.join(waiting_parts)}")
         summary = " | ".join(parts) if parts else "no registered engines"
-        logger.info("📦 Engine registry snapshot (%s): %s", context, summary)
+        logger.info("≡ƒôª Engine registry snapshot (%s): %s", context, summary)
 
     async def _mount_cogs(self, owners: Iterable[int]) -> None:
         if not self.bot:
@@ -669,7 +669,6 @@ class IntegrationLoader:
             from discord_bot.cogs.easteregg_cog import EasterEggCog
             from discord_bot.cogs.game_cog import GameCog
             from discord_bot.cogs.event_management_cog import setup as setup_event_cog
-            from discord_bot.cogs.unified_ranking_cog import setup as setup_unified_ranking_cog
             from discord_bot.core.engines.screenshot_processor import ScreenshotProcessor
             from discord_bot.core.engines.ranking_storage_engine import RankingStorageEngine
 
@@ -681,13 +680,33 @@ class IntegrationLoader:
             await setup_event_cog(self.bot, event_reminder_engine=self.event_reminder_engine)
             ranking_processor = ScreenshotProcessor()
             ranking_storage = RankingStorageEngine(storage=self.game_storage)
-            
-            # Mount unified ranking cog with visual parsing support
-            await setup_unified_ranking_cog(
-                self.bot,
-                processor=ranking_processor,
-                storage=ranking_storage,
-            )
+            ranking_cog_name = "UnifiedRankingCog"
+
+            # Prefer EnhancedKVKRankingCog with Guardian wiring; fall back to unified ranking cog if needed.
+            try:
+                from discord_bot.cogs.kvk_visual_cog import EnhancedKVKRankingCog
+
+                kvk_visual_cog = EnhancedKVKRankingCog(self.bot)
+                await kvk_visual_cog.setup_dependencies(
+                    kvk_tracker=self.kvk_tracker,
+                    storage=ranking_storage,
+                    guardian=self.error_engine,
+                    rankings_channel_id=getattr(self, "rankings_channel_id", None),
+                    modlog_channel_id=getattr(self, "modlog_channel_id", None),
+                )
+                await self.bot.add_cog(kvk_visual_cog, override=True)
+                ranking_cog_name = "EnhancedKVKRankingCog"
+                logger.info("? Mounted EnhancedKVKRankingCog with guardian integration")
+            except Exception:
+                logger.exception("Failed to mount EnhancedKVKRankingCog; falling back to UnifiedRankingCog")
+                from discord_bot.cogs.unified_ranking_cog import setup as setup_unified_ranking_cog
+
+                await setup_unified_ranking_cog(
+                    self.bot,
+                    processor=ranking_processor,
+                    storage=ranking_storage,
+                    guardian=self.error_engine,
+                )
             
             # Mount game system cogs with dependency injection
             easter_egg_cog = EasterEggCog(
@@ -711,7 +730,22 @@ class IntegrationLoader:
             
             setattr(self.bot, "ranking_processor", ranking_processor)
             setattr(self.bot, "ranking_storage", ranking_storage)
-            logger.info("⚙️ Mounted cogs: translation, admin, help, language, sos, events, ranking, easteregg, game")
+            logger.info(
+                "?? Mounted cogs: translation, admin, help, language, sos, events, %s, easteregg, game",
+                ranking_cog_name,
+            )
+
+            diagnostics_enabled = os.getenv("ENABLE_OCR_DIAGNOSTICS", "false").strip().lower() in {"1", "true", "yes", "on"}
+            if diagnostics_enabled:
+                try:
+                    from discord_bot.cogs.image_diagnostic_cog import setup as setup_image_diagnostics_cog
+                    from discord_bot.cogs.ocr_report_cog import setup as setup_ocr_report_cog
+
+                    await setup_image_diagnostics_cog(self.bot)
+                    await setup_ocr_report_cog(self.bot, ranking_storage)
+                    logger.info("Mounted OCR diagnostic cogs (!testimg/!preprocess/!ocr and /ocr_report).")
+                except Exception:
+                    logger.exception("Failed to mount OCR diagnostic cogs")
         except Exception as exc:
             logger.exception("Failed to mount cogs")
             try:

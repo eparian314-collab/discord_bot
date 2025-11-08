@@ -1,7 +1,6 @@
 """
 Tests for role utility functions.
 """
-import os
 from unittest.mock import MagicMock
 
 import pytest

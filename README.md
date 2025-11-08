@@ -51,6 +51,14 @@ HippoBot is powered by a modular engine system that separates:
 • Storage Engine — Keeps track of user language preferences, scores, and roles
 • Error and Cache Managers — Ensure stability and performance
 
+
+Configuration Checklist
+
+- Use .env.example as the sanitized template for local secrets.
+- See docs/ENVIRONMENT_REFERENCE.md for a required/optional breakdown (channel IDs, OCR flags, etc.).
+- Run python scripts/ci/check_env_example.py in CI to catch drift before production.
+- Review RUNBOOK.md for common repair commands before touching production.
+
 Lessons Learned
 
 I learned a lot about:

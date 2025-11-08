@@ -1,4 +1,3 @@
-import asyncio
 import pytest
 
 from discord_bot.core.event_bus import EventBus

@@ -82,6 +82,17 @@ def test_ensure_run_creates_and_reuses(storage, tracker):
     assert test_run.is_test is True
     assert test_run.run_number is None
 
+    reused_test, test_created_second = asyncio.run(tracker.ensure_run(
+        guild_id=123,
+        title="TEST KVK SECOND",
+        initiated_by=42,
+        channel_id=999,
+        is_test=True,
+        event_id="test-evt-2",
+    ))
+    assert test_created_second is False
+    assert reused_test.id == test_run.id
+
 
 def test_record_submission_and_queries(storage, tracker):
     run, _ = asyncio.run(tracker.ensure_run(

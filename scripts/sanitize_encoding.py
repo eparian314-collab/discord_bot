@@ -5,7 +5,6 @@ Use once or include in startup sequence.
 
 from __future__ import annotations
 import os
-import re
 
 ROOT = os.path.dirname(os.path.dirname(__file__))  # points to /discord_bot_v2/discord_bot
 

@@ -5,9 +5,8 @@ Tests that users with the helper role can access admin-only commands
 in AdminCog, SOSPhraseCog, and HelpCog.
 """
 import pytest
-from unittest.mock import AsyncMock, MagicMock, Mock
+from unittest.mock import AsyncMock, Mock
 
-import discord
 from discord.ext import commands
 
 from discord_bot.cogs.admin_cog import AdminCog

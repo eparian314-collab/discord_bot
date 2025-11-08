@@ -6,7 +6,6 @@ Tests the visual parsing system with mock data to validate functionality.
 
 import asyncio
 import json
-import os
 import sys
 from pathlib import Path
 from datetime import datetime
@@ -15,8 +14,7 @@ from datetime import datetime
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
-from core.engines.kvk_image_parser import KVKImageParser, KVKStageType
-from core.engines.kvk_comparison_engine import KVKComparisonEngine
+from core.engines.kvk_image_parser import KVKStageType
 from core.engines.kvk_visual_manager import KVKVisualManager
 
 
@@ -115,7 +113,7 @@ async def test_kvk_visual_system():
     print("\n📈 Testing comparison status...")
     prep_status = await visual_manager.get_user_comparison_status(test_user_id, "prep", "3")
     if prep_status:
-        print(f"Prep Day 3 Status:")
+        print("Prep Day 3 Status:")
         print(f"  Score: {prep_status['user_score']:,}")
         print(f"  Power: {prep_status['user_power']:,}")
         print(f"  Peers: {prep_status['peer_count']}")
@@ -155,7 +153,7 @@ async def test_kvk_visual_system():
     print(f"Active cache files: {active_files}")
     
     print("\n✅ KVK Visual System test completed!")
-    print(f"Check test folders for generated files:")
+    print("Check test folders for generated files:")
     print(f"  - {test_cache_folder}/")
     print(f"  - {test_log_folder}/")
     print(f"  - {test_upload_folder}/")
@@ -165,7 +163,7 @@ async def test_mock_parse_result():
     """Test creating and processing a mock parse result."""
     print("\n🎯 Testing mock parse result creation...")
     
-    from core.engines.kvk_image_parser import KVKParseResult, KVKLeaderboardEntry, KVKStageType
+    from core.engines.kvk_image_parser import KVKParseResult, KVKLeaderboardEntry
     
     # Create mock leaderboard entries
     mock_entries = [
@@ -193,7 +191,7 @@ async def test_mock_parse_result():
         }
     )
     
-    print(f"Created mock parse result:")
+    print("Created mock parse result:")
     print(f"  Stage: {mock_result.stage_type.value}")
     print(f"  Day: {mock_result.prep_day}")
     print(f"  Kingdom: #{mock_result.kingdom_id}")

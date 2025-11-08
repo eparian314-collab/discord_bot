@@ -5,7 +5,7 @@ Extends the ranking cog with visual-aware KVK screenshot parsing.
 Integrates the KVK Visual Manager for complete parsing workflow.
 """
 
-from typing import Optional, TYPE_CHECKING, List, Dict, Any
+from typing import Optional, TYPE_CHECKING, List, Dict, Any, Union
 from datetime import datetime, timezone
 import aiohttp
 import os
@@ -13,7 +13,11 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 
-from discord_bot.core.engines.screenshot_processor import StageType
+from discord_bot.core.engines.screenshot_processor import (
+    StageType,
+    RankingData,
+    RankingCategory,
+)
 from discord_bot.core.utils import find_bot_channel, is_admin_or_helper
 from discord_bot.core.engines.kvk_visual_manager import KVKVisualManager, create_kvk_visual_manager
 from discord_bot.core.engines.kvk_tracker import KVKRun
@@ -21,6 +25,16 @@ from discord_bot.core import ui_groups
 
 if TYPE_CHECKING:
     pass
+
+
+def _parse_channel_id(env_var: str) -> Optional[int]:
+    raw = os.getenv(env_var, "").strip()
+    if not raw:
+        return None
+    try:
+        return int(raw)
+    except ValueError:
+        return None
 
 
 class EnhancedKVKRankingCog(commands.Cog):
@@ -31,6 +45,7 @@ class EnhancedKVKRankingCog(commands.Cog):
         self.visual_manager: Optional[KVKVisualManager] = None
         self.kvk_tracker = None  # Will be injected
         self.storage = None      # Will be injected
+        self.guardian = None     # Will be injected (GuardianErrorEngine)
         self._rankings_channel_id = None
         self._modlog_channel_id = None
         
@@ -42,11 +57,13 @@ class EnhancedKVKRankingCog(commands.Cog):
     async def setup_dependencies(self, 
                                 kvk_tracker=None,
                                 storage=None,
+                                guardian=None,
                                 rankings_channel_id: Optional[int] = None,
                                 modlog_channel_id: Optional[int] = None):
         """Setup injected dependencies."""
         self.kvk_tracker = kvk_tracker
         self.storage = storage
+        self.guardian = guardian
         self._rankings_channel_id = rankings_channel_id
         self._modlog_channel_id = modlog_channel_id
         
@@ -114,9 +131,56 @@ class EnhancedKVKRankingCog(commands.Cog):
         """Resolve the current KVK run for the guild."""
         if not self.kvk_tracker or not interaction.guild:
             return None, False
-        
+
         run = self.kvk_tracker.get_active_run(interaction.guild.id, include_tests=True)
         return run, run.is_active if run else False
+
+    def _normalize_day(self, stage_type: StageType, day: Optional[Union[int, str]]) -> int:
+        """Return the normalized day index used in storage."""
+        if stage_type == StageType.WAR:
+            return 6
+        if isinstance(day, str):
+            return 0  # Reserve 0 for Prep overall submissions
+        return day if day is not None else 0
+
+    def _format_event_week_label(self, kvk_run: Optional[KVKRun]) -> str:
+        """Create a human-friendly label for the current event week."""
+        if not kvk_run:
+            return self.storage.get_current_event_week() if self.storage else "KVK-UNKNOWN"
+
+        if kvk_run.is_test:
+            return f"KVK-TEST-{kvk_run.id}"
+        if getattr(kvk_run, "run_number", None):
+            return f"KVK-{int(kvk_run.run_number):02d}"
+        return f"KVK-{kvk_run.id}"
+
+    def _map_day_to_category(
+        self, stage_type: StageType, day: Optional[Union[int, str]]
+    ) -> RankingCategory:
+        """Map a prep day to a ranking category."""
+        if stage_type == StageType.WAR:
+            return RankingCategory.UNKNOWN
+
+        category_map = {
+            1: RankingCategory.CONSTRUCTION,
+            2: RankingCategory.RESEARCH,
+            3: RankingCategory.RESOURCE_MOB,
+            4: RankingCategory.HERO,
+            5: RankingCategory.TROOP_TRAINING,
+        }
+        if isinstance(day, int):
+            return category_map.get(day, RankingCategory.UNKNOWN)
+        return RankingCategory.UNKNOWN
+
+    def _format_day_label(self, stage_type: StageType, day: Optional[Union[int, str]]) -> str:
+        """Human-readable label for prep or war submissions."""
+        if stage_type == StageType.WAR:
+            return "War"
+        if isinstance(day, str):
+            return day.title()
+        if isinstance(day, int):
+            return f"Day {day}"
+        return "Unknown"
     
     @kvk.command(
         name="submit",
@@ -184,10 +248,26 @@ class EnhancedKVKRankingCog(commands.Cog):
             # Validate screenshot first
             validation = await self.visual_manager.validate_screenshot_requirements(image_data)
             if not validation["valid"]:
+                validation_error = validation['error']
                 await interaction.followup.send(
-                    f"Screenshot validation failed: {validation['error']}",
+                    f"Screenshot validation failed: {validation_error}\n"
+                    "Full-device screenshots are fine -- just make sure the in-game KVK ranking tab fills the shot and is readable.\n"
+                    "You can retry with a clearer screenshot or use `/kvk manual` to enter the data manually.",
                     ephemeral=True,
                 )
+                
+                # Log validation error
+                if self.guardian:
+                    await self.guardian.log_ranking_error(
+                        error=ValueError(f"Screenshot validation failed: {validation_error}"),
+                        category="validation",
+                        user_id=str(interaction.user.id),
+                        guild_id=str(interaction.guild_id) if interaction.guild_id else None,
+                        kvk_run_id=kvk_run.id if kvk_run else None,
+                        screenshot_url=screenshot.url,
+                        context="KVK screenshot validation failed",
+                        validation_reason=validation_error,
+                    )
                 return
             
             # Process with visual parsing system
@@ -199,10 +279,25 @@ class EnhancedKVKRankingCog(commands.Cog):
             )
             
             if not result["success"]:
+                parsing_error = result.get('error', 'Unknown error')
                 await interaction.followup.send(
-                    f"Visual parsing failed: {result.get('error', 'Unknown error')}",
+                    f"Visual parsing failed: {parsing_error}\n"
+                    "You can use `/kvk manual` to submit the numbers manually while we investigate the OCR issue.",
                     ephemeral=True,
                 )
+                
+                # Log OCR/parsing error
+                if self.guardian:
+                    await self.guardian.log_ranking_error(
+                        error=RuntimeError(f"Visual parsing failed: {parsing_error}"),
+                        category="ocr",
+                        user_id=str(interaction.user.id),
+                        guild_id=str(interaction.guild_id) if interaction.guild_id else None,
+                        kvk_run_id=kvk_run.id if kvk_run else None,
+                        screenshot_url=screenshot.url,
+                        context="KVK visual parsing failed",
+                        parsing_details=result,
+                    )
                 return
             
             # Create success embed
@@ -220,10 +315,299 @@ class EnhancedKVKRankingCog(commands.Cog):
                 ephemeral=True,
             )
             print(f"KVK visual parsing error: {e}")
+            
+            # Log submission error with full context
+            if self.guardian:
+                await self.guardian.log_ranking_error(
+                    error=e,
+                    category="submission",
+                    user_id=str(interaction.user.id),
+                    guild_id=str(interaction.guild_id) if interaction.guild_id else None,
+                    kvk_run_id=kvk_run.id if kvk_run else None,
+                    screenshot_url=screenshot.url,
+                    context="KVK submission processing failed",
+                    stage=kvk_run.started_at if kvk_run else None,
+                )
+
+    @kvk.command(
+        name="manual",
+        description="dY? Manually submit your KVK day data when OCR parsing fails"
+    )
+    @app_commands.describe(
+        stage="Prep or War stage",
+        rank="Your rank for this submission",
+        score="Your score/points for the day",
+        day="Prep day (1-5) when stage is Prep; ignored for War",
+        overall="Enable to submit the combined Prep total (all 5 days)",
+        player_name="Optional player name",
+        guild_tag="Optional guild tag (3 letters)",
+        kingdom_id="Optional kingdom ID (if known)"
+    )
+    async def manual_submission(
+        self,
+        interaction: discord.Interaction,
+        stage: str,
+        rank: app_commands.Range[int, 1, 10000],
+        score: app_commands.Range[int, 1000, 1000000000],
+        day: Optional[app_commands.Range[int, 1, 5]] = None,
+        overall: bool = False,
+        player_name: Optional[str] = None,
+        guild_tag: Optional[str] = None,
+        kingdom_id: Optional[int] = None,
+    ):
+        """Submit manual ranking values when the OCR parser cannot read the screenshot."""
+        if not await self._check_rankings_channel(interaction):
+            return
+
+        kvk_run, run_is_active = self._resolve_kvk_run(interaction)
+        is_admin = is_admin_or_helper(interaction.user, interaction.guild)
+        if not kvk_run:
+            await interaction.response.send_message(
+                "No tracked KVK window is currently open. Please wait for the next reminder before submitting manually.",
+                ephemeral=True,
+            )
+            return
+
+        if not run_is_active and not is_admin:
+            closed_at = kvk_run.ends_at.strftime("%Y-%m-%d %H:%M UTC")
+            await interaction.response.send_message(
+                f"The KVK submission window closed on {closed_at}. Only admins or helpers can submit manual updates now.",
+                ephemeral=True,
+            )
+            return
+
+        await interaction.response.defer(ephemeral=True)
+
+        stage_value = stage.strip().lower()
+        if stage_value not in ("prep", "war"):
+            await interaction.followup.send(
+                "Stage must be either 'Prep' or 'War'.",
+                ephemeral=True,
+            )
+            return
+
+        stage_type = StageType.PREP if stage_value == "prep" else StageType.WAR
+
+        prep_day: Optional[Union[int, str]]
+        if stage_type == StageType.PREP:
+            if overall and day is not None:
+                await interaction.followup.send(
+                    "Overall submissions cannot include a specific day. Remove the day or disable the overall option.",
+                    ephemeral=True,
+                )
+                return
+            if overall:
+                prep_day = "overall"
+            elif day is None:
+                await interaction.followup.send(
+                    "Prep submissions require a day (1-5) or set overall to true for the combined total.",
+                    ephemeral=True,
+                )
+                return
+            else:
+                prep_day = day
+        else:
+            if overall:
+                await interaction.followup.send(
+                    "Overall totals are only available for the Prep stage.",
+                    ephemeral=True,
+                )
+                return
+            prep_day = None
+
+        normalized_day = self._normalize_day(stage_type, prep_day)
+
+        if kingdom_id is not None and kingdom_id <= 0:
+            await interaction.followup.send(
+                "Kingdom ID must be a positive number.",
+                ephemeral=True,
+            )
+            return
+
+        player_display = player_name.strip() if player_name and player_name.strip() else interaction.user.display_name
+
+        normalized_tag: Optional[str] = None
+        if guild_tag:
+            cleaned = "".join(ch for ch in guild_tag.upper() if ch.isalpha())
+            cleaned = cleaned[:3]
+            normalized_tag = cleaned if cleaned else None
+
+        event_week = self._format_event_week_label(kvk_run)
+        existing = self.storage.check_duplicate_submission(
+            str(interaction.user.id),
+            str(interaction.guild_id) if interaction.guild_id else "0",
+            event_week,
+            stage_type,
+            normalized_day,
+            kvk_run_id=kvk_run.id,
+        )
+        if existing:
+            await interaction.followup.send(
+                "A previous submission exists for this run/day. It will be replaced with the manual entry.",
+                ephemeral=True,
+            )
+
+        manual_data = {
+            "stage_type": stage_value,
+            "prep_day": prep_day,
+            "kingdom_id": kingdom_id,
+            "rank": rank,
+            "score": score,
+            "player_name": player_display,
+            "guild_tag": normalized_tag,
+            "user_id": str(interaction.user.id),
+            "username": interaction.user.display_name,
+            "guild_id": str(interaction.guild_id) if interaction.guild_id else None,
+            "kvk_run_id": kvk_run.id,
+            "screenshot_url": None,
+        }
+
+        manual_result = None
+        manual_error: Optional[str] = None
+        if self.visual_manager:
+            try:
+                manual_result = await self.visual_manager.process_manual_submission(manual_data)
+                if not manual_result.get("success"):
+                    manual_error = manual_result.get("error", "Manual processing failed.")
+            except Exception as exc:
+                manual_error = str(exc)
+
+        if self.visual_manager and manual_error:
+            error_message = manual_error or "Manual processing failed."
+            self.storage.log_submission(
+                str(interaction.user.id),
+                str(interaction.guild_id) if interaction.guild_id else None,
+                "failed",
+                error_message=error_message,
+            )
+            if self.guardian:
+                await self.guardian.log_ranking_error(
+                    RuntimeError(f"Manual submission failed: {error_message}"),
+                    category="manual",
+                    user_id=str(interaction.user.id),
+                    guild_id=str(interaction.guild_id) if interaction.guild_id else None,
+                    kvk_run_id=kvk_run.id,
+                    stage=stage_value,
+                    day=prep_day,
+                    context="Manual submission processing failed",
+                )
+            await interaction.followup.send(
+                f"Manual processing failed: {error_message}\nPlease try again or ask an admin for help.",
+                ephemeral=True,
+            )
+            return
+
+        ranking_data = RankingData(
+            user_id=str(interaction.user.id),
+            username=interaction.user.display_name,
+            guild_tag=normalized_tag,
+            event_week=event_week,
+            stage_type=stage_type,
+            day_number=normalized_day,
+            category=self._map_day_to_category(stage_type, prep_day),
+            rank=rank,
+            score=score,
+            player_name=player_display,
+            submitted_at=datetime.now(timezone.utc),
+            screenshot_url=None,
+            guild_id=str(interaction.guild_id) if interaction.guild_id else None,
+            kvk_run_id=kvk_run.id,
+            is_test_run=kvk_run.is_test,
+        )
+
+        action = "Updated" if existing else "Submitted"
+        try:
+            if existing:
+                self.storage.update_ranking(
+                    existing["id"],
+                    ranking_data.rank,
+                    ranking_data.score,
+                    None,
+                )
+                target_ranking_id = existing["id"]
+            else:
+                target_ranking_id = self.storage.save_ranking(ranking_data)
+
+            if self.kvk_tracker:
+                self.kvk_tracker.record_submission(
+                    kvk_run_id=kvk_run.id,
+                    ranking_id=target_ranking_id,
+                    user_id=interaction.user.id,
+                    day_number=normalized_day,
+                    stage_type=stage_type.value,
+                    is_test=kvk_run.is_test,
+                )
+
+            self.storage.log_submission(
+                str(interaction.user.id),
+                str(interaction.guild_id) if interaction.guild_id else None,
+                "success",
+                ranking_id=target_ranking_id,
+            )
+        except Exception as exc:
+            error_message = str(exc)
+            self.storage.log_submission(
+                str(interaction.user.id),
+                str(interaction.guild_id) if interaction.guild_id else None,
+                "failed",
+                error_message=error_message,
+            )
+            if self.guardian:
+                await self.guardian.log_ranking_error(
+                    exc,
+                    category="manual",
+                    user_id=str(interaction.user.id),
+                    guild_id=str(interaction.guild_id) if interaction.guild_id else None,
+                    kvk_run_id=kvk_run.id,
+                    stage=stage_value,
+                    day=prep_day,
+                    context="Manual submission storage failed",
+                )
+            await interaction.followup.send(
+                "There was an error saving your manual submission. Please try again later.",
+                ephemeral=True,
+            )
+            return
+
+        day_label = self._format_day_label(stage_type, prep_day)
+        if manual_result and manual_result.get("success"):
+            embed = await self._create_success_embed(manual_result, None, kvk_run, run_is_active)
+            embed.title = "Manual KVK Submission Recorded"
+            embed.description = "Manual data was applied to the visual tracking system."
+        else:
+            embed = discord.Embed(
+                title="Manual KVK Submission Recorded",
+                description=(
+                    f"{action} your {stage_type.value} entry for {day_label}"
+                ),
+                color=discord.Color.orange(),
+                timestamp=datetime.now(timezone.utc),
+            )
+            embed.add_field(
+                name="Stored data",
+                value=(
+                    f"Rank: #{rank}\n"
+                    f"Score: {score:,}\n"
+                    f"Player: {player_display}\n"
+                    f"Guild: {normalized_tag or 'N/A'}"
+                ),
+                inline=False,
+            )
+            embed.add_field(
+                name="Event",
+                value=(
+                    f"{event_week}\n"
+                    f"{stage_type.value} | {day_label}"
+                ),
+                inline=False,
+            )
+            embed.set_footer(text="Visual parsing system was unavailable for this submission.")
+
+        await interaction.followup.send(embed=embed, ephemeral=True)
     
     async def _create_success_embed(self, 
                                   result: Dict[str, Any], 
-                                  screenshot: discord.Attachment,
+                                  screenshot: Optional[discord.Attachment],
                                   kvk_run: KVKRun,
                                   run_is_active: bool) -> discord.Embed:
         """Create success embed for KVK submission."""
@@ -303,7 +687,8 @@ class EnhancedKVKRankingCog(commands.Cog):
             inline=True
         )
         
-        embed.set_thumbnail(url=screenshot.url)
+        if screenshot:
+            embed.set_thumbnail(url=screenshot.url)
         embed.set_footer(text="Data synced to comparison system")
         
         return embed
@@ -565,8 +950,136 @@ class EnhancedKVKRankingCog(commands.Cog):
         )
         
         await interaction.followup.send(embed=embed, ephemeral=True)
+    
+    @kvk.command(
+        name="errors",
+        description="🔍 View ranking system error diagnostics (Admin only)"
+    )
+    @app_commands.describe(
+        hours="Hours to look back (default: 24)"
+    )
+    async def view_errors(
+        self,
+        interaction: discord.Interaction,
+        hours: app_commands.Range[int, 1, 168] = 24
+    ):
+        """View detailed ranking error diagnostics."""
+        if not is_admin_or_helper(interaction.user, interaction.guild):
+            await interaction.response.send_message(
+                "Only admins or helpers can view error diagnostics.",
+                ephemeral=True
+            )
+            return
+        
+        if not self.guardian:
+            await interaction.response.send_message(
+                "Error tracking system not available.",
+                ephemeral=True
+            )
+            return
+        
+        await interaction.response.defer(ephemeral=True)
+        
+        # Get comprehensive error report
+        report = self.guardian.get_ranking_error_report(hours=hours)
+        summary = self.guardian.get_error_summary()
+        
+        embed = discord.Embed(
+            title="🔍 Ranking System Error Diagnostics",
+            description=f"Error analysis for the past {hours} hours",
+            color=discord.Color.red() if report["total_ranking_errors"] > 10 else discord.Color.orange(),
+            timestamp=datetime.now(timezone.utc)
+        )
+        
+        # Overall health
+        embed.add_field(
+            name="📊 Overall Health",
+            value=(
+                f"Total ranking errors: {report['total_ranking_errors']}\n"
+                f"Affected users: {report['affected_users']}\n"
+                f"Affected KVK runs: {report['affected_kvk_runs']}\n"
+                f"Low confidence OCR: {report['low_confidence_ocr_errors']}"
+            ),
+            inline=False
+        )
+        
+        # Error breakdown by category
+        if report["by_category"]:
+            category_text = ""
+            for category, data in report["by_category"].items():
+                category_name = category.replace("ranking.", "").title()
+                category_text += f"**{category_name}**: {data['count']} errors\n"
+            
+            embed.add_field(
+                name="🏷️ By Category",
+                value=category_text or "No errors recorded",
+                inline=True
+            )
+        
+        # Most common error type
+        if report["most_common_error"]:
+            most_common = report["most_common_error"].replace("ranking.", "").title()
+            embed.add_field(
+                name="⚠️ Most Common",
+                value=most_common,
+                inline=True
+            )
+        
+        # Recent error samples
+        recent_ranking_errors = self.guardian.get_ranking_errors(limit=5)
+        if recent_ranking_errors:
+            error_samples = ""
+            for i, err in enumerate(recent_ranking_errors[:3], 1):
+                timestamp = datetime.fromisoformat(err["timestamp"])
+                time_str = timestamp.strftime("%H:%M:%S")
+                category = err.get("category", "unknown").replace("ranking.", "")
+                msg = err.get("message", "")[:80]
+                
+                metadata = err.get("metadata", {})
+                user_id = metadata.get("user_id", "Unknown")
+                confidence = metadata.get("confidence")
+                conf_str = f" (conf: {confidence:.2%})" if confidence else ""
+                
+                error_samples += f"`{time_str}` **{category}**{conf_str}\n"
+                error_samples += f"User: <@{user_id}> • {msg}\n\n"
+            
+            embed.add_field(
+                name="🔴 Recent Errors (Last 3)",
+                value=error_samples or "No recent errors",
+                inline=False
+            )
+        
+        # Safe mode status
+        if summary.get("safe_mode"):
+            embed.add_field(
+                name="🚨 SAFE MODE ACTIVE",
+                value="System has detected repeated failures and entered safe mode",
+                inline=False
+            )
+        
+        embed.set_footer(text="Use this data to identify patterns and improve system reliability")
+        
+        await interaction.followup.send(embed=embed, ephemeral=True)
 
 
 async def setup(bot: commands.Bot) -> None:
-    """Setup the enhanced KVK ranking cog."""
-    await bot.add_cog(EnhancedKVKRankingCog(bot))
+    """Setup the enhanced KVK ranking cog with dependency injection."""
+    cog = EnhancedKVKRankingCog(bot)
+    guardian = getattr(bot, "error_engine", None)
+    kvk_tracker = getattr(bot, "kvk_tracker", None)
+    storage = getattr(bot, "ranking_storage", None)
+    if storage is None:
+        from discord_bot.core.engines.ranking_storage_engine import RankingStorageEngine
+        game_storage = getattr(bot, "game_storage", None)
+        storage = RankingStorageEngine(storage=game_storage)
+    rankings_channel_id = getattr(bot, "rankings_channel_id", None) or _parse_channel_id("RANKINGS_CHANNEL_ID")
+    modlog_channel_id = getattr(bot, "modlog_channel_id", None) or _parse_channel_id("MODLOG_CHANNEL_ID")
+
+    await cog.setup_dependencies(
+        kvk_tracker=kvk_tracker,
+        storage=storage,
+        guardian=guardian,
+        rankings_channel_id=rankings_channel_id,
+        modlog_channel_id=modlog_channel_id,
+    )
+    await bot.add_cog(cog, override=True)

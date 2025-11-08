@@ -2,8 +2,7 @@
 Tests for the Analytics Engine.
 """
 import pytest
-import asyncio
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 from pathlib import Path
 import json
 
@@ -27,7 +26,7 @@ class AnalyticsEngine:
         if total_submissions > 0:
             success_rate = (total_submissions - stats['total_corrections']) / total_submissions
 
-        report_content = f"# OCR Performance Report\n\n"
+        report_content = "# OCR Performance Report\n\n"
         report_content += f"- **Success Rate**: {success_rate:.2%}\n"
         report_content += f"- **Total Submissions**: {total_submissions}\n"
         report_content += f"- **Total Corrections**: {stats['total_corrections']}\n\n"
@@ -68,7 +67,7 @@ async def test_report_generation(analytics_engine: AnalyticsEngine, tmp_path: Pa
     output_file = tmp_path / "report.md"
 
     # 2. Run generate_report()
-    report = analytics_engine.generate_report(output_file)
+    analytics_engine.generate_report(output_file)
 
     # 3. Verify content
     assert output_file.exists()

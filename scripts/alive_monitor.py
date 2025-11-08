@@ -224,7 +224,7 @@ async def main():
         print("\nMonitor stopped by user")
     
     stats = monitor.get_stats()
-    print(f"\nFinal Stats:")
+    print("\nFinal Stats:")
     print(f"  Checks: {stats['check_count']}")
     print(f"  Warnings: {stats['warning_count']}")
     print(f"  Errors: {stats['error_count']}")
