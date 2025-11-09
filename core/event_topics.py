@@ -26,14 +26,6 @@ ENGINE_ERROR = "engine.error"
 STORAGE_READY = "storage.ready"
 SHUTDOWN_INITIATED = "shutdown.initiated"
 
-# Ranking system topics
-RANKING_SUBMISSION_ERROR = "ranking.submission.error"
-RANKING_OCR_ERROR = "ranking.ocr.error"
-RANKING_VALIDATION_ERROR = "ranking.validation.error"
-RANKING_DB_ERROR = "ranking.db.error"
-RANKING_PERMISSION_ERROR = "ranking.permission.error"
-
-
 # -----------------------
 # Payload contracts
 # -----------------------
@@ -79,20 +71,6 @@ class ShutdownInitiated(TypedDict, total=False):
     reason: Optional[str]
 
 
-class RankingError(TypedDict, total=False):
-    """Ranking system error payload."""
-    category: str           # submission|ocr|validation|db|permission
-    user_id: str
-    guild_id: Optional[str]
-    kvk_run_id: Optional[int]
-    stage: Optional[str]    # prep|war
-    day: Optional[int]
-    error_message: str
-    confidence: Optional[float]
-    screenshot_url: Optional[str]
-    context: Optional[dict[str, Any]]
-
-
 __all__ = [
     # topics
     "TRANSLATION_REQUESTED",
@@ -101,11 +79,6 @@ __all__ = [
     "ENGINE_ERROR",
     "STORAGE_READY",
     "SHUTDOWN_INITIATED",
-    "RANKING_SUBMISSION_ERROR",
-    "RANKING_OCR_ERROR",
-    "RANKING_VALIDATION_ERROR",
-    "RANKING_DB_ERROR",
-    "RANKING_PERMISSION_ERROR",
     # payloads
     "TranslationRequested",
     "TranslationCompleted",
@@ -113,6 +86,5 @@ __all__ = [
     "EngineError",
     "StorageReady",
     "ShutdownInitiated",
-    "RankingError",
 ]
 

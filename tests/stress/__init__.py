@@ -1,4 +1,4 @@
 """
 Stress test suite for HippoBot.
-Tests system performance under load for ranking, OCR, and event processing.
+Exercises translation, event reminders, and moderation utilities under load.
 """

@@ -13,7 +13,7 @@ from typing import List, Optional, Dict, Any
 import aiohttp
 import json
 
-from discord_bot.core.engines.event_reminder_engine import EventReminder, EventCategory, RecurrenceType
+from core.domain import EventCategory, EventReminder, RecurrenceType
 
 logger = logging.getLogger("hippo_bot.event_scraper")
 

@@ -14,20 +14,18 @@ import logging
 import os
 from datetime import datetime, timezone, timedelta
 import inspect
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, TYPE_CHECKING
 
 import discord
 from discord import app_commands
 from discord.ext import commands
 
 
-from discord_bot.core.engines.event_reminder_engine import (
-    EventReminder, 
-    EventCategory, 
-    RecurrenceType,
-    EventReminderEngine
-)
+from core.domain import EventCategory, EventReminder, RecurrenceType
 from discord_bot.core.utils import is_admin_or_helper
+
+if TYPE_CHECKING:
+    from discord_bot.core.engines.event_reminder_engine import EventReminderEngine
 
 logger = logging.getLogger("hippo_bot.event_cog")
 
@@ -59,8 +57,6 @@ class EventManagementCog(commands.Cog):
         self.event_engine = event_engine or getattr(bot, "event_reminder_engine", None)
         self.error_engine = getattr(bot, "error_engine", None)
         self.personality = getattr(bot, "personality_engine", None)
-        self.kvk_tracker = getattr(bot, "kvk_tracker", None)
-        self.rankings_channel_id = self._get_rankings_channel_id()
         self._owner_ids = self._load_owner_ids()
 
     def _has_permission(self, interaction: discord.Interaction) -> bool:
@@ -139,15 +135,6 @@ class EventManagementCog(commands.Cog):
 
     def _is_bot_owner(self, user_id: int) -> bool:
         return user_id in self._owner_ids
-
-    def _get_rankings_channel_id(self) -> Optional[int]:
-        raw = os.getenv("RANKINGS_CHANNEL_ID", "")
-        if not raw:
-            return None
-        try:
-            return int(raw.strip())
-        except ValueError:
-            return None
 
     def _compose_event_storage_id(self, guild_id: int, display_id: str) -> str:
         return f"{guild_id}{self.EVENT_ID_DELIMITER}{display_id}"
@@ -269,23 +256,6 @@ class EventManagementCog(commands.Cog):
             if normalized in event.title.lower()
         ]
 
-    async def _cleanup_test_kvk_events(self, guild_id: int) -> List[EventReminder]:
-        """Remove any lingering 'test kvk' events so new ones do not stack up."""
-        if not self.event_engine:
-            return []
-        existing = await self.event_engine.get_events_for_guild(guild_id)
-        stale = [
-            event
-            for event in existing
-            if event.is_active and "test kvk" in event.title.lower()
-        ]
-        removed: List[EventReminder] = []
-        for event in stale:
-            success = await self.event_engine.delete_event(event.event_id)
-            if success:
-                removed.append(event)
-        return removed
-    
     @app_commands.command(name="event_create", description="📅 Create a new Top Heroes event reminder (Admin)")
     @app_commands.describe(
         title="Event title (e.g., 'Guild War Finals')",
@@ -330,16 +300,6 @@ class EventManagementCog(commands.Cog):
             await interaction.response.send_message("This command must be used in a server.", ephemeral=True)
             return
 
-        title_lower = title.strip().lower()
-        is_kvk_event = "kvk" in title_lower
-        is_test_kvk = "test kvk" in title_lower
-        if is_test_kvk and not self._is_bot_owner(interaction.user.id):
-            await interaction.response.send_message(
-                "Only bot owners can schedule a **TEST KVK** window.",
-                ephemeral=True
-            )
-            return
-        
         if not self._has_permission(interaction):
             await self._deny_permission(interaction)
             return
@@ -349,10 +309,6 @@ class EventManagementCog(commands.Cog):
             return
         
         try:
-            removed_test_events: List[EventReminder] = []
-            if is_test_kvk:
-                removed_test_events = await self._cleanup_test_kvk_events(interaction.guild.id)
-
             # Parse time
             event_time = self._parse_time_utc(time_utc)
             if not event_time:
@@ -441,47 +397,8 @@ class EventManagementCog(commands.Cog):
                     inline=False,
                 )
 
-                if is_kvk_event and self.kvk_tracker:
-                    try:
-                        run, is_new = await self.kvk_tracker.ensure_run(
-                            guild_id=interaction.guild.id,
-                            title=title,
-                            initiated_by=interaction.user.id,
-                            is_test=is_test_kvk,
-                            channel_id=self.rankings_channel_id or interaction.channel_id,
-                            event_id=event.event_id,
-                        )
-                        if is_new:
-                            logger.info("Started new KVK run #%d for guild %d", run.id, interaction.guild.id)
-                            status_line = f"Started new KVK tracking window (Run #{run.run_number})"
-                        else:
-                            status_line = f"Reusing active KVK tracking window (Run #{run.run_number})"
-                        closes = run.ends_at.strftime("%Y-%m-%d %H:%M UTC") if hasattr(run.ends_at, 'strftime') else str(run.ends_at)
-                        embed.add_field(
-                            name="KVK Tracking",
-                            value=f"{status_line}\nWindow closes on **{closes}**.",
-                            inline=False
-                        )
-                    except Exception as kvk_exc:
-                        await self._log_error(kvk_exc, context="event.kvk-start")
-                        embed.add_field(
-                            name="KVK Tracking",
-                            value=f"⚠️ Failed to initialise KVK tracking window.\n`{kvk_exc}`",
-                            inline=False
-                        )
-
                 if description:
                     embed.add_field(name="Description", value=description, inline=False)
-
-                if removed_test_events:
-                    removed_lines = "\n".join(f"\u2022 {self._format_event_label(evt)}" for evt in removed_test_events[:5])
-                    if len(removed_test_events) > 5:
-                        removed_lines += f"\n\u2026{len(removed_test_events) - 5} more."
-                    embed.add_field(
-                        name="Test KVK Cleanup",
-                        value=f"Removed {len(removed_test_events)} prior test KVK event(s):\n{removed_lines}",
-                        inline=False,
-                    )
 
                 await interaction.response.send_message(embed=embed, ephemeral=True)
             else:

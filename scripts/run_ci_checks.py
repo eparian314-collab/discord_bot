@@ -46,6 +46,8 @@ def parse_args() -> argparse.Namespace:
 def main() -> None:
     args = parse_args()
 
+    run_step("layering guardrails", [sys.executable, "scripts/ci/enforce_layers.py"])
+
     if not args.skip_tests:
         pytest_cmd = [sys.executable, "-m", "pytest"]
         if args.pytest_args:

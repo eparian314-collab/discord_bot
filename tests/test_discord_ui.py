@@ -6,7 +6,7 @@ from unittest.mock import MagicMock, AsyncMock
 
 
 # Assume these cogs and views will be created
-# from discord_bot.cogs.kvk_event_cog import KVKEventCog, EventView, CorrectionModal
+# from discord_bot.cogs.event_cog import EventCog, EventView, CorrectionModal
 
 pytestmark = pytest.mark.asyncio
 
@@ -36,8 +36,8 @@ async def test_event_command_flow_conceptual():
     
     # 1. Mock the necessary engines and create the Cog
     mock_tracker = MagicMock()
-    mock_tracker.get_current_event.return_value = {"name": "KVK Week 45"}
-    # cog = KVKEventCog(bot=MagicMock(), kvk_tracker=mock_tracker, ...)
+    mock_tracker.get_current_event.return_value = {"name": "Season Week 45"}
+    # cog = EventCog(bot=MagicMock(), tracker=mock_tracker, ...)
     
     interaction = MockInteraction()
     assert interaction.user.name == "TestUser"
@@ -49,7 +49,7 @@ async def test_event_command_flow_conceptual():
     # interaction.response.send_message.assert_called_once()
     # call_args = interaction.response.send_message.call_args
     # assert "Overview" in call_args.kwargs['embed'].title
-    # assert "KVK Week 45" in call_args.kwargs['embed'].description
+    # assert "Season Week 45" in call_args.kwargs['embed'].description
     # assert call_args.kwargs['view'] is not None # The view with buttons
     
     print("\nConceptual: /event command sends initial embed with pagination view.")

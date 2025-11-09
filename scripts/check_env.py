@@ -34,7 +34,6 @@ def check_dependencies() -> Dict[str, Tuple[bool, str]]:
     dependencies = {
         "discord.py": "discord",
         "Pillow": "PIL",
-        "pytesseract": "pytesseract",
         "aiohttp": "aiohttp",
         "python-dotenv": "dotenv",
         "pytest": "pytest",
@@ -64,7 +63,6 @@ def check_env_file() -> Tuple[bool, List[str]]:
         "DISCORD_TOKEN",
         "DEEPL_API_KEY",
         "MY_MEMORY_API_KEY",
-        "OPEN_AI_API_KEY",
     ]
     
     missing = []

@@ -14,9 +14,6 @@ from discord_bot.core.engines.cache_manager import CacheManager
 from discord_bot.core.engines.cleanup_engine import cleanup_old_messages
 from discord_bot.core.engines.error_engine import GuardianErrorEngine
 from discord_bot.core.engines.event_reminder_engine import EventReminderEngine
-from discord_bot.core.engines.kvk_storage_engine import KVKStorageEngine
-from discord_bot.core.engines.kvk_tracker_engine import KVKTrackerEngine
-from discord_bot.core.engines.kvk_tracker import KVKTracker
 from discord_bot.core.engines.input_engine import InputEngine
 from discord_bot.core.engines.output_engine import OutputEngine
 from discord_bot.core.engines.personality_engine import PersonalityEngine
@@ -27,10 +24,6 @@ from discord_bot.core.engines.translation_orchestrator import TranslationOrchest
 from discord_bot.core.engines.translation_ui_engine import TranslationUIEngine
 from discord_bot.core.event_bus import EventBus
 from discord_bot.core.event_topics import ENGINE_ERROR
-from discord_bot.core.engines.event_engine import EventEngine
-from discord_bot.core.engines.kvk_parser_engine import KVKParserEngine
-from discord_bot.core.engines.gar_parser_engine import GARParserEngine
-from discord_bot.core.engines.compare_engine import CompareEngine
 from discord_bot.language_context import AmbiguityResolver, LanguageAliasHelper, load_language_map
 from discord_bot.language_context.context_engine import ContextEngine
 from discord_bot.language_context.context.policies import PolicyRepository
@@ -244,10 +237,6 @@ class IntegrationLoader:
         self.error_engine = GuardianErrorEngine(event_bus=self.event_bus)
         self.error_engine.attach_registry(self.registry)
 
-        # New KVK Tracking System
-        self.kvk_storage_engine = KVKStorageEngine()
-        self.kvk_tracker_engine = KVKTrackerEngine(storage_engine=self.kvk_storage_engine)
-
         # Language metadata helpers
         raw_language_map = load_language_map() if callable(load_language_map) else None
         self.language_map = raw_language_map or {}
@@ -287,7 +276,6 @@ class IntegrationLoader:
         from discord_bot.games.pokemon_data_manager import PokemonDataManager
         
         self.game_storage = GameStorageEngine(db_path="data/game_data.db")
-        self.kvk_tracker_engine.attach_tracker(KVKTracker(storage=self.game_storage))
         self.relationship_manager = RelationshipManager(storage=self.game_storage)
         self.cookie_manager = CookieManager(
             storage=self.game_storage,
@@ -309,19 +297,6 @@ class IntegrationLoader:
         # Event reminder engine for Top Heroes events
         self.event_reminder_engine = EventReminderEngine(storage_engine=self.game_storage)
         logger.debug("Event reminder engine initialized")
-        self.kvk_tracker = self.kvk_tracker_engine
-        logger.debug("KVK tracker initialized")
-        self.event_reminder_engine.kvk_tracker = self.kvk_tracker
-        
-        # Rankings and modlog channel IDs for KVK visual system
-        self.rankings_channel_id = int(os.getenv("RANKINGS_CHANNEL_ID", "0")) or None
-        self.modlog_channel_id = int(os.getenv("MODLOG_CHANNEL_ID", "0")) or None
-        logger.debug(f"Rankings channel: {self.rankings_channel_id}, Modlog channel: {self.modlog_channel_id}")
-        
-        # Rankings and modlog channel IDs for KVK visual system
-        self.rankings_channel_id = int(os.getenv("RANKINGS_CHANNEL_ID", "0")) or None
-        self.modlog_channel_id = int(os.getenv("MODLOG_CHANNEL_ID", "0")) or None
-        logger.debug(f"Rankings channel: {self.rankings_channel_id}, Modlog channel: {self.modlog_channel_id}")
 
         self.ambiguity_resolver = (
             AmbiguityResolver(
@@ -485,8 +460,6 @@ class IntegrationLoader:
             help_command=None,
         )
         self.event_reminder_engine.set_bot(self.bot)
-        if hasattr(self.kvk_tracker_engine, "set_bot"):
-            self.kvk_tracker_engine.set_bot(self.bot)
 
         logger.info("≡ƒ¢á∩╕Å Preparing engines and integrations")
 
@@ -530,25 +503,7 @@ class IntegrationLoader:
         self.registry.inject("pokemon_game", self.pokemon_game)
         self.registry.inject("pokemon_api", self.pokemon_api)
         self.registry.inject("event_reminder_engine", self.event_reminder_engine)
-        self.registry.inject("kvk_tracker", self.kvk_tracker)
         logger.debug("Game system engines registered")
-
-        # Event Engines
-        kvk_parser_engine = KVKParserEngine(event_bus=self.event_bus)
-        gar_parser_engine = GARParserEngine(event_bus=self.event_bus)
-        compare_engine = CompareEngine(event_bus=self.event_bus)
-        event_engine = EventEngine(
-            self.bot,  # Pass bot instance
-            event_bus=self.event_bus,
-            kvk_parser_engine=kvk_parser_engine,
-            gar_parser_engine=gar_parser_engine,
-            compare_engine=compare_engine,
-        )
-        self.registry.register(kvk_parser_engine)
-        self.registry.register(gar_parser_engine)
-        self.registry.register(compare_engine)
-        self.registry.register(event_engine)
-        self.event_engine = event_engine
 
         self._expose_bot_attributes()
 
@@ -558,27 +513,11 @@ class IntegrationLoader:
         self._log_registry_snapshot(context="post-enable")
 
         self._attach_core_listeners()
-        
-        # Register command groups needed by ranking cog (kvk parent group)
-        # The kvk_ranking subgroup will be auto-registered when the cog is added
-        from discord_bot.core import ui_groups
-        self.bot.tree.add_command(ui_groups.kvk, override=True)
-        logger.info("Γ£à Registered kvk command group for ranking cog")
-        
+
         async def mount_cogs() -> None:
             await self._mount_cogs(owners)
 
         self.bot.add_post_setup_hook(mount_cogs)
-
-        # Resume KVK runs on bot ready (if the method exists)
-        async def resume_kvk_runs() -> None:
-            if hasattr(self.kvk_tracker_engine, 'on_ready'):
-                await self.kvk_tracker_engine.on_ready()
-
-        self.bot.add_post_setup_hook(resume_kvk_runs)
-
-        # self.bot.add_post_setup_hook(self.registry.on_bot_ready)  # Method doesn't exist
-        self.bot.add_post_setup_hook(self.kvk_tracker_engine.on_startup)
 
         if self._guardian_auto_disable:
             logger.warning("Guardian SAFE MODE auto-disable is ENABLED (GUARDIAN_SAFE_MODE=1)")
@@ -623,7 +562,6 @@ class IntegrationLoader:
             "pokemon_game": self.pokemon_game,
             "pokemon_api": self.pokemon_api,
             "event_reminder_engine": self.event_reminder_engine,
-            "kvk_tracker": self.kvk_tracker,
         }
 
         orchestrator = getattr(self.processing_engine, "orchestrator", None) or self.orchestrator
@@ -669,54 +607,30 @@ class IntegrationLoader:
             from discord_bot.cogs.easteregg_cog import EasterEggCog
             from discord_bot.cogs.game_cog import GameCog
             from discord_bot.cogs.event_management_cog import setup as setup_event_cog
-            from discord_bot.core.engines.screenshot_processor import ScreenshotProcessor
-            from discord_bot.core.engines.ranking_storage_engine import RankingStorageEngine
 
             await setup_translation_cog(self.bot, ui_engine=self.translation_ui)
-            await self.bot.add_cog(AdminCog(self.bot, ui_engine=self.admin_ui, owners=set(owners), storage=self.game_storage, cookie_manager=self.cookie_manager, event_engine=self.event_engine))
+            await self.bot.add_cog(
+                AdminCog(
+                    self.bot,
+                    ui_engine=self.admin_ui,
+                    owners=set(owners),
+                    storage=self.game_storage,
+                    cookie_manager=self.cookie_manager,
+                )
+            )
             await setup_help_cog(self.bot)
             await setup_language_cog(self.bot)
             await setup_sos_cog(self.bot)
             await setup_event_cog(self.bot, event_reminder_engine=self.event_reminder_engine)
-            ranking_processor = ScreenshotProcessor()
-            ranking_storage = RankingStorageEngine(storage=self.game_storage)
-            ranking_cog_name = "UnifiedRankingCog"
 
-            # Prefer EnhancedKVKRankingCog with Guardian wiring; fall back to unified ranking cog if needed.
-            try:
-                from discord_bot.cogs.kvk_visual_cog import EnhancedKVKRankingCog
-
-                kvk_visual_cog = EnhancedKVKRankingCog(self.bot)
-                await kvk_visual_cog.setup_dependencies(
-                    kvk_tracker=self.kvk_tracker,
-                    storage=ranking_storage,
-                    guardian=self.error_engine,
-                    rankings_channel_id=getattr(self, "rankings_channel_id", None),
-                    modlog_channel_id=getattr(self, "modlog_channel_id", None),
-                )
-                await self.bot.add_cog(kvk_visual_cog, override=True)
-                ranking_cog_name = "EnhancedKVKRankingCog"
-                logger.info("? Mounted EnhancedKVKRankingCog with guardian integration")
-            except Exception:
-                logger.exception("Failed to mount EnhancedKVKRankingCog; falling back to UnifiedRankingCog")
-                from discord_bot.cogs.unified_ranking_cog import setup as setup_unified_ranking_cog
-
-                await setup_unified_ranking_cog(
-                    self.bot,
-                    processor=ranking_processor,
-                    storage=ranking_storage,
-                    guardian=self.error_engine,
-                )
-            
-            # Mount game system cogs with dependency injection
             easter_egg_cog = EasterEggCog(
                 bot=self.bot,
                 relationship_manager=self.relationship_manager,
                 cookie_manager=self.cookie_manager,
-                personality_engine=self.personality_engine
+                personality_engine=self.personality_engine,
             )
             await self.bot.add_cog(easter_egg_cog)
-            
+
             game_cog = GameCog(
                 bot=self.bot,
                 pokemon_game=self.pokemon_game,
@@ -724,28 +638,13 @@ class IntegrationLoader:
                 storage=self.game_storage,
                 cookie_manager=self.cookie_manager,
                 relationship_manager=self.relationship_manager,
-                personality_engine=self.personality_engine
+                personality_engine=self.personality_engine,
             )
             await self.bot.add_cog(game_cog)
-            
-            setattr(self.bot, "ranking_processor", ranking_processor)
-            setattr(self.bot, "ranking_storage", ranking_storage)
+
             logger.info(
-                "?? Mounted cogs: translation, admin, help, language, sos, events, %s, easteregg, game",
-                ranking_cog_name,
+                "Mounted cogs: translation, admin, help, language, sos, events, easteregg, game",
             )
-
-            diagnostics_enabled = os.getenv("ENABLE_OCR_DIAGNOSTICS", "false").strip().lower() in {"1", "true", "yes", "on"}
-            if diagnostics_enabled:
-                try:
-                    from discord_bot.cogs.image_diagnostic_cog import setup as setup_image_diagnostics_cog
-                    from discord_bot.cogs.ocr_report_cog import setup as setup_ocr_report_cog
-
-                    await setup_image_diagnostics_cog(self.bot)
-                    await setup_ocr_report_cog(self.bot, ranking_storage)
-                    logger.info("Mounted OCR diagnostic cogs (!testimg/!preprocess/!ocr and /ocr_report).")
-                except Exception:
-                    logger.exception("Failed to mount OCR diagnostic cogs")
         except Exception as exc:
             logger.exception("Failed to mount cogs")
             try:

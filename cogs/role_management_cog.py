@@ -2,23 +2,26 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from typing import List, Optional
+from typing import List, Optional, TYPE_CHECKING
 
 import discord
 from discord import app_commands
 from discord.ext import commands
 
-from discord_bot.core.engines.role_manager import (
+from core.domain import (
     AssignmentResult,
     AmbiguousLanguage,
     LanguageNotRecognized,
     RemovalResult,
     RoleLimitExceeded,
-    RoleManager,
     RoleManagerError,
     RoleNotAssigned,
     RolePermissionError,
 )
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from discord_bot.core.engines.role_manager import RoleManager
 
 logger = logging.getLogger("hippo_bot.role_cog")
 
@@ -227,5 +230,5 @@ class RoleManagementCog(commands.Cog):
             await interaction.followup.send("Failed to sync language roles.", ephemeral=True)
 
 
-async def setup(bot: commands.Bot) -> None:
-    await bot.add_cog(RoleManagementCog(bot))
+async def setup(bot: commands.Bot, *, override: bool = False) -> None:
+    await bot.add_cog(RoleManagementCog(bot), override=override)

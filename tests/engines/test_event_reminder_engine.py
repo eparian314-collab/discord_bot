@@ -67,7 +67,7 @@ def build_event(guild_id: int, *, channel_id: int | None = None, created_by: int
     return EventReminder(
         event_id=f"{guild_id}:2A",
         guild_id=guild_id,
-        title="KVK Warmup",
+        title="Guild Warmup",
         description="",
         category=EventCategory.RAID,
         event_time_utc=datetime.now(timezone.utc) + timedelta(hours=1),

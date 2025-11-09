@@ -1,5 +1,5 @@
 """
-Fix Duplicate /kvk Commands
+Fix Duplicate Slash Commands
 
 This script clears ALL Discord slash commands and forces a fresh sync.
 Use this when you see duplicate commands in Discord.

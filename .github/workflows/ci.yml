@@ -20,6 +20,8 @@ jobs:
           pip install ruff
       - name: Ruff
         run: ruff check .
+      - name: Layering guardrails
+        run: python scripts/ci/enforce_layers.py
 
   tests:
     runs-on: ubuntu-latest

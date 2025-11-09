@@ -1,0 +1,29 @@
+{
+  "engine_discord_import": [
+    "core/engines/admin_ui_engine.py",
+    "core/engines/cleanup_engine.py",
+    "core/engines/event_reminder_engine.py",
+    "core/engines/event_engine.py",
+    "core/engines/input_engine.py",
+    "core/engines/kvk_tracker.py",
+    "core/engines/kvk_tracker_engine.py",
+    "core/engines/localization_engine.py",
+    "core/engines/output_engine.py",
+    "core/engines/role_manager.py",
+    "core/engines/translation_ui_engine.py"
+  ],
+  "cog_engine_import": [
+    "cogs/admin_cog.py",
+    "cogs/battle_cog.py",
+    "cogs/easteregg_cog.py",
+    "cogs/event_cog.py",
+    "cogs/event_management_cog.py",
+    "cogs/game_cog.py",
+    "cogs/kvk_visual_cog.py",
+    "cogs/ocr_report_cog.py",
+    "cogs/ranking_cog.py",
+    "cogs/role_management_cog.py",
+    "cogs/translation_cog.py",
+    "cogs/unified_ranking_cog.py"
+  ]
+}

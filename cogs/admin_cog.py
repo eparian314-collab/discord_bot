@@ -12,8 +12,6 @@ from discord import app_commands
 from discord.ext import commands
 
 from discord_bot.core.utils import is_admin_or_helper
-from discord_bot.core.engines.event_engine import EventEngine
-
 if TYPE_CHECKING:
     from discord_bot.core.engines.admin_ui_engine import AdminUIEngine
     from discord_bot.games.storage.game_storage_engine import GameStorageEngine
@@ -50,14 +48,12 @@ class AdminCog(commands.Cog):
         owners: Optional[Set[int]] = None,
         storage: Optional["GameStorageEngine"] = None,
         cookie_manager: Optional["CookieManager"] = None,
-        event_engine: Optional[EventEngine] = None,
     ) -> None:
         self.bot = bot
         self.ui = ui_engine  # retained for backwards compatibility / help text
         self.owners: Set[int] = set(owners or [])
         self.storage = storage  # For mute functionality
         self.cookie_manager = cookie_manager  # For cookie rewards
-        self.event_engine = event_engine
         self._cache: Dict[int, Dict[str, str]] = {}
         self._denied = "You do not have permission to run this command."
         self.input_engine = getattr(bot, "input_engine", None)
@@ -114,7 +110,7 @@ class AdminCog(commands.Cog):
         if self.input_engine and hasattr(self.input_engine, "save_sos_mapping"):
             self.input_engine.save_sos_mapping(guild_id, clean)  # type: ignore[attr-defined]
 
-    @bot.command(name="status", description="Summarise reminder, KVK, and OCR health.")
+    @bot.command(name="status", description="Summarise reminder and OCR health.")
     async def bot_status(self, interaction: discord.Interaction) -> None:
         """Provide a quick operational snapshot for admins."""
         try:
@@ -124,7 +120,6 @@ class AdminCog(commands.Cog):
             return
 
         reminder_engine = getattr(self.bot, "event_reminder_engine", None)
-        kvk_tracker = getattr(self.bot, "kvk_tracker", None)
 
         pending_reminders = 0
         next_event_label = "No scheduled events"
@@ -147,15 +142,6 @@ class AdminCog(commands.Cog):
                 event, when = upcoming[0]
                 next_event_label = f"{event.title} @ {when.strftime('%Y-%m-%d %H:%M UTC')}"
 
-        run_summary = "Tracker unavailable"
-        if kvk_tracker and interaction.guild:
-            run = kvk_tracker.get_active_run(interaction.guild.id, include_tests=True)
-            if run:
-                label = "Test" if run.is_test else f"Run #{run.run_number}"
-                run_summary = f"{label} active until {run.ends_at.strftime('%Y-%m-%d %H:%M UTC')}"
-            else:
-                run_summary = "No active run"
-
         ocr_enabled = os.getenv("ENABLE_OCR_TRAINING", "false").strip().lower() in {"1", "true", "yes"}
 
         embed = discord.Embed(
@@ -163,7 +149,6 @@ class AdminCog(commands.Cog):
             color=discord.Color.blurple(),
             timestamp=datetime.now(timezone.utc),
         )
-        embed.add_field(name="KVK", value=run_summary, inline=False)
         embed.add_field(name="Pending reminders", value=str(pending_reminders), inline=True)
         embed.add_field(name="Next event", value=next_event_label, inline=True)
         embed.add_field(name="OCR training", value="enabled" if ocr_enabled else "disabled", inline=True)
@@ -459,29 +444,6 @@ class AdminCog(commands.Cog):
             f"🎉 {member.mention} received {gifted} helper cookie(s)! "
             f"You have {remaining_after} left today.{reason_text}",
             ephemeral=True,
-        )
-
-    @admin.command(name="generate_event_report", description="Generate a summary report for KVK and GAR events.")
-    async def generate_event_report(self, interaction: discord.Interaction):
-        """Generates and sends the event summary report."""
-        try:
-            self._ensure_permitted(interaction)
-        except PermissionError:
-            await self._deny(interaction)
-            return
-
-        await interaction.response.defer(ephemeral=True)
-        
-        if not self.event_engine:
-            await interaction.followup.send("Event engine is not available.", ephemeral=True)
-            return
-
-        report_path = self.event_engine.generate_summary_report()
-        
-        await interaction.followup.send(
-            "Generated event summary report.",
-            file=discord.File(report_path),
-            ephemeral=True
         )
 
     @admin.command(name="cleanup", description="🧹 Clean up my old messages from this channel")

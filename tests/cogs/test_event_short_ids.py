@@ -29,7 +29,6 @@ class FallbackEngine:
 def make_bot(engine):
     return SimpleNamespace(
         event_reminder_engine=engine,
-        kvk_tracker=None,
         error_engine=None,
         personality_engine=None,
     )

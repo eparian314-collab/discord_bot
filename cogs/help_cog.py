@@ -10,6 +10,59 @@ from discord.ext import commands
 from discord_bot.core.utils import find_bot_channel, is_admin_or_helper
 
 
+class HelpMenuView(discord.ui.View):
+    """Carousel-style navigation for the help embeds."""
+
+    def __init__(self, *, pages: list[discord.Embed], user_id: int) -> None:
+        if not pages:
+            raise ValueError("HelpMenuView requires at least one page.")
+        super().__init__(timeout=180)
+        self._pages = pages
+        self._user_id = user_id
+        self._index = 0
+        self._sync_button_state()
+
+    def render(self) -> discord.Embed:
+        embed = self._pages[self._index].copy()
+        embed.set_footer(
+            text=f"Page {self._index + 1}/{len(self._pages)} • Build your relationship with me for better luck!"
+        )
+        return embed
+
+    def _sync_button_state(self) -> None:
+        disable_prev = self._index == 0
+        disable_next = self._index >= len(self._pages) - 1
+        if hasattr(self, "previous_button"):
+            self.previous_button.disabled = disable_prev
+        if hasattr(self, "next_button"):
+            self.next_button.disabled = disable_next
+
+    async def _update(self, interaction: discord.Interaction) -> None:
+        self._sync_button_state()
+        await interaction.response.edit_message(embed=self.render(), view=self)
+
+    async def interaction_check(self, interaction: discord.Interaction) -> bool:
+        if interaction.user.id != self._user_id:
+            await interaction.response.send_message(
+                "Only the person who opened this help menu can use the navigation buttons.",
+                ephemeral=True,
+            )
+            return False
+        return True
+
+    @discord.ui.button(label="Back", emoji="◀️", style=discord.ButtonStyle.secondary)
+    async def previous_button(self, interaction: discord.Interaction, _: discord.ui.Button) -> None:
+        if self._index > 0:
+            self._index -= 1
+        await self._update(interaction)
+
+    @discord.ui.button(label="Next", emoji="▶️", style=discord.ButtonStyle.primary)
+    async def next_button(self, interaction: discord.Interaction, _: discord.ui.Button) -> None:
+        if self._index < len(self._pages) - 1:
+            self._index += 1
+        await self._update(interaction)
+
+
 class HelpCog(commands.Cog):
     def __init__(self, bot: commands.Bot) -> None:
         self.bot = bot
@@ -23,86 +76,102 @@ class HelpCog(commands.Cog):
         """Check if user is admin or has helper role."""
         return is_admin_or_helper(member, guild)
 
-    def _create_help_embed(self, *, admin: bool = False) -> discord.Embed:
-        embed = discord.Embed(
-            title="🦛 Hippo Quick Guide",
-            description=(
-                "Your friendly multilingual companion with games, cookies, and more!\n"
-                "Here's everything I can do for you:"
-            ),
-            color=discord.Color.blurple(),
-        )
+    def _build_help_pages(self, *, admin: bool = False) -> list[discord.Embed]:
+        color = discord.Color.blurple()
+        pages: list[discord.Embed] = []
 
-        embed.add_field(
-            name="🌍 Translation",
+        overview = discord.Embed(
+            title="Hippo Quick Guide",
+            description="Use `/help` any time for this interactive menu. Tap the arrows below to explore categories.",
+            color=color,
+        )
+        overview.add_field(
+            name="Translate anything",
             value=(
-                "`/translate <text> [language]` posts the result for everyone.\n"
-                "Want it private? Right-click a message and pick **Translate**."
+                "- `/translate <text> [language]` shares results with the whole channel.\n"
+                "- Prefer a private copy? Right-click a message and choose **Translate**."
             ),
             inline=False,
         )
-
-        embed.add_field(
-            name="🎭 Language Roles",
+        overview.add_field(
+            name="Grab a language role",
             value=(
-                "`/language assign <code>` works with names *and* flag emojis "
+                "- `/language assign <code>` accepts names or flag emojis "
                 "(try `/language assign \N{REGIONAL INDICATOR SYMBOL LETTER J}\N{REGIONAL INDICATOR SYMBOL LETTER P}`).\n"
-                "Claim one and I'll stash a cookie for you \N{COOKIE}"
+                "- Claiming a role drops a fresh cookie into your stash."
             ),
             inline=False,
         )
-
-        embed.add_field(
-            name="🍪 Cookie System",
+        overview.add_field(
+            name="Cookie economy",
             value=(
-                "Earn cookies by interacting with me! Use `/check_cookies` to see your stats.\n"
-                "Cookies unlock features and power the Pokemon game!"
+                "- Earn cookies by hanging out with me and running commands.\n"
+                "- `/check_cookies` keeps track of your total.\n"
+                "- Cookies unlock mini-games and power-ups."
             ),
             inline=False,
         )
+        overview.set_footer(text="Need extra help? Ping an admin or helper!")
+        pages.append(overview)
 
-        embed.add_field(
-            name="🎮 Pokemon Game",
+        activities = discord.Embed(
+            title="Play & Discover",
+            description="Ready for more than translations? Try these features next.",
+            color=color,
+        )
+        activities.add_field(
+            name="Pokemon adventure",
             value=(
-                "Feed me 5 cookies with `/feed` to unlock the Pokemon game!\n"
-                "Once unlocked: `/catch`, `/fish`, `/explore`, `/train`, `/evolve`\n"
-                "Use `/pokemonhelp` for detailed game info."
+                "- Feed me 5 cookies with `/feed` to unlock the Pokemon game.\n"
+                "- Core commands: `/catch`, `/fish`, `/explore`, `/train`, `/evolve`.\n"
+                "- `/pokemonhelp` shows every move and bonus."
             ),
             inline=False,
         )
-
-        embed.add_field(
-            name="🎉 Fun & Easter Eggs",
+        activities.add_field(
+            name="Fun commands & easter eggs",
             value=(
-                "`/easteregg` - Random surprises!\n"
-                "`/rps <choice>` - Rock Paper Scissors\n"
-                "`/joke`, `/catfact`, `/weather`, `/8ball` - And more!"
+                "- `/easteregg`, `/rps <choice>`, `/joke`, `/catfact`, `/weather`, `/8ball`, and more.\n"
+                "- Run them in a chill channel so main chats stay tidy."
             ),
             inline=False,
         )
-
-        embed.add_field(
-            name="🆘 SOS Alerts",
+        activities.add_field(
+            name="SOS safety net",
             value=(
-                "`/sos list` shows the keywords everyone can trigger.\n"
-                "Admins can manage them with `/sos add`, `/sos remove`, and `/sos clear`."
+                "- Anyone can run `/sos list` to see the current trigger words.\n"
+                "- Helpers and admins keep the list fresh so alerts stay useful."
             ),
             inline=False,
         )
+        activities.set_footer(text="Tip: keeping cookies stocked boosts your luck in games.")
+        pages.append(activities)
 
         if admin:
-            embed.add_field(
-                name="⚙️ Admin Controls",
-                value=(
-                    "- `/sos add/remove/clear` to adjust emergency triggers.\n"
-                    "- `/keyword set/link/remove/list/clear` to manage custom phrases.\n"
-                    "- `/language assign` works for other members too when you mention them."
-                ),
+            admin_embed = discord.Embed(
+                title="Admin & Helper Toolkit",
+                description="Extra controls for moderators, helpers, and staff.",
+                color=discord.Color.teal(),
+            )
+            admin_embed.add_field(
+                name="Manage SOS alerts",
+                value="- `/sos add`, `/sos remove`, `/sos clear` keep emergency keywords relevant.",
                 inline=False,
             )
+            admin_embed.add_field(
+                name="Keyword automations",
+                value="- `/keyword set/link/remove/list/clear` tune automatic replies and helper phrases.",
+                inline=False,
+            )
+            admin_embed.add_field(
+                name="Assign roles for others",
+                value="- Mention a member when using `/language assign` to help them pick a role.",
+                inline=False,
+            )
+            admin_embed.set_footer(text="Thanks for keeping the community safe and organized.")
+            pages.append(admin_embed)
 
-        embed.set_footer(text="Build your relationship with me for better luck and rewards! 🦛💖")
-        return embed
+        return pages
 
     def _create_welcome_embed(self, mention: Optional[discord.abc.User] = None) -> discord.Embed:
         description = (
@@ -115,7 +184,7 @@ class HelpCog(commands.Cog):
             )
 
         embed = discord.Embed(
-            title="🦛 Baby Hippo at your service!",
+            title="dY�> Baby Hippo at your service!",
             description=description,
             color=discord.Color.teal(),
         )
@@ -216,13 +285,18 @@ class HelpCog(commands.Cog):
     # --------------
     # Slash command
     # --------------
-    @app_commands.command(name="help", description="❓ Show a quick overview of HippoBot features")
+    @app_commands.command(name="help", description="Show a modern interactive overview of HippoBot features.")
     async def help(self, interaction: discord.Interaction) -> None:
         guild = interaction.guild
-        member = interaction.user if isinstance(interaction.user, discord.Member) else (guild.get_member(interaction.user.id) if guild else None)
+        member = interaction.user if isinstance(interaction.user, discord.Member) else (
+            guild.get_member(interaction.user.id) if guild else None
+        )
         admin = self._is_admin(member, guild)
+        pages = self._build_help_pages(admin=admin)
+        view = HelpMenuView(pages=pages, user_id=interaction.user.id)
         await interaction.response.send_message(
-            embed=self._create_help_embed(admin=admin),
+            embed=view.render(),
+            view=view,
             ephemeral=True,
         )
 

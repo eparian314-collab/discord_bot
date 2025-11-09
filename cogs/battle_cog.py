@@ -11,7 +11,7 @@ Commands:
 import discord
 from discord import app_commands
 from discord.ext import commands
-from typing import Optional
+from typing import Optional, TYPE_CHECKING
 
 from discord_bot.core.utils import find_bot_channel, is_allowed_channel
 from discord_bot.cogs.game_cog import GameCog
@@ -21,17 +21,16 @@ try:
         BattleEngine, BattlePokemon, create_battle, get_active_battle, 
         end_battle, BattleState
     )
-    from discord_bot.games.storage.game_storage_engine import GameStorageEngine
-    from discord_bot.core.engines.cookie_manager import CookieManager
-    from discord_bot.core.engines.relationship_manager import RelationshipManager
 except ImportError:
     from games.battle_system import (
         BattleEngine, BattlePokemon, create_battle, get_active_battle,
         end_battle, BattleState
     )
-    from games.storage.game_storage_engine import GameStorageEngine
-    from core.engines.cookie_manager import CookieManager
-    from core.engines.relationship_manager import RelationshipManager
+
+if TYPE_CHECKING:
+    from discord_bot.games.storage.game_storage_engine import GameStorageEngine
+    from discord_bot.core.engines.cookie_manager import CookieManager
+    from discord_bot.core.engines.relationship_manager import RelationshipManager
 
 
 class BattleCog(commands.Cog):
@@ -40,8 +39,13 @@ class BattleCog(commands.Cog):
     # Use the battle group from GameCog (shared nested group)
     battle = GameCog.battle
     
-    def __init__(self, bot: commands.Bot, storage: GameStorageEngine,
-                 cookie_manager: CookieManager, relationship_manager: RelationshipManager):
+    def __init__(
+        self,
+        bot: commands.Bot,
+        storage: "GameStorageEngine",
+        cookie_manager: "CookieManager",
+        relationship_manager: "RelationshipManager",
+    ):
         self.bot = bot
         self.storage = storage
         self.cookie_manager = cookie_manager

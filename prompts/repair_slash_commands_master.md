@@ -11,7 +11,7 @@ Your role:
 - Correct signature mismatches causing `CommandSignatureMismatch`.
 - Install **Command Schema Hashing** to prevent future desync.
 - Confirm clean state on guild: 1423768684572184700 (mars._.3’s test2).
-- Verify no duplicate `/kvk` or `/rankings` command trees exist.
+- Verify no duplicate `/event` command trees exist.
 
 ## REQUIRED BEHAVIOR MODE: ULTRA THINK
 - Use **explicit chain-of-reasoning**, step-by-step.
@@ -31,7 +31,7 @@ Your role:
 1. **NO GLOBAL COMMANDS EXIST.**
    Only guild scope commands should be active during development.
 
-2. `/kvk ranking submit` and all KVK commands execute **the current version** of the functions in code — no stale signature mismatches.
+2. `/event create`, `/event list`, and `/event cleanup` execute **the current version** of the functions in code — no stale signature mismatches.
 
 3. Bot no longer prints:
 
@@ -69,7 +69,7 @@ CommandSignatureMismatch
 
 ### PHASE 3 — Identify Stale or Mismatched Commands
 - Flag any command that exists in GLOBAL but also exists in GUILD.
-- Confirm signatures differ for `/kvk ranking submit`.
+- Confirm signatures are current for `/event create`.
 
 ### PHASE 4 — Generate and Apply Cleanup Operation
 - Delete **ALL GLOBAL** commands.
@@ -88,8 +88,8 @@ CommandSignatureMismatch
 - Modify on_ready() or IntegrationLoader.run() to:
 - Sync only if hash changed.
 
-### PHASE 7 — Confirm That Submit Works
-- Run `/kvk ranking submit` with representative arguments.
+### PHASE 7 — Confirm That Event Actions Work
+- Run `/event create` with representative arguments.
 - Expected result: runs the updated codepath, no mismatch.
 
 ---
@@ -111,7 +111,7 @@ Schema hashing active
 
 No mismatch warnings on startup
 
-/kvk ranking submit verified working
+/event create verified working
 
 
 If any part cannot be completed, output the exact blocking cause and the file + line reference.

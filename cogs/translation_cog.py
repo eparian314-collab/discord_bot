@@ -2,18 +2,20 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from typing import Any, List, Optional, Tuple
+from typing import Any, List, Optional, Tuple, TYPE_CHECKING
 
 import discord
 from discord import app_commands
 from discord.ext import commands
 
-from discord_bot.core.engines.translation_ui_engine import TranslationUIEngine
 from discord_bot.language_context.context_utils import (
     is_valid_lang_code,
     map_alias_to_code,
     safe_truncate,
 )
+
+if TYPE_CHECKING:
+    from discord_bot.core.engines.translation_ui_engine import TranslationUIEngine
 
 logger = logging.getLogger("hippo_bot.translation_cog")
 
@@ -21,7 +23,7 @@ logger = logging.getLogger("hippo_bot.translation_cog")
 class TranslationCog(commands.Cog):
     """Slash and context-menu translations backed by the new engine stack."""
 
-    def __init__(self, bot: commands.Bot, ui_engine: TranslationUIEngine) -> None:
+    def __init__(self, bot: commands.Bot, ui_engine: "TranslationUIEngine") -> None:
         self.bot = bot
         self.ui = ui_engine
 

@@ -13,7 +13,6 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import os
 from datetime import datetime, timedelta, timezone
 from typing import Dict, List, Optional, Set, Any, TYPE_CHECKING
 from dataclasses import dataclass, field
@@ -25,7 +24,6 @@ from discord_bot.core.utils.channel_utils import find_bot_channel
 if TYPE_CHECKING:
     import discord
     from discord.ext import commands
-    from discord_bot.core.engines.kvk_tracker import KVKTracker
 
 logger = logging.getLogger("hippo_bot.event_reminder")
 
@@ -128,8 +126,6 @@ class EventReminderEngine:
         self.scheduled_tasks: Dict[str, asyncio.Task] = {}
         self.bot: Optional[commands.Bot] = None
         self.is_running = False
-        self.kvk_tracker: Optional["KVKTracker"] = None
-        self.rankings_channel_id = self._get_rankings_channel_id()
     
     def plugin_name(self) -> str:
         return "event_reminder_engine"
@@ -144,8 +140,6 @@ class EventReminderEngine:
     def set_bot(self, bot: commands.Bot) -> None:
         """Set the Discord bot instance."""
         self.bot = bot
-        if not self.kvk_tracker and hasattr(bot, "kvk_tracker"):
-            self.kvk_tracker = getattr(bot, "kvk_tracker")
 
     def allocate_display_index(self, guild_id: int, category: EventCategory) -> int:
         """
@@ -158,15 +152,6 @@ class EventReminderEngine:
             raise RuntimeError("Storage engine missing allocate_event_display_index()")
         return allocator(guild_id, category.value)
 
-    def _get_rankings_channel_id(self) -> Optional[int]:
-        raw = os.getenv("RANKINGS_CHANNEL_ID", "")
-        if not raw:
-            return None
-        try:
-            return int(raw.strip())
-        except ValueError:
-            return None
-    
     async def start_scheduler(self) -> None:
         """Start the event reminder scheduler."""
         if self.is_running:
@@ -314,28 +299,6 @@ class EventReminderEngine:
             role = guild.get_role(event.role_to_ping)
             if role:
                 content = f"{role.mention}"
-
-        event_title_lower = event.title.lower()
-        is_kvk_event = "kvk" in event_title_lower
-        is_test_kvk = "test kvk" in event_title_lower
-        if is_kvk_event:
-            if self.kvk_tracker:
-                try:
-                    kvk_channel = self.rankings_channel_id or event.channel_id
-                    await self.kvk_tracker.ensure_run(
-                        guild_id=event.guild_id,
-                        title=event.title,
-                        initiated_by=None,
-                        channel_id=kvk_channel,
-                        is_test=is_test_kvk,
-                        event_id=event.event_id,
-                    )
-                except Exception as exc:
-                    logger.exception("Failed to ensure KVK run during reminder send: %s", exc)
-            reminder_line = (
-                "📸 **KVK is live!** Submit your ranking screenshots within the 14-day window."
-            )
-            content = f"{content}\n{reminder_line}" if content else reminder_line
 
         try:
             await channel.send(content=content, embed=embed)
