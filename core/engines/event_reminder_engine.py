@@ -77,12 +77,9 @@ class EventReminder:
     # Auto-scraping
     auto_scraped: bool = False
     source_url: Optional[str] = None
-<<<<<<< HEAD
     display_id: Optional[str] = None
-=======
     is_test_kvk: bool = False
->>>>>>> dc054b5 (Update bot code, deployment scripts, and .gitignore to exclude sensitive/runtime files)
-    
+
     def __post_init__(self):
         """Ensure UTC timezone."""
         if self.event_time_utc.tzinfo is None:

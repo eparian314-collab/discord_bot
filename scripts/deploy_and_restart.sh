@@ -2,7 +2,7 @@
 # ============================================
 # Deploy and Restart Bot
 # 1. Runs deployment (tests, updates)
-# 2. Restarts the systemd service
+# 2. Restarts the systemd service that hosts the deploy loop
 # ============================================
 
 set -euo pipefail
@@ -23,20 +23,23 @@ fi
 log "Deployment successful! Restarting bot..."
 
 # Check if running as systemd service
-if systemctl is-active --quiet discord_bot; then
+SERVICE_NAME="${SERVICE_NAME:-hippo}"
+DEPLOY_CMD="${DEPLOY_CMD:-${SCRIPT_DIR}/deploy_loop.sh}"
+
+if systemctl is-active --quiet "$SERVICE_NAME"; then
     log "Restarting systemd service..."
-    sudo systemctl restart discord_bot
+    sudo systemctl restart "$SERVICE_NAME"
     sleep 2
-    if systemctl is-active --quiet discord_bot; then
+    if systemctl is-active --quiet "$SERVICE_NAME"; then
         log "✅ Bot restarted successfully"
-        sudo journalctl -u discord_bot -n 20 --no-pager
-        sudo systemctl status discord_bot -n 5 --no-pager
+        sudo journalctl -u "$SERVICE_NAME" -n 20 --no-pager
+        sudo systemctl status "$SERVICE_NAME" -n 5 --no-pager
     else
         log "❌ Bot failed to start"
-        sudo journalctl -u discord_bot -n 50 --no-pager
+        sudo journalctl -u "$SERVICE_NAME" -n 50 --no-pager
         exit 1
     fi
 else
     log "Systemd service not running. Start manually with:"
-    log "  ./scripts/run_bot.sh"
+    log "  ${DEPLOY_CMD} start"
 fi

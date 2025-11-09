@@ -4,7 +4,7 @@
 # - Pulls latest code
 # - Updates dependencies
 # - Runs tests
-# - Does NOT launch (use run_bot.sh for that)
+# - Does NOT launch (use deploy_loop.sh or the hippo service for launch)
 # ============================================
 
 set -euo pipefail
@@ -74,4 +74,4 @@ else
     exit 1
 fi
 
-log "🎉 Deployment successful! Use run_bot.sh or deploy_and_restart.sh to start the bot."
+log "🎉 Deployment successful! Start the bot with ./scripts/deploy_loop.sh or via the hippo service."

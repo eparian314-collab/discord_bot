@@ -150,6 +150,21 @@ tail -f logs/nohup.out
 
 ---
 
+### Safe Maintenance Mode (`hippo.service`)
+
+Use this service when you need a self-healing deployment loop that stays running outside of any active terminal session. It now launches `scripts/deploy_loop.sh deploy` instead of directly calling the bot binary so you get the same preflight checks, stability validation, and auto‑restart policies used elsewhere.
+
+1. **Entrypoint** – `/home/mars/projects/discord_bot/scripts/deploy_loop.sh deploy` is the command the service runs. Confirm the script is executable and pointing at the right project directory before enabling the unit.
+2. **Environment & deps** – the same `.env` values (`DISCORD_TOKEN`, `DEEPL_API_KEY`, etc.) and dependencies listed in `requirements.txt` (`discord.py`, `python-dotenv`, `aiohttp`, `openai`, `aiosqlite`, `psutil`, Pillow, `pytesseract`, `easyocr`, `craft-text-detector`, etc.) are required. Keep the virtual environment fresh with `.venv/bin/pip install -r requirements.txt`.
+3. **Service install** – place `deploy/hippo.service` in `/etc/systemd/system/` (`sudo mv deploy/hippo.service /etc/systemd/system/`) and reload systemd (`sudo systemctl daemon-reload`).
+4. **Log setup** – `deploy_loop.sh` tails to `logs/deployment.log`/`logs/nohup.out`; ensure that directory exists and has writable logs (e.g., `mkdir -p logs && chmod 755 logs`).
+5. **Start procedure** – `sudo systemctl enable hippo` followed by `sudo systemctl start hippo` (service runs as user `mars` and relies on `deploy_loop.sh` to manage restarts).
+6. **Verification** – check `sudo systemctl status hippo` and `tail -f logs/deployment.log` after enabling, or run `./scripts/deploy_loop.sh start` locally to validate the loop before service rollout.
+
+This replaces the `nohup` workflow and keeps the bot running through disconnects/reboots with centralized logging and monitoring.
+
+---
+
 ## 🔍 Runtime Monitoring
 
 ### Health Check Command

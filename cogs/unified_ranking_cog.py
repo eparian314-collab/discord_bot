@@ -15,12 +15,8 @@ Commands:
 - /ranking_power - Set power level for peer comparisons
 """
 
-<<<<<<< HEAD
 import logging
-from typing import Optional, TYPE_CHECKING, List, Dict, Any
-=======
 from typing import Optional, TYPE_CHECKING, List, Dict, Any, Sequence
->>>>>>> dc054b5 (Update bot code, deployment scripts, and .gitignore to exclude sensitive/runtime files)
 from datetime import datetime, timezone
 import aiohttp
 import os
@@ -28,14 +24,8 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 
-<<<<<<< HEAD
 from discord_bot.core.engines.screenshot_processor import StageType, ScreenshotProcessor
-from discord_bot.core.utils import find_bot_channel, is_admin_or_helper
-=======
-from discord_bot.core.engines.screenshot_processor import StageType
 from discord_bot.core.utils import find_bot_channel, is_admin_or_helper, safe_send_interaction_response
-from discord_bot.core.engines.screenshot_processor import ScreenshotProcessor
->>>>>>> dc054b5 (Update bot code, deployment scripts, and .gitignore to exclude sensitive/runtime files)
 from discord_bot.core.engines.ranking_storage_engine import RankingStorageEngine
 from discord_bot.core.engines.kvk_visual_manager import KVKVisualManager, create_kvk_visual_manager
 from discord_bot.core.engines.kvk_tracker import KVKRun
@@ -536,7 +526,6 @@ class UnifiedRankingCog(commands.Cog):
                 "failed",
                 error_message=error_msg,
             )
-<<<<<<< HEAD
             await self._log_guardian_error(
                 interaction=interaction,
                 category="validation",
@@ -547,13 +536,9 @@ class UnifiedRankingCog(commands.Cog):
                 screenshot_url=screenshot.url,
                 context="Screenshot validation failed",
             )
-            await interaction.followup.send(
-                f"Screenshot validation failed: {error_msg}",
-=======
             await self._reply(
                 interaction,
                 content=f"Screenshot validation failed: {error_msg}",
->>>>>>> dc054b5 (Update bot code, deployment scripts, and .gitignore to exclude sensitive/runtime files)
                 ephemeral=True,
             )
             return
@@ -612,7 +597,6 @@ class UnifiedRankingCog(commands.Cog):
                 "failed",
                 error_message="Could not extract ranking data from image",
             )
-<<<<<<< HEAD
             await self._log_guardian_error(
                 interaction=interaction,
                 category="submission",
@@ -624,13 +608,9 @@ class UnifiedRankingCog(commands.Cog):
                 screenshot_url=screenshot.url,
                 context="Ranking data missing after OCR",
             )
-            await interaction.followup.send(
-                "Could not read ranking data from the screenshot. Please ensure all required information is visible.",
-=======
             await self._reply(
                 interaction,
                 content="Could not read ranking data from the screenshot. Please ensure all required information is visible.",
->>>>>>> dc054b5 (Update bot code, deployment scripts, and .gitignore to exclude sensitive/runtime files)
                 ephemeral=True,
             )
             return

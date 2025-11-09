@@ -1,0 +1,20 @@
+[Unit]
+Description=Hippo Discord Bot Deployment Loop
+After=network.target
+Wants=network-online.target
+StartLimitIntervalSec=600
+StartLimitBurst=3
+ConditionPathExists=/home/mars/projects/discord_bot/scripts/deploy_loop.sh
+
+[Service]
+Type=simple
+User=mars
+WorkingDirectory=/home/mars/projects/discord_bot
+ExecStart=/home/mars/projects/discord_bot/scripts/deploy_loop.sh deploy
+Restart=on-failure
+RestartSec=5
+KillMode=process
+Environment=PROJECT_DIR=/home/mars/projects/discord_bot
+
+[Install]
+WantedBy=multi-user.target

@@ -10,15 +10,11 @@ Provides Discord slash commands for managing Top Heroes game events:
 from __future__ import annotations
 
 import asyncio
+import inspect
 import logging
 import os
 from datetime import datetime, timezone, timedelta
-<<<<<<< HEAD
-import inspect
 from typing import Any, Dict, List, Optional
-=======
-from typing import Any, List, Optional
->>>>>>> dc054b5 (Update bot code, deployment scripts, and .gitignore to exclude sensitive/runtime files)
 
 import discord
 from discord import app_commands
@@ -472,11 +468,8 @@ class EventManagementCog(commands.Cog):
                 reminder_times=reminder_times,
                 channel_id=interaction.channel_id,
                 created_by=interaction.user.id,
-<<<<<<< HEAD
                 display_id=display_id,
-=======
                 is_test_kvk=is_test_kvk
->>>>>>> dc054b5 (Update bot code, deployment scripts, and .gitignore to exclude sensitive/runtime files)
             )
             
             success = await self.event_engine.create_event(event)
@@ -543,7 +536,6 @@ class EventManagementCog(commands.Cog):
 
                 if description:
                     embed.add_field(name="Description", value=description, inline=False)
-<<<<<<< HEAD
 
                 if removed_test_events:
                     removed_lines = "\n".join(f"\u2022 {self._format_event_label(evt)}" for evt in removed_test_events[:5])
@@ -555,11 +547,7 @@ class EventManagementCog(commands.Cog):
                         inline=False,
                     )
 
-                await interaction.response.send_message(embed=embed, ephemeral=True)
-=======
-                
                 await self._safe_send_response(interaction, embed=embed, ephemeral=True)
->>>>>>> dc054b5 (Update bot code, deployment scripts, and .gitignore to exclude sensitive/runtime files)
             else:
                 fail_msg = await self._add_personality(
                     "Failed to create event. Please try again.",
@@ -782,7 +770,6 @@ class EventManagementCog(commands.Cog):
         
         try:
             events = await self.event_engine.get_events_for_guild(interaction.guild.id)
-<<<<<<< HEAD
             matches = self._match_events_by_identifier(events, event_id, exact=False, active_only=False)
             if not matches:
                 await interaction.response.send_message(
@@ -837,7 +824,7 @@ class EventManagementCog(commands.Cog):
             else:
                 category_enum = event.category
             
-            recurrence_enum = None
+            recurrence_enum: Optional[RecurrenceType] = None
             if recurrence:
                 try:
                     recurrence_enum = RecurrenceType(recurrence)
@@ -866,29 +853,6 @@ class EventManagementCog(commands.Cog):
                 await interaction.response.send_message(
                     "Provide at least one field to update.",
                     ephemeral=True,
-=======
-            
-            # Find matching event
-            matching_events = [
-                event for event in events 
-                if title.lower() in event.title.lower() and event.is_active
-            ]
-            
-            if not matching_events:
-                await self._safe_send_response(
-                    interaction,
-                    content=f"No active event found with title containing '{title}'.",
-                    ephemeral=True
-                )
-                return
-           
-            if len(matching_events) > 1:
-                titles = [f"• {event.title}" for event in matching_events[:5]]
-                await self._safe_send_response(
-                    interaction,
-                    content=f"Multiple events found. Be more specific:\n" + "\n".join(titles),
-                    ephemeral=True
->>>>>>> dc054b5 (Update bot code, deployment scripts, and .gitignore to exclude sensitive/runtime files)
                 )
                 return
             
@@ -897,45 +861,20 @@ class EventManagementCog(commands.Cog):
                 await interaction.response.send_message("Failed to update event. Please try again.", ephemeral=True)
                 return
             
-<<<<<<< HEAD
             embed = discord.Embed(
-                title="?? Event updated",
+                title="✨ Event updated",
                 description=self._format_event_label(event),
                 color=discord.Color.orange(),
             )
-            embed.add_field(name="Changes", value="\n".join(summary), inline=False)
+            if summary:
+                embed.add_field(name="Changes", value="\n".join(summary), inline=False)
             await interaction.response.send_message(embed=embed, ephemeral=True)
-        
         except Exception as exc:
             await self._log_error(exc, context="event.edit")
             if interaction.response.is_done():
                 await interaction.followup.send("An error occurred while editing the event.", ephemeral=True)
             else:
                 await interaction.response.send_message("An error occurred while editing the event.", ephemeral=True)
-
-=======
-            if success:
-                await self._safe_send_response(
-                    interaction,
-                    content=f"✅ Deleted event: **{event.title}**",
-                    ephemeral=True
-                )
-                if event.is_test_kvk:
-                    await self._close_kvk_run_for_event(event.event_id)
-            else:
-                await self._safe_send_response(
-                    interaction,
-                    content="Failed to delete event. Please try again.",
-                    ephemeral=True
-                )
-                
-        except Exception as exc:
-            await self._log_error(exc, context="event.delete")
-            await self._safe_send_response(
-                interaction,
-                content="An error occurred while deleting the event.",
-                ephemeral=True
-            )
 
     @app_commands.command(
         name="test_kvk_status",
@@ -989,7 +928,6 @@ class EventManagementCog(commands.Cog):
 
         await self._safe_send_response(interaction, embed=embed, ephemeral=True)
     
->>>>>>> dc054b5 (Update bot code, deployment scripts, and .gitignore to exclude sensitive/runtime files)
     @app_commands.command(name="events", description="🗓️ Show upcoming Top Heroes events (Public)")
     async def show_public_events(self, interaction: discord.Interaction) -> None:
         """Show upcoming events in a public message."""
@@ -1144,4 +1082,3 @@ async def setup(
     event_reminder_engine: Optional[EventReminderEngine] = None
 ) -> None:
     await bot.add_cog(EventManagementCog(bot, event_engine=event_reminder_engine))
-
