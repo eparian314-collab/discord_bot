@@ -351,6 +351,30 @@ class KVKTracker:
         )
         return [self._row_to_run(row) for row in cursor.fetchall()]
 
+    def get_run_by_event_id(self, event_id: str, *, include_closed: bool = False) -> Optional[KVKRun]:
+        query = """
+            SELECT * FROM kvk_runs
+             WHERE event_id = ?
+        """
+        params: List[Any] = [event_id]
+        if not include_closed:
+            query += " AND status = 'active'"
+        query += " ORDER BY started_at DESC LIMIT 1"
+        cursor = self.storage.conn.execute(query, params)
+        row = cursor.fetchone()
+        if not row:
+            return None
+        run = self._row_to_run(row)
+        if run and run.is_test and not include_closed and run.status != "active":
+            return None
+        return run
+
+    async def close_run_for_event(self, event_id: str, *, reason: str = "event deleted") -> Optional[KVKRun]:
+        run = self.get_run_by_event_id(event_id, include_closed=False)
+        if not run:
+            return None
+        return await self.close_run(run.id, reason=reason)
+
     def _row_to_run(self, row: Any) -> Optional[KVKRun]:
         if row is None:
             return None

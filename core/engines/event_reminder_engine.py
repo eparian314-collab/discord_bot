@@ -77,7 +77,11 @@ class EventReminder:
     # Auto-scraping
     auto_scraped: bool = False
     source_url: Optional[str] = None
+<<<<<<< HEAD
     display_id: Optional[str] = None
+=======
+    is_test_kvk: bool = False
+>>>>>>> dc054b5 (Update bot code, deployment scripts, and .gitignore to exclude sensitive/runtime files)
     
     def __post_init__(self):
         """Ensure UTC timezone."""
@@ -434,6 +438,19 @@ class EventReminderEngine:
         """Get all active events across all guilds."""
         # Implementation depends on storage backend
         return []
+
+    async def get_active_test_kvk_events(self, guild_id: Optional[int] = None) -> List[EventReminder]:
+        """Return active test KVK events, optionally filtered to a guild."""
+        if guild_id is not None:
+            events = await self.get_events_for_guild(guild_id)
+        else:
+            events = await self.get_all_events()
+        return [event for event in events if event.is_active and event.is_test_kvk]
+
+    async def has_active_test_kvk(self, guild_id: int) -> bool:
+        """Return whether a test KVK event is already scheduled for the guild."""
+        active_tests = await self.get_active_test_kvk_events(guild_id)
+        return len(active_tests) > 0
     
     # Storage interface methods 
     async def _store_event(self, event: EventReminder) -> None:
@@ -453,6 +470,7 @@ class EventReminderEngine:
             'created_by': event.created_by,
             'is_active': 1 if event.is_active else 0,
             'auto_scraped': 1 if event.auto_scraped else 0,
+            'is_test_kvk': 1 if event.is_test_kvk else 0,
             'source_url': event.source_url
         }
         
@@ -577,7 +595,8 @@ class EventReminderEngine:
             created_by=data['created_by'],
             is_active=bool(data['is_active']),
             auto_scraped=bool(data['auto_scraped']),
-            source_url=data['source_url']
+            source_url=data['source_url'],
+            is_test_kvk=bool(data.get('is_test_kvk'))
         )
     
     async def _reschedule_event_reminders(self, event_id: str) -> None:
@@ -592,4 +611,3 @@ class EventReminderEngine:
             task = self.scheduled_tasks.pop(task_id, None)
             if task:
                 task.cancel()
-

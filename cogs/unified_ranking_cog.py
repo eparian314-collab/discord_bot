@@ -15,8 +15,12 @@ Commands:
 - /ranking_power - Set power level for peer comparisons
 """
 
+<<<<<<< HEAD
 import logging
 from typing import Optional, TYPE_CHECKING, List, Dict, Any
+=======
+from typing import Optional, TYPE_CHECKING, List, Dict, Any, Sequence
+>>>>>>> dc054b5 (Update bot code, deployment scripts, and .gitignore to exclude sensitive/runtime files)
 from datetime import datetime, timezone
 import aiohttp
 import os
@@ -24,8 +28,14 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 
+<<<<<<< HEAD
 from discord_bot.core.engines.screenshot_processor import StageType, ScreenshotProcessor
 from discord_bot.core.utils import find_bot_channel, is_admin_or_helper
+=======
+from discord_bot.core.engines.screenshot_processor import StageType
+from discord_bot.core.utils import find_bot_channel, is_admin_or_helper, safe_send_interaction_response
+from discord_bot.core.engines.screenshot_processor import ScreenshotProcessor
+>>>>>>> dc054b5 (Update bot code, deployment scripts, and .gitignore to exclude sensitive/runtime files)
 from discord_bot.core.engines.ranking_storage_engine import RankingStorageEngine
 from discord_bot.core.engines.kvk_visual_manager import KVKVisualManager, create_kvk_visual_manager
 from discord_bot.core.engines.kvk_tracker import KVKRun
@@ -116,6 +126,28 @@ class UnifiedRankingCog(commands.Cog):
             if msg.author == self.bot.user and "Rankings Channel Guidance" in msg.content:
                 return  # Already posted
         await channel.send(guidance)
+
+    async def _reply(
+        self,
+        interaction: discord.Interaction,
+        *,
+        content: Optional[str] = None,
+        embed: Optional[discord.Embed] = None,
+        embeds: Optional[Sequence[discord.Embed]] = None,
+        view: Optional[discord.ui.View] = None,
+        ephemeral: bool = True,
+        **kwargs: Any,
+    ) -> bool:
+        """Send a reply that tolerates expired interactions."""
+        return await safe_send_interaction_response(
+            interaction,
+            content=content,
+            embed=embed,
+            embeds=embeds,
+            view=view,
+            ephemeral=ephemeral,
+            **kwargs,
+        )
 
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message):
@@ -384,16 +416,18 @@ class UnifiedRankingCog(commands.Cog):
         is_admin = is_admin_or_helper(interaction.user, interaction.guild)
         
         if not kvk_run:
-            await interaction.response.send_message(
-                "No tracked event window is currently open. Please wait for the next event reminder.",
+            await self._reply(
+                interaction,
+                content="No tracked event window is currently open. Please wait for the next event reminder.",
                 ephemeral=True,
             )
             return
 
         if not run_is_active and not is_admin:
             closed_at = kvk_run.ends_at.strftime('%Y-%m-%d %H:%M UTC')
-            await interaction.response.send_message(
-                f"The submission window closed on {closed_at}. Only admins or helpers can submit late updates.",
+            await self._reply(
+                interaction,
+                content=f"The submission window closed on {closed_at}. Only admins or helpers can submit late updates.",
                 ephemeral=True,
             )
             return
@@ -402,15 +436,17 @@ class UnifiedRankingCog(commands.Cog):
 
         # Validate attachment
         if not screenshot.content_type or not screenshot.content_type.startswith('image/'):
-            await interaction.followup.send(
-                "Please upload an image file (PNG, JPG, etc.).",
+            await self._reply(
+                interaction,
+                content="Please upload an image file (PNG, JPG, etc.).",
                 ephemeral=True,
             )
             return
 
         if screenshot.size > 10 * 1024 * 1024:
-            await interaction.followup.send(
-                "Image too large. Please upload a screenshot under 10MB.",
+            await self._reply(
+                interaction,
+                content="Image too large. Please upload a screenshot under 10MB.",
                 ephemeral=True,
             )
             return
@@ -438,11 +474,14 @@ class UnifiedRankingCog(commands.Cog):
                             day = parse_data["prep_day"]
                         
                         # Show visual parsing success in response later
-                        await interaction.followup.send(
-                            f"✨ **Visual parsing successful!**\n"
-                            f"Detected: {parse_data['stage_type']} stage, day {parse_data.get('prep_day', '?')}\n"
-                            f"Processing submission...",
-                            ephemeral=True
+                        await self._reply(
+                            interaction,
+                            content=(
+                                f"✨ **Visual parsing successful!**\n"
+                                f"Detected: {parse_data['stage_type']} stage, day {parse_data.get('prep_day', '?')}\n"
+                                "Processing submission..."
+                            ),
+                            ephemeral=True,
                         )
             except Exception as e:
                 print(f"Visual parsing failed (falling back to manual): {e}")
@@ -450,24 +489,27 @@ class UnifiedRankingCog(commands.Cog):
         
         # If still missing stage/day after visual parsing attempt, require manual input
         if stage is None:
-            await interaction.followup.send(
-                "Could not auto-detect stage. Please specify: **Prep** or **War**",
+            await self._reply(
+                interaction,
+                content="Could not auto-detect stage. Please specify: **Prep** or **War**",
                 ephemeral=True,
             )
             return
-        
+
         if day is None:
-            await interaction.followup.send(
-                "Could not auto-detect day. Please specify day (1-5 for prep stage).",
+            await self._reply(
+                interaction,
+                content="Could not auto-detect day. Please specify day (1-5 for prep stage).",
                 ephemeral=True,
             )
             return
-        
+
         # Parse and validate stage
         stage_lower = stage.lower()
         if stage_lower not in ("prep", "war"):
-            await interaction.followup.send(
-                "Stage must be 'Prep' or 'War'.",
+            await self._reply(
+                interaction,
+                content="Stage must be 'Prep' or 'War'.",
                 ephemeral=True,
             )
             return
@@ -476,8 +518,9 @@ class UnifiedRankingCog(commands.Cog):
         # Validate day for prep stage
         if stage_type == StageType.PREP:
             if day < 1 or day > 5:
-                await interaction.followup.send(
-                    "Day must be between 1 and 5 for the prep stage.",
+                await self._reply(
+                    interaction,
+                    content="Day must be between 1 and 5 for the prep stage.",
                     ephemeral=True,
                 )
                 return
@@ -493,6 +536,7 @@ class UnifiedRankingCog(commands.Cog):
                 "failed",
                 error_message=error_msg,
             )
+<<<<<<< HEAD
             await self._log_guardian_error(
                 interaction=interaction,
                 category="validation",
@@ -505,6 +549,11 @@ class UnifiedRankingCog(commands.Cog):
             )
             await interaction.followup.send(
                 f"Screenshot validation failed: {error_msg}",
+=======
+            await self._reply(
+                interaction,
+                content=f"Screenshot validation failed: {error_msg}",
+>>>>>>> dc054b5 (Update bot code, deployment scripts, and .gitignore to exclude sensitive/runtime files)
                 ephemeral=True,
             )
             return
@@ -523,8 +572,9 @@ class UnifiedRankingCog(commands.Cog):
         )
 
         if existing:
-            await interaction.followup.send(
-                "You already submitted data for this run and day. The previous entry will be replaced.",
+            await self._reply(
+                interaction,
+                content="You already submitted data for this run and day. The previous entry will be replaced.",
                 ephemeral=True,
             )
 
@@ -562,6 +612,7 @@ class UnifiedRankingCog(commands.Cog):
                 "failed",
                 error_message="Could not extract ranking data from image",
             )
+<<<<<<< HEAD
             await self._log_guardian_error(
                 interaction=interaction,
                 category="submission",
@@ -575,6 +626,11 @@ class UnifiedRankingCog(commands.Cog):
             )
             await interaction.followup.send(
                 "Could not read ranking data from the screenshot. Please ensure all required information is visible.",
+=======
+            await self._reply(
+                interaction,
+                content="Could not read ranking data from the screenshot. Please ensure all required information is visible.",
+>>>>>>> dc054b5 (Update bot code, deployment scripts, and .gitignore to exclude sensitive/runtime files)
                 ephemeral=True,
             )
             return
@@ -582,15 +638,17 @@ class UnifiedRankingCog(commands.Cog):
         # Validate detected vs selected stage/day
         detected_stage = ranking.stage_type
         if stage_type == StageType.PREP and ranking.day_number and ranking.day_number != normalized_day:
-            await interaction.followup.send(
-                "The highlighted day in the screenshot does not match the selected day.",
+            await self._reply(
+                interaction,
+                content="The highlighted day in the screenshot does not match the selected day.",
                 ephemeral=True,
             )
             return
 
         if detected_stage not in (StageType.UNKNOWN, stage_type):
-            await interaction.followup.send(
-                "The screenshot appears to show a different stage than selected.",
+            await self._reply(
+                interaction,
+                content="The screenshot appears to show a different stage than selected.",
                 ephemeral=True,
             )
             return
@@ -687,7 +745,7 @@ class UnifiedRankingCog(commands.Cog):
         embed.set_thumbnail(url=screenshot.url)
         embed.set_footer(text="Data saved to rankings database")
 
-        await interaction.followup.send(embed=embed, ephemeral=True)
+        await self._reply(interaction, embed=embed, ephemeral=True)
         
         # Send modlog notification
         if interaction.guild:

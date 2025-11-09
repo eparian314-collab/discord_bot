@@ -6,6 +6,8 @@
 
 set -euo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
 log() {
     printf '[%(%Y-%m-%dT%H:%M:%S%z)T] %s\n' -1 "$*"
 }
@@ -20,6 +22,10 @@ cd "${PROJECT_DIR}"
 
 # Load environment variables
 if [[ -f "${ENV_FILE}" ]]; then
+    if [[ -x "${SCRIPT_DIR}/validate_env.sh" ]]; then
+        "${SCRIPT_DIR}/validate_env.sh" "${ENV_FILE}"
+    fi
+
     log "Loading environment from ${ENV_FILE}"
     # shellcheck disable=SC1090
     set -a

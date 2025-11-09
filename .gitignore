@@ -77,3 +77,8 @@ MANIFEST
 # ──────────────────────────────
 # END OF FILE
 # ──────────────────────────────
+logs/
+nohup.out
+uploads/
+discord_bot/data/session_state.json
+logs/hippobot.pid

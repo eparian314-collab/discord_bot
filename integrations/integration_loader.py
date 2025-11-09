@@ -128,8 +128,20 @@ class HippoBot(commands.Bot):
                 await self.tree.sync()
                 logger.info("Γ£à Synced app commands globally (cleanup)")
                 for guild_id in self.test_guild_ids:
+<<<<<<< HEAD
                     synced = await self.tree.sync(guild=discord.Object(id=guild_id))
                     logger.info("Γ£à Synced %d app commands for guild %s", len(synced), guild_id)
+=======
+                    guild = self.get_guild(guild_id)
+                    if not guild:
+                        logger.warning("Skipping command sync for guild %s: not a member of that guild.", guild_id)
+                        continue
+                    try:
+                        synced = await self.tree.sync(guild=guild)
+                        logger.info("✅ Synced %d app commands for guild %s", len(synced), guild_id)
+                    except discord.Forbidden:
+                        logger.warning("Missing access syncing commands for guild %s; skipping.", guild_id)
+>>>>>>> dc054b5 (Update bot code, deployment scripts, and .gitignore to exclude sensitive/runtime files)
             else:
                 synced = await self.tree.sync()
                 logger.info("Γ£à Synced %d app commands globally", len(synced))

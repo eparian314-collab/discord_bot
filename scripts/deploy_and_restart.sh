@@ -30,6 +30,7 @@ if systemctl is-active --quiet discord_bot; then
     if systemctl is-active --quiet discord_bot; then
         log "✅ Bot restarted successfully"
         sudo journalctl -u discord_bot -n 20 --no-pager
+        sudo systemctl status discord_bot -n 5 --no-pager
     else
         log "❌ Bot failed to start"
         sudo journalctl -u discord_bot -n 50 --no-pager

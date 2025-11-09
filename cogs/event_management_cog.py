@@ -13,8 +13,12 @@ import asyncio
 import logging
 import os
 from datetime import datetime, timezone, timedelta
+<<<<<<< HEAD
 import inspect
 from typing import Any, Dict, List, Optional
+=======
+from typing import Any, List, Optional
+>>>>>>> dc054b5 (Update bot code, deployment scripts, and .gitignore to exclude sensitive/runtime files)
 
 import discord
 from discord import app_commands
@@ -88,7 +92,61 @@ class EventManagementCog(commands.Cog):
             await interaction.followup.send(msg, ephemeral=True)
         else:
             await interaction.response.send_message(msg, ephemeral=True)
+
+    async def _safe_send_response(
+        self,
+        interaction: discord.Interaction,
+        *,
+        content: str | None = None,
+        embed: discord.Embed | None = None,
+        ephemeral: bool = True
+    ) -> bool:
+        """Attempt to respond to an interaction without double-acknowledging."""
+        if content is None and embed is None:
+            return False
+
+        payload: dict[str, Any] = {"ephemeral": ephemeral}
+        if content is not None:
+            payload["content"] = content
+        if embed is not None:
+            payload["embed"] = embed
+
+        if interaction.response.is_done():
+            try:
+                await interaction.followup.send(**payload)
+                return True
+            except discord.NotFound:
+                logger.warning("Interaction follow-up not found while sending reply.")
+                return False
+            except discord.HTTPException as exc:
+                if exc.code == 40060:
+                    logger.warning("Interaction already acknowledged; skipping follow-up.")
+                    return False
+                raise
+
+        try:
+            await interaction.response.send_message(**payload)
+            return True
+        except discord.NotFound:
+            logger.warning("Interaction response not found while sending reply.")
+        except discord.HTTPException as exc:
+            if exc.code == 40060:
+                logger.warning("Interaction already acknowledged; skipping response.")
+            else:
+                raise
+        return False
     
+    async def _close_kvk_run_for_event(self, event_id: str) -> None:
+        """Close a KVK run that was tied to the given event, if any."""
+        if not self.kvk_tracker:
+            return
+        try:
+            closed_run = await self.kvk_tracker.close_run_for_event(event_id, reason="event deleted")
+            if closed_run:
+                logger.info("Closed KVK run %s linked to deleted event %s", closed_run.id, event_id)
+        except Exception as exc:
+            await self._log_error(exc, context="event.kvk-close")
+
     async def _add_personality(self, message: str, context: str = "general", user_name: str = "friend") -> str:
         """Helper to add personality to messages."""
         if self.personality and hasattr(self.personality, "add_personality"):
@@ -347,6 +405,15 @@ class EventManagementCog(commands.Cog):
         if not self.event_engine:
             await interaction.response.send_message("Event system not available.", ephemeral=True)
             return
+        if is_test_kvk:
+            already_test_active = await self.event_engine.has_active_test_kvk(interaction.guild.id)
+            if already_test_active:
+                await self._safe_send_response(
+                    interaction,
+                    content="A TEST KVK cycle is already scheduled on this server. Delete or await its completion before creating another.",
+                    ephemeral=True,
+                )
+                return
         
         try:
             removed_test_events: List[EventReminder] = []
@@ -405,7 +472,11 @@ class EventManagementCog(commands.Cog):
                 reminder_times=reminder_times,
                 channel_id=interaction.channel_id,
                 created_by=interaction.user.id,
+<<<<<<< HEAD
                 display_id=display_id,
+=======
+                is_test_kvk=is_test_kvk
+>>>>>>> dc054b5 (Update bot code, deployment scripts, and .gitignore to exclude sensitive/runtime files)
             )
             
             success = await self.event_engine.create_event(event)
@@ -472,6 +543,7 @@ class EventManagementCog(commands.Cog):
 
                 if description:
                     embed.add_field(name="Description", value=description, inline=False)
+<<<<<<< HEAD
 
                 if removed_test_events:
                     removed_lines = "\n".join(f"\u2022 {self._format_event_label(evt)}" for evt in removed_test_events[:5])
@@ -484,21 +556,25 @@ class EventManagementCog(commands.Cog):
                     )
 
                 await interaction.response.send_message(embed=embed, ephemeral=True)
+=======
+                
+                await self._safe_send_response(interaction, embed=embed, ephemeral=True)
+>>>>>>> dc054b5 (Update bot code, deployment scripts, and .gitignore to exclude sensitive/runtime files)
             else:
                 fail_msg = await self._add_personality(
                     "Failed to create event. Please try again.",
                     context="error",
                     user_name=interaction.user.display_name
                 )
-                await interaction.response.send_message(fail_msg, ephemeral=True)
+                await self._safe_send_response(interaction, content=fail_msg, ephemeral=True)
                 
         except Exception as exc:
             await self._log_error(exc, context="event.create")
-            # Check if we already responded before sending error message
-            if interaction.response.is_done():
-                await interaction.followup.send("An error occurred while creating the event.", ephemeral=True)
-            else:
-                await interaction.response.send_message("An error occurred while creating the event.", ephemeral=True)
+            await self._safe_send_response(
+                interaction,
+                content="An error occurred while creating the event.",
+                ephemeral=True
+            )
     
     @app_commands.command(name="event_list", description="📋 List all upcoming Top Heroes events (Admin)")
     async def list_events(self, interaction: discord.Interaction) -> None:
@@ -580,7 +656,7 @@ class EventManagementCog(commands.Cog):
             return
         
         if not self.event_engine:
-            await interaction.response.send_message("Event system not available.", ephemeral=True)
+            await self._safe_send_response(interaction, content="Event system not available.", ephemeral=True)
             return
         
         raw_identifier = identifier.strip()
@@ -706,6 +782,7 @@ class EventManagementCog(commands.Cog):
         
         try:
             events = await self.event_engine.get_events_for_guild(interaction.guild.id)
+<<<<<<< HEAD
             matches = self._match_events_by_identifier(events, event_id, exact=False, active_only=False)
             if not matches:
                 await interaction.response.send_message(
@@ -789,6 +866,29 @@ class EventManagementCog(commands.Cog):
                 await interaction.response.send_message(
                     "Provide at least one field to update.",
                     ephemeral=True,
+=======
+            
+            # Find matching event
+            matching_events = [
+                event for event in events 
+                if title.lower() in event.title.lower() and event.is_active
+            ]
+            
+            if not matching_events:
+                await self._safe_send_response(
+                    interaction,
+                    content=f"No active event found with title containing '{title}'.",
+                    ephemeral=True
+                )
+                return
+           
+            if len(matching_events) > 1:
+                titles = [f"• {event.title}" for event in matching_events[:5]]
+                await self._safe_send_response(
+                    interaction,
+                    content=f"Multiple events found. Be more specific:\n" + "\n".join(titles),
+                    ephemeral=True
+>>>>>>> dc054b5 (Update bot code, deployment scripts, and .gitignore to exclude sensitive/runtime files)
                 )
                 return
             
@@ -797,6 +897,7 @@ class EventManagementCog(commands.Cog):
                 await interaction.response.send_message("Failed to update event. Please try again.", ephemeral=True)
                 return
             
+<<<<<<< HEAD
             embed = discord.Embed(
                 title="?? Event updated",
                 description=self._format_event_label(event),
@@ -812,6 +913,83 @@ class EventManagementCog(commands.Cog):
             else:
                 await interaction.response.send_message("An error occurred while editing the event.", ephemeral=True)
 
+=======
+            if success:
+                await self._safe_send_response(
+                    interaction,
+                    content=f"✅ Deleted event: **{event.title}**",
+                    ephemeral=True
+                )
+                if event.is_test_kvk:
+                    await self._close_kvk_run_for_event(event.event_id)
+            else:
+                await self._safe_send_response(
+                    interaction,
+                    content="Failed to delete event. Please try again.",
+                    ephemeral=True
+                )
+                
+        except Exception as exc:
+            await self._log_error(exc, context="event.delete")
+            await self._safe_send_response(
+                interaction,
+                content="An error occurred while deleting the event.",
+                ephemeral=True
+            )
+
+    @app_commands.command(
+        name="test_kvk_status",
+        description="🧪 Show any active Test KVK cycles (Admin)"
+    )
+    async def test_kvk_status(self, interaction: discord.Interaction) -> None:
+        """Report whether a Test KVK window is currently scheduled."""
+        if not interaction.guild:
+            await self._safe_send_response(interaction, content="This command must be used in a server.", ephemeral=True)
+            return
+
+        if not self._has_permission(interaction):
+            await self._deny_permission(interaction)
+            return
+
+        if not self.event_engine:
+            await self._safe_send_response(interaction, content="Event system not available.", ephemeral=True)
+            return
+
+        active_tests = await self.event_engine.get_active_test_kvk_events(interaction.guild.id)
+        if not active_tests:
+            await self._safe_send_response(
+                interaction,
+                content="No active Test KVK cycles are currently scheduled.",
+                ephemeral=True
+            )
+            return
+
+        embed = discord.Embed(
+            title="🧪 Active Test KVK Cycles",
+            color=discord.Color.purple(),
+            description="The following test KVK windows are still scheduled."
+        )
+
+        now = datetime.now(timezone.utc)
+        for event in active_tests:
+            next_occurrence = event.get_next_occurrence(now)
+            next_label = next_occurrence.strftime("%Y-%m-%d %H:%M UTC") if next_occurrence else "N/A"
+            event_time = event.event_time_utc.strftime("%Y-%m-%d %H:%M UTC")
+            channel_info = f"<#{event.channel_id}>" if event.channel_id else "Not specified"
+            embed.add_field(
+                name=event.title,
+                value=(
+                    f"Start: {event_time}\n"
+                    f"Next reminder: {next_label}\n"
+                    f"Channel: {channel_info}\n"
+                    f"Recurrence: {event.recurrence.value.title()}"
+                ),
+                inline=False
+            )
+
+        await self._safe_send_response(interaction, embed=embed, ephemeral=True)
+    
+>>>>>>> dc054b5 (Update bot code, deployment scripts, and .gitignore to exclude sensitive/runtime files)
     @app_commands.command(name="events", description="🗓️ Show upcoming Top Heroes events (Public)")
     async def show_public_events(self, interaction: discord.Interaction) -> None:
         """Show upcoming events in a public message."""

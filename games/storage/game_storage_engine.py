@@ -140,6 +140,7 @@ class GameStorageEngine:
                 is_active INTEGER DEFAULT 1,
                 auto_scraped INTEGER DEFAULT 0,
                 source_url TEXT,
+                is_test_kvk INTEGER DEFAULT 0,
                 created_at TEXT DEFAULT CURRENT_TIMESTAMP
             );
             """)
@@ -256,6 +257,7 @@ class GameStorageEngine:
             """)
 
             self._ensure_event_ranking_columns()
+            self._ensure_event_reminder_columns()
 
     def _ensure_user_aux_columns(self) -> None:
         """Ensure auxiliary tracking columns exist on the users table."""
@@ -276,6 +278,14 @@ class GameStorageEngine:
             self.conn.execute("ALTER TABLE event_rankings ADD COLUMN kvk_run_id INTEGER")
         if "is_test_run" not in columns:
             self.conn.execute("ALTER TABLE event_rankings ADD COLUMN is_test_run INTEGER DEFAULT 0")
+
+    def _ensure_event_reminder_columns(self) -> None:
+        """Ensure recent event reminder fields exist."""
+        cursor = self.conn.cursor()
+        cursor.execute("PRAGMA table_info(event_reminders)")
+        columns = {row["name"] for row in cursor.fetchall()}
+        if "is_test_kvk" not in columns:
+            self.conn.execute("ALTER TABLE event_reminders ADD COLUMN is_test_kvk INTEGER DEFAULT 0")
 
     def add_user(self, user_id: str) -> None:
         """Initialize a new user with default values."""
@@ -858,11 +868,11 @@ class GameStorageEngine:
             with self.conn:
                 self.conn.execute("""
                     INSERT INTO event_reminders (
-                        event_id, guild_id, title, description, category,
-                        event_time_utc, recurrence, custom_interval_hours,
-                        reminder_times, channel_id, role_to_ping, created_by,
-                        is_active, auto_scraped, source_url
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    event_id, guild_id, title, description, category,
+                    event_time_utc, recurrence, custom_interval_hours,
+                    reminder_times, channel_id, role_to_ping, created_by,
+                    is_active, auto_scraped, is_test_kvk, source_url
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """, (
                     event_data['event_id'],
                     event_data['guild_id'],
@@ -878,6 +888,7 @@ class GameStorageEngine:
                     event_data.get('created_by', 0),
                     event_data.get('is_active', 1),
                     event_data.get('auto_scraped', 0),
+                    event_data.get('is_test_kvk', 0),
                     event_data.get('source_url')
                 ))
             return True
