@@ -104,6 +104,21 @@ class InputEngine:
         self._sos_message_cleanup_task = loop.create_task(self._cleanup_processed_messages())
 
     async def handle_message(self, message: discord.Message) -> None:
+        """
+        Central message handler for all incoming Discord messages.
+        
+        Processing order:
+        1. Filter: Skip bot messages and empty content
+        2. Session tracking: Record event for analytics
+        3. SOS detection: Check for emergency keywords → broadcast alerts + translated DMs
+        4. Reply translation: If replying to another user → translate for them (ephemeral)
+        5. Standard path: DISABLED (legacy auto-DM translation removed)
+        
+        Active translation features:
+        - /translate commands (via TranslationCog)
+        - Reply-based mirror translation (user replies to another user)
+        - SOS emergency broadcasts with translated DMs
+        """
         # Ensure deferred cleanup task starts once we are inside an event loop
         self._ensure_cleanup_task()
 
@@ -134,12 +149,12 @@ class InputEngine:
             await self._trigger_sos(message, emergency_payload)
             return
 
-        # Reply-based mirror translation
+        # Reply-based mirror translation (user replying to another user)
         if message.reference and message.reference.resolved:
             await self._handle_mirror_reply(message)
             return
 
-        # Standard translation path
+        # Standard translation path (DISABLED - see _handle_standard for details)
         await self._handle_standard(message)
 
     async def handle_raw_reaction_add(self, payload: discord.RawReactionActionEvent) -> None:
@@ -160,24 +175,25 @@ class InputEngine:
     # Core routing helpers
     # ------------------------------------------------------------------
     async def _handle_standard(self, message: discord.Message) -> None:
-        guild_id = message.guild.id if message.guild else 0
-        author_id = message.author.id
-        content = safe_truncate((message.content or "").strip())
-        channel_id = getattr(message.channel, "id", None)
-
-        job_env = await self._build_job_for_author(guild_id, author_id, content, channel_id=channel_id)
-        if not job_env:
-            return
-
-        job = job_env.get("job")
-        if not job:
-            return
-
-        translated = await self._execute_job(job, guild_id=guild_id, author_id=author_id, original_text=content, channel_id=channel_id)
-        if not translated:
-            return
-
-        await self.output.send_dm(message.author, translated)
+        """
+        Legacy auto-translation feature disabled.
+        
+        Previously: Would translate every user message and DM them if they had a non-English language role.
+        Problem: Created spam by translating users' own messages back to them.
+        
+        This feature is now disabled. Translation only happens via:
+        1. Explicit /translate commands
+        2. Reply-based mirror translation (_handle_mirror_reply)
+        3. SOS emergency translations
+        """
+        # Legacy auto-DM translation disabled - this was causing unnecessary translation triggers
+        # on every message for users with language roles, creating spam and wasted API calls.
+        # 
+        # If you need to re-enable for specific use cases, consider:
+        # - Making it opt-in with a user preference setting
+        # - Only translating in designated translation channels
+        # - Requiring explicit user action (command/reaction) to trigger
+        return
 
     async def _handle_mirror_reply(self, message: discord.Message) -> None:
         guild_id = message.guild.id if message.guild else 0
