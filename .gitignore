@@ -27,16 +27,7 @@ env.bak/
 pip-wheel-metadata/
 dist/
 build/
-# Logs and database files
-*.log
-*.sqlite
-*.db
-*.db-journal
-*.sqlite3
-/core/storage/baby_hippo.db
-/core/storage/*.json
-/cache/
-*.bak
+
 
 # OS-specific files
 .DS_Store
@@ -61,18 +52,11 @@ htmlcov/
 tmp/
 temp/
 
-# Distribution and packaging
-*.egg
-*.egg-info/
-.eggs/
-MANIFEST
 
-# GitHub / CI
-.github/workflows/__pycache__/
-.gitignore.bak
 
-# Ignore WSL virtual environment
-.wslvenv/
+
+
+
 
 # ──────────────────────────────
 # END OF FILE

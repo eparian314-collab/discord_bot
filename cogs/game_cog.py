@@ -79,7 +79,7 @@ class GameCog(commands.Cog):
             )
             return False
         
-        if not is_allowed_channel(interaction.channel.id):
+        if not is_allowed_channel(interaction.channel):
             await safe_send_interaction_response(
                 interaction,
                 content=(

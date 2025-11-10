@@ -1,0 +1,560 @@
+2025-11-03 13:34:06,285 INFO  hippo_bot.main [corr=87590f1b4a3a427b8ed62ba8557f0979] 🚀 Starting HippoBot (instance=87590f1b4a3a427b8ed62ba8557f0979)
+2025-11-03 13:34:06,524 WARNING discord.client [corr=87590f1b4a3a427b8ed62ba8557f0979] PyNaCl is not installed, voice will NOT be supported
+2025-11-03 13:34:06,525 INFO  hippo_bot.integration_loader [corr=87590f1b4a3a427b8ed62ba8557f0979] 🛠️ Preparing engines and integrations
+2025-11-03 13:34:06,525 INFO  hippo_bot.input_engine [corr=87590f1b4a3a427b8ed62ba8557f0979] InputEngine initialised
+2025-11-03 13:34:06,537 INFO  hippo_bot.google_translate_adapter [corr=87590f1b4a3a427b8ed62ba8557f0979] Google Translate adapter initialized (100+ languages)
+2025-11-03 13:34:06,537 INFO  hippo_bot.integration_loader [corr=87590f1b4a3a427b8ed62ba8557f0979] TranslationOrchestratorEngine created (DeepL ➜ MyMemory ➜ Google Translate)
+2025-11-03 13:34:06,538 INFO  hippo_bot.integration_loader [corr=87590f1b4a3a427b8ed62ba8557f0979] 📦 Engine registry snapshot (post-enable): ✅ ready: admin_ui_engine, translationui_engine
+2025-11-03 13:34:06,538 INFO  hippo_bot.integration_loader [corr=87590f1b4a3a427b8ed62ba8557f0979] 📦 Engine registry snapshot (ready): ✅ ready: admin_ui_engine, translationui_engine
+2025-11-03 13:34:07,339 INFO  hippo_bot.integration_loader [corr=87590f1b4a3a427b8ed62ba8557f0979] ⚙️ Mounted cogs: translation, admin, help, language, sos, events, ranking, easteregg, game
+2025-11-03 13:34:10,262 INFO  hippo_bot.integration_loader [corr=87590f1b4a3a427b8ed62ba8557f0979] HippoBot logged in as Baby Hippo#0405 (1422308496279339118)
+2025-11-03 13:34:11,318 INFO  hippo_bot.integration_loader [corr=87590f1b4a3a427b8ed62ba8557f0979] Command sync complete (schema_version=1, global: 22)
+2025-11-03 13:34:12,168 INFO  hippo_bot.integration_loader [corr=87590f1b4a3a427b8ed62ba8557f0979] Sent startup message to guild TheAwakeningOnes in channel 💬membership-chat🥂
+2025-11-03 13:34:12,363 INFO  hippo_bot.integration_loader [corr=87590f1b4a3a427b8ed62ba8557f0979] Sent startup message to guild mars._.3's server in channel general
+2025-11-03 13:34:49,229 INFO  hippo_bot.main [corr=87590f1b4a3a427b8ed62ba8557f0979] 🛑 HippoBot shut down cleanly.
+2025-11-03 13:34:49,244 INFO  hippo_bot.input_engine [corr=87590f1b4a3a427b8ed62ba8557f0979] SOS message cleanup task cancelled
+2025-11-03 13:45:12,153 INFO  hippo_bot.main [corr=808114c093754a278e9cfda7d565fbd6] 🚀 Starting HippoBot (instance=808114c093754a278e9cfda7d565fbd6)
+2025-11-03 13:45:12,396 INFO  hippo_bot.integration_loader [corr=808114c093754a278e9cfda7d565fbd6] 🛠️ Preparing engines and integrations
+2025-11-03 13:45:12,397 INFO  hippo_bot.input_engine [corr=808114c093754a278e9cfda7d565fbd6] InputEngine initialised
+2025-11-03 13:45:12,410 INFO  hippo_bot.google_translate_adapter [corr=808114c093754a278e9cfda7d565fbd6] Google Translate adapter initialized (100+ languages)
+2025-11-03 13:45:12,410 INFO  hippo_bot.integration_loader [corr=808114c093754a278e9cfda7d565fbd6] TranslationOrchestratorEngine created (DeepL ➜ MyMemory ➜ Google Translate)
+2025-11-03 13:45:12,411 INFO  hippo_bot.integration_loader [corr=808114c093754a278e9cfda7d565fbd6] 📦 Engine registry snapshot (post-enable): ✅ ready: admin_ui_engine, translationui_engine
+2025-11-03 13:45:12,411 INFO  hippo_bot.integration_loader [corr=808114c093754a278e9cfda7d565fbd6] 📦 Engine registry snapshot (ready): ✅ ready: admin_ui_engine, translationui_engine
+2025-11-03 13:45:13,162 INFO  hippo_bot.integration_loader [corr=808114c093754a278e9cfda7d565fbd6] ⚙️ Mounted cogs: translation, admin, help, language, sos, events, ranking, easteregg, game
+2025-11-03 13:45:15,767 INFO  hippo_bot.integration_loader [corr=808114c093754a278e9cfda7d565fbd6] HippoBot logged in as Baby Hippo#0405 (1422308496279339118)
+2025-11-03 13:45:16,266 INFO  hippo_bot.integration_loader [corr=808114c093754a278e9cfda7d565fbd6] Command sync complete (schema_version=1, global: 22)
+2025-11-03 13:45:17,011 INFO  hippo_bot.integration_loader [corr=808114c093754a278e9cfda7d565fbd6] Sent startup message to guild TheAwakeningOnes in channel 💬membership-chat🥂
+2025-11-03 13:45:17,273 INFO  hippo_bot.integration_loader [corr=808114c093754a278e9cfda7d565fbd6] Sent startup message to guild mars._.3's server in channel general
+2025-11-03 13:46:11,165 ERROR discord.app_commands.tree [corr=808114c093754a278e9cfda7d565fbd6] Ignoring exception in command 'easteregg'
+Traceback (most recent call last):
+  File "C:\Users\Eugen\AppData\Local\Programs\Python\Python311\Lib\site-packages\discord\app_commands\commands.py", line 827, in _do_call
+    return await self._callback(self.binding, interaction, **params)  # type: ignore
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\discord_bot\discord_bot\cogs\easteregg_cog.py", line 140, in easter_egg
+    if self.storage and self.storage.is_muted(user_id):
+                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\discord_bot\discord_bot\games\storage\game_storage_engine.py", line 733, in is_muted
+    cursor.execute("SELECT mute_until FROM users WHERE user_id = ?", (user_id,))
+sqlite3.OperationalError: no such column: mute_until
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Users\Eugen\AppData\Local\Programs\Python\Python311\Lib\site-packages\discord\app_commands\tree.py", line 1248, in _call
+    await command._invoke_with_namespace(interaction, namespace)
+  File "C:\Users\Eugen\AppData\Local\Programs\Python\Python311\Lib\site-packages\discord\app_commands\commands.py", line 853, in _invoke_with_namespace
+    return await self._do_call(interaction, transformed_values)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Eugen\AppData\Local\Programs\Python\Python311\Lib\site-packages\discord\app_commands\commands.py", line 846, in _do_call
+    raise CommandInvokeError(self, e) from e
+discord.app_commands.errors.CommandInvokeError: Command 'easteregg' raised an exception: OperationalError: no such column: mute_until
+2025-11-03 14:15:55,143 INFO  hippo_bot.integration_loader [corr=808114c093754a278e9cfda7d565fbd6] HippoBot logged in as Baby Hippo#0405 (1422308496279339118)
+2025-11-03 14:16:29,173 INFO  hippo_bot.main [corr=808114c093754a278e9cfda7d565fbd6] 🛑 HippoBot shut down cleanly.
+2025-11-03 14:16:29,181 INFO  hippo_bot.input_engine [corr=808114c093754a278e9cfda7d565fbd6] SOS message cleanup task cancelled
+2025-11-03 14:19:24,711 INFO  hippo_bot.main [corr=cc997d5fa40e4e45b58dc45e0f52c304] 🚀 Starting HippoBot (instance=cc997d5fa40e4e45b58dc45e0f52c304)
+2025-11-03 14:19:24,833 INFO  hippo_bot.integration_loader [corr=cc997d5fa40e4e45b58dc45e0f52c304] 🛠️ Preparing engines and integrations
+2025-11-03 14:19:24,834 INFO  hippo_bot.input_engine [corr=cc997d5fa40e4e45b58dc45e0f52c304] InputEngine initialised
+2025-11-03 14:19:24,842 INFO  hippo_bot.google_translate_adapter [corr=cc997d5fa40e4e45b58dc45e0f52c304] Google Translate adapter initialized (100+ languages)
+2025-11-03 14:19:24,842 INFO  hippo_bot.integration_loader [corr=cc997d5fa40e4e45b58dc45e0f52c304] TranslationOrchestratorEngine created (DeepL ➜ MyMemory ➜ Google Translate)
+2025-11-03 14:19:24,843 INFO  hippo_bot.integration_loader [corr=cc997d5fa40e4e45b58dc45e0f52c304] 📦 Engine registry snapshot (post-enable): ✅ ready: admin_ui_engine, translationui_engine
+2025-11-03 14:19:24,843 INFO  hippo_bot.integration_loader [corr=cc997d5fa40e4e45b58dc45e0f52c304] 📦 Engine registry snapshot (ready): ✅ ready: admin_ui_engine, translationui_engine
+2025-11-03 14:19:27,246 INFO  hippo_bot.integration_loader [corr=cc997d5fa40e4e45b58dc45e0f52c304] ⚙️ Mounted cogs: translation, admin, help, language, sos, events, ranking, easteregg, game
+2025-11-03 14:19:31,621 INFO  hippo_bot.integration_loader [corr=cc997d5fa40e4e45b58dc45e0f52c304] HippoBot logged in as Baby Hippo#0405 (1422308496279339118)
+2025-11-03 14:19:32,838 INFO  hippo_bot.integration_loader [corr=cc997d5fa40e4e45b58dc45e0f52c304] Command sync complete (schema_version=1, global: 22)
+2025-11-03 14:19:34,038 INFO  hippo_bot.integration_loader [corr=cc997d5fa40e4e45b58dc45e0f52c304] Sent startup message to guild TheAwakeningOnes in channel 💬membership-chat🥂
+2025-11-03 14:19:34,289 INFO  hippo_bot.integration_loader [corr=cc997d5fa40e4e45b58dc45e0f52c304] Sent startup message to guild mars._.3's server in channel general
+2025-11-03 14:19:43,291 ERROR discord.app_commands.tree [corr=cc997d5fa40e4e45b58dc45e0f52c304] Ignoring exception in command 'leaderboard'
+Traceback (most recent call last):
+  File "C:\Users\Eugen\AppData\Local\Programs\Python\Python311\Lib\site-packages\discord\app_commands\tree.py", line 1248, in _call
+    await command._invoke_with_namespace(interaction, namespace)
+  File "C:\Users\Eugen\AppData\Local\Programs\Python\Python311\Lib\site-packages\discord\app_commands\commands.py", line 853, in _invoke_with_namespace
+    return await self._do_call(interaction, transformed_values)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Eugen\AppData\Local\Programs\Python\Python311\Lib\site-packages\discord\app_commands\commands.py", line 841, in _do_call
+    raise CommandSignatureMismatch(self) from None
+discord.app_commands.errors.CommandSignatureMismatch: The signature for command 'leaderboard' is different from the one provided by Discord. This can happen because either your code is out of date or you have not synced the commands with Discord, causing the mismatch in data. It is recommended to sync the command tree to fix this issue.
+2025-11-03 14:19:48,525 ERROR discord.app_commands.tree [corr=cc997d5fa40e4e45b58dc45e0f52c304] Ignoring exception in command 'view'
+Traceback (most recent call last):
+  File "C:\Users\Eugen\AppData\Local\Programs\Python\Python311\Lib\site-packages\discord\app_commands\tree.py", line 1248, in _call
+    await command._invoke_with_namespace(interaction, namespace)
+  File "C:\Users\Eugen\AppData\Local\Programs\Python\Python311\Lib\site-packages\discord\app_commands\commands.py", line 853, in _invoke_with_namespace
+    return await self._do_call(interaction, transformed_values)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Eugen\AppData\Local\Programs\Python\Python311\Lib\site-packages\discord\app_commands\commands.py", line 841, in _do_call
+    raise CommandSignatureMismatch(self) from None
+discord.app_commands.errors.CommandSignatureMismatch: The signature for command 'view' is different from the one provided by Discord. This can happen because either your code is out of date or you have not synced the commands with Discord, causing the mismatch in data. It is recommended to sync the command tree to fix this issue.
+2025-11-03 14:20:34,740 ERROR discord.app_commands.tree [corr=cc997d5fa40e4e45b58dc45e0f52c304] Ignoring exception in command 'submit'
+Traceback (most recent call last):
+  File "C:\Users\Eugen\AppData\Local\Programs\Python\Python311\Lib\site-packages\discord\app_commands\tree.py", line 1248, in _call
+    await command._invoke_with_namespace(interaction, namespace)
+  File "C:\Users\Eugen\AppData\Local\Programs\Python\Python311\Lib\site-packages\discord\app_commands\commands.py", line 853, in _invoke_with_namespace
+    return await self._do_call(interaction, transformed_values)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Eugen\AppData\Local\Programs\Python\Python311\Lib\site-packages\discord\app_commands\commands.py", line 841, in _do_call
+    raise CommandSignatureMismatch(self) from None
+discord.app_commands.errors.CommandSignatureMismatch: The signature for command 'submit' is different from the one provided by Discord. This can happen because either your code is out of date or you have not synced the commands with Discord, causing the mismatch in data. It is recommended to sync the command tree to fix this issue.
+2025-11-03 14:20:51,691 ERROR discord.app_commands.tree [corr=cc997d5fa40e4e45b58dc45e0f52c304] Ignoring exception in command 'catch'
+Traceback (most recent call last):
+  File "C:\Users\Eugen\AppData\Local\Programs\Python\Python311\Lib\site-packages\discord\app_commands\commands.py", line 827, in _do_call
+    return await self._callback(self.binding, interaction, **params)  # type: ignore
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\discord_bot\discord_bot\cogs\game_cog.py", line 508, in catch
+    caught, pokemon = self.pokemon_game.attempt_catch(user_id, encounter)
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\discord_bot\discord_bot\games\pokemon_game.py", line 265, in attempt_catch
+    pokemon_id = self.storage.add_pokemon(
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\discord_bot\discord_bot\games\storage\game_storage_engine.py", line 484, in add_pokemon
+    cursor = self.conn.execute("""
+             ^^^^^^^^^^^^^^^^^^^^^
+sqlite3.OperationalError: table pokemon has no column named hp
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Users\Eugen\AppData\Local\Programs\Python\Python311\Lib\site-packages\discord\app_commands\tree.py", line 1248, in _call
+    await command._invoke_with_namespace(interaction, namespace)
+  File "C:\Users\Eugen\AppData\Local\Programs\Python\Python311\Lib\site-packages\discord\app_commands\commands.py", line 853, in _invoke_with_namespace
+    return await self._do_call(interaction, transformed_values)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Eugen\AppData\Local\Programs\Python\Python311\Lib\site-packages\discord\app_commands\commands.py", line 846, in _do_call
+    raise CommandInvokeError(self, e) from e
+discord.app_commands.errors.CommandInvokeError: Command 'catch' raised an exception: OperationalError: table pokemon has no column named hp
+2025-11-03 14:21:13,633 ERROR discord.app_commands.tree [corr=cc997d5fa40e4e45b58dc45e0f52c304] Ignoring exception in command 'explore'
+Traceback (most recent call last):
+  File "C:\Users\Eugen\AppData\Local\Programs\Python\Python311\Lib\site-packages\discord\app_commands\commands.py", line 827, in _do_call
+    return await self._callback(self.binding, interaction, **params)  # type: ignore
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\discord_bot\discord_bot\cogs\game_cog.py", line 649, in explore
+    caught, pokemon = self.pokemon_game.attempt_catch(user_id, encounter)
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\discord_bot\discord_bot\games\pokemon_game.py", line 265, in attempt_catch
+    pokemon_id = self.storage.add_pokemon(
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\discord_bot\discord_bot\games\storage\game_storage_engine.py", line 484, in add_pokemon
+    cursor = self.conn.execute("""
+             ^^^^^^^^^^^^^^^^^^^^^
+sqlite3.OperationalError: table pokemon has no column named hp
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Users\Eugen\AppData\Local\Programs\Python\Python311\Lib\site-packages\discord\app_commands\tree.py", line 1248, in _call
+    await command._invoke_with_namespace(interaction, namespace)
+  File "C:\Users\Eugen\AppData\Local\Programs\Python\Python311\Lib\site-packages\discord\app_commands\commands.py", line 853, in _invoke_with_namespace
+    return await self._do_call(interaction, transformed_values)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Eugen\AppData\Local\Programs\Python\Python311\Lib\site-packages\discord\app_commands\commands.py", line 846, in _do_call
+    raise CommandInvokeError(self, e) from e
+discord.app_commands.errors.CommandInvokeError: Command 'explore' raised an exception: OperationalError: table pokemon has no column named hp
+2025-11-03 14:21:51,262 ERROR discord.app_commands.tree [corr=cc997d5fa40e4e45b58dc45e0f52c304] Ignoring exception in command 'rps'
+Traceback (most recent call last):
+  File "C:\Users\Eugen\AppData\Local\Programs\Python\Python311\Lib\site-packages\discord\app_commands\commands.py", line 827, in _do_call
+    return await self._callback(self.binding, interaction, **params)  # type: ignore
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\discord_bot\discord_bot\cogs\easteregg_cog.py", line 269, in rps
+    if choice not in self.RPS_CHOICES:
+                     ^^^^^^^^^^^^^^^^
+AttributeError: 'GameCog' object has no attribute 'RPS_CHOICES'
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Users\Eugen\AppData\Local\Programs\Python\Python311\Lib\site-packages\discord\app_commands\tree.py", line 1248, in _call
+    await command._invoke_with_namespace(interaction, namespace)
+  File "C:\Users\Eugen\AppData\Local\Programs\Python\Python311\Lib\site-packages\discord\app_commands\commands.py", line 853, in _invoke_with_namespace
+    return await self._do_call(interaction, transformed_values)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Eugen\AppData\Local\Programs\Python\Python311\Lib\site-packages\discord\app_commands\commands.py", line 846, in _do_call
+    raise CommandInvokeError(self, e) from e
+discord.app_commands.errors.CommandInvokeError: Command 'rps' raised an exception: AttributeError: 'GameCog' object has no attribute 'RPS_CHOICES'
+2025-11-03 14:21:54,268 ERROR discord.app_commands.tree [corr=cc997d5fa40e4e45b58dc45e0f52c304] Ignoring exception in command 'easteregg'
+Traceback (most recent call last):
+  File "C:\Users\Eugen\AppData\Local\Programs\Python\Python311\Lib\site-packages\discord\app_commands\commands.py", line 827, in _do_call
+    return await self._callback(self.binding, interaction, **params)  # type: ignore
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\discord_bot\discord_bot\cogs\easteregg_cog.py", line 208, in easter_egg
+    await interaction.response.send_message("\n\n".join(response_parts), ephemeral=True)
+  File "C:\Users\Eugen\AppData\Local\Programs\Python\Python311\Lib\site-packages\discord\interactions.py", line 801, in send_message
+    await adapter.create_interaction_response(
+  File "C:\Users\Eugen\AppData\Local\Programs\Python\Python311\Lib\site-packages\discord\webhook\async_.py", line 221, in request
+    raise HTTPException(response, data)
+discord.errors.HTTPException: 400 Bad Request (error code: 40060): Interaction has already been acknowledged.
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Users\Eugen\AppData\Local\Programs\Python\Python311\Lib\site-packages\discord\app_commands\tree.py", line 1248, in _call
+    await command._invoke_with_namespace(interaction, namespace)
+  File "C:\Users\Eugen\AppData\Local\Programs\Python\Python311\Lib\site-packages\discord\app_commands\commands.py", line 853, in _invoke_with_namespace
+    return await self._do_call(interaction, transformed_values)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Eugen\AppData\Local\Programs\Python\Python311\Lib\site-packages\discord\app_commands\commands.py", line 846, in _do_call
+    raise CommandInvokeError(self, e) from e
+discord.app_commands.errors.CommandInvokeError: Command 'easteregg' raised an exception: HTTPException: 400 Bad Request (error code: 40060): Interaction has already been acknowledged.
+2025-11-03 14:22:36,671 INFO  hippo_bot.input_engine [corr=cc997d5fa40e4e45b58dc45e0f52c304] SOS mapping set for guild 1368251858363355196: {'test': 'test'}
+2025-11-03 14:22:38,073 ERROR discord.app_commands.tree [corr=cc997d5fa40e4e45b58dc45e0f52c304] Ignoring exception in command 'feed'
+Traceback (most recent call last):
+  File "C:\Users\Eugen\AppData\Local\Programs\Python\Python311\Lib\site-packages\discord\app_commands\commands.py", line 827, in _do_call
+    return await self._callback(self.binding, interaction, **params)  # type: ignore
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\discord_bot\discord_bot\cogs\game_cog.py", line 212, in feed
+    await interaction.response.send_message(embed=embed)
+  File "C:\Users\Eugen\AppData\Local\Programs\Python\Python311\Lib\site-packages\discord\interactions.py", line 801, in send_message
+    await adapter.create_interaction_response(
+  File "C:\Users\Eugen\AppData\Local\Programs\Python\Python311\Lib\site-packages\discord\webhook\async_.py", line 219, in request
+    raise NotFound(response, data)
+discord.errors.NotFound: 404 Not Found (error code: 10062): Unknown interaction
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Users\Eugen\AppData\Local\Programs\Python\Python311\Lib\site-packages\discord\app_commands\tree.py", line 1248, in _call
+    await command._invoke_with_namespace(interaction, namespace)
+  File "C:\Users\Eugen\AppData\Local\Programs\Python\Python311\Lib\site-packages\discord\app_commands\commands.py", line 853, in _invoke_with_namespace
+    return await self._do_call(interaction, transformed_values)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Eugen\AppData\Local\Programs\Python\Python311\Lib\site-packages\discord\app_commands\commands.py", line 846, in _do_call
+    raise CommandInvokeError(self, e) from e
+discord.app_commands.errors.CommandInvokeError: Command 'feed' raised an exception: NotFound: 404 Not Found (error code: 10062): Unknown interaction
+2025-11-03 14:22:52,395 INFO  hippo_bot.input_engine [corr=cc997d5fa40e4e45b58dc45e0f52c304] SOS context cleared for guild 1368251858363355196 (keywords=True, cooldown=True, processed=True)
+2025-11-03 14:22:52,395 INFO  hippo_bot.input_engine [corr=cc997d5fa40e4e45b58dc45e0f52c304] SOS mapping cleared for guild 1368251858363355196 via set_sos_mapping.
+2025-11-03 14:22:52,565 ERROR discord.app_commands.tree [corr=cc997d5fa40e4e45b58dc45e0f52c304] Ignoring exception in command 'sos_clear'
+Traceback (most recent call last):
+  File "C:\Users\Eugen\AppData\Local\Programs\Python\Python311\Lib\site-packages\discord\app_commands\commands.py", line 827, in _do_call
+    return await self._callback(self.binding, interaction, **params)  # type: ignore
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\discord_bot\discord_bot\cogs\sos_phrase_cog.py", line 138, in sos_clear
+    await interaction.response.send_message("Cleared all SOS keywords for this guild.", ephemeral=True)
+  File "C:\Users\Eugen\AppData\Local\Programs\Python\Python311\Lib\site-packages\discord\interactions.py", line 801, in send_message
+    await adapter.create_interaction_response(
+  File "C:\Users\Eugen\AppData\Local\Programs\Python\Python311\Lib\site-packages\discord\webhook\async_.py", line 219, in request
+    raise NotFound(response, data)
+discord.errors.NotFound: 404 Not Found (error code: 10062): Unknown interaction
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Users\Eugen\AppData\Local\Programs\Python\Python311\Lib\site-packages\discord\app_commands\tree.py", line 1248, in _call
+    await command._invoke_with_namespace(interaction, namespace)
+  File "C:\Users\Eugen\AppData\Local\Programs\Python\Python311\Lib\site-packages\discord\app_commands\commands.py", line 853, in _invoke_with_namespace
+    return await self._do_call(interaction, transformed_values)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Eugen\AppData\Local\Programs\Python\Python311\Lib\site-packages\discord\app_commands\commands.py", line 846, in _do_call
+    raise CommandInvokeError(self, e) from e
+discord.app_commands.errors.CommandInvokeError: Command 'sos_clear' raised an exception: NotFound: 404 Not Found (error code: 10062): Unknown interaction
+2025-11-03 14:23:22,156 ERROR discord.app_commands.tree [corr=cc997d5fa40e4e45b58dc45e0f52c304] Ignoring exception in command 'mute'
+Traceback (most recent call last):
+  File "C:\discord_bot\discord_bot\cogs\admin_cog.py", line 295, in mute_user
+    await interaction.response.send_message(
+  File "C:\Users\Eugen\AppData\Local\Programs\Python\Python311\Lib\site-packages\discord\interactions.py", line 801, in send_message
+    await adapter.create_interaction_response(
+  File "C:\Users\Eugen\AppData\Local\Programs\Python\Python311\Lib\site-packages\discord\webhook\async_.py", line 219, in request
+    raise NotFound(response, data)
+discord.errors.NotFound: 404 Not Found (error code: 10062): Unknown interaction
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\Users\Eugen\AppData\Local\Programs\Python\Python311\Lib\site-packages\discord\app_commands\commands.py", line 827, in _do_call
+    return await self._callback(self.binding, interaction, **params)  # type: ignore
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\discord_bot\discord_bot\cogs\admin_cog.py", line 302, in mute_user
+    await interaction.response.send_message(f"❌ Failed to mute user: {e}", ephemeral=True)
+  File "C:\Users\Eugen\AppData\Local\Programs\Python\Python311\Lib\site-packages\discord\interactions.py", line 801, in send_message
+    await adapter.create_interaction_response(
+  File "C:\Users\Eugen\AppData\Local\Programs\Python\Python311\Lib\site-packages\discord\webhook\async_.py", line 221, in request
+    raise HTTPException(response, data)
+discord.errors.HTTPException: 400 Bad Request (error code: 40060): Interaction has already been acknowledged.
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Users\Eugen\AppData\Local\Programs\Python\Python311\Lib\site-packages\discord\app_commands\tree.py", line 1248, in _call
+    await command._invoke_with_namespace(interaction, namespace)
+  File "C:\Users\Eugen\AppData\Local\Programs\Python\Python311\Lib\site-packages\discord\app_commands\commands.py", line 853, in _invoke_with_namespace
+    return await self._do_call(interaction, transformed_values)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Eugen\AppData\Local\Programs\Python\Python311\Lib\site-packages\discord\app_commands\commands.py", line 846, in _do_call
+    raise CommandInvokeError(self, e) from e
+discord.app_commands.errors.CommandInvokeError: Command 'mute' raised an exception: HTTPException: 400 Bad Request (error code: 40060): Interaction has already been acknowledged.
+2025-11-03 14:23:26,681 ERROR discord.app_commands.tree [corr=cc997d5fa40e4e45b58dc45e0f52c304] Ignoring exception in command 'catch'
+Traceback (most recent call last):
+  File "C:\Users\Eugen\AppData\Local\Programs\Python\Python311\Lib\site-packages\discord\app_commands\commands.py", line 827, in _do_call
+    return await self._callback(self.binding, interaction, **params)  # type: ignore
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\discord_bot\discord_bot\cogs\game_cog.py", line 508, in catch
+    caught, pokemon = self.pokemon_game.attempt_catch(user_id, encounter)
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\discord_bot\discord_bot\games\pokemon_game.py", line 265, in attempt_catch
+    pokemon_id = self.storage.add_pokemon(
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\discord_bot\discord_bot\games\storage\game_storage_engine.py", line 484, in add_pokemon
+    cursor = self.conn.execute("""
+             ^^^^^^^^^^^^^^^^^^^^^
+sqlite3.OperationalError: table pokemon has no column named hp
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Users\Eugen\AppData\Local\Programs\Python\Python311\Lib\site-packages\discord\app_commands\tree.py", line 1248, in _call
+    await command._invoke_with_namespace(interaction, namespace)
+  File "C:\Users\Eugen\AppData\Local\Programs\Python\Python311\Lib\site-packages\discord\app_commands\commands.py", line 853, in _invoke_with_namespace
+    return await self._do_call(interaction, transformed_values)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Eugen\AppData\Local\Programs\Python\Python311\Lib\site-packages\discord\app_commands\commands.py", line 846, in _do_call
+    raise CommandInvokeError(self, e) from e
+discord.app_commands.errors.CommandInvokeError: Command 'catch' raised an exception: OperationalError: table pokemon has no column named hp
+2025-11-03 14:24:11,727 INFO  hippo_bot.language_context.context_engine [corr=cc997d5fa40e4e45b58dc45e0f52c304] 🧭 plan_for_author no_target: guild=1368251858363355196 user=583293296051224576 src=en len=152 preview='@everyone: feed back please as this has been interesting ...'
+2025-11-03 14:24:25,485 INFO  hippo_bot.language_context.context_engine [corr=cc997d5fa40e4e45b58dc45e0f52c304] 🧭 plan_for_author no_target: guild=1368251858363355196 user=583293296051224576 src=en len=28 preview='this is the shorter version:'
+2025-11-03 14:24:29,127 INFO  hippo_bot.language_context.context_engine [corr=cc997d5fa40e4e45b58dc45e0f52c304] 🧭 plan_for_author no_target: guild=1368251858363355196 user=583293296051224576 src=en len=1247 preview='🏰 Season 3: Ruin & Throne Proposal ⸻ 🧩 Goal: Keep it simp...'
+2025-11-03 14:25:01,688 ERROR hippo_bot.event_reminder [corr=cc997d5fa40e4e45b58dc45e0f52c304] Failed to create event 2af025ca-8603-4d9b-9745-c4b0f54513dc: Failed to store event in database
+Traceback (most recent call last):
+  File "C:\discord_bot\discord_bot\core\engines\event_reminder_engine.py", line 350, in create_event
+    await self._store_event(event)
+  File "C:\discord_bot\discord_bot\core\engines\event_reminder_engine.py", line 424, in _store_event
+    raise RuntimeError("Failed to store event in database")
+RuntimeError: Failed to store event in database
+2025-11-03 14:25:37,990 ERROR hippo_bot.event_reminder [corr=cc997d5fa40e4e45b58dc45e0f52c304] Failed to create event f6780ea4-4a9c-4c81-a313-a8513f826bed: Failed to store event in database
+Traceback (most recent call last):
+  File "C:\discord_bot\discord_bot\core\engines\event_reminder_engine.py", line 350, in create_event
+    await self._store_event(event)
+  File "C:\discord_bot\discord_bot\core\engines\event_reminder_engine.py", line 424, in _store_event
+    raise RuntimeError("Failed to store event in database")
+RuntimeError: Failed to store event in database
+2025-11-03 14:26:19,749 ERROR discord.app_commands.tree [corr=cc997d5fa40e4e45b58dc45e0f52c304] Ignoring exception in command 'catch'
+Traceback (most recent call last):
+  File "C:\Users\Eugen\AppData\Local\Programs\Python\Python311\Lib\site-packages\discord\app_commands\commands.py", line 827, in _do_call
+    return await self._callback(self.binding, interaction, **params)  # type: ignore
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\discord_bot\discord_bot\cogs\game_cog.py", line 508, in catch
+    caught, pokemon = self.pokemon_game.attempt_catch(user_id, encounter)
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\discord_bot\discord_bot\games\pokemon_game.py", line 265, in attempt_catch
+    pokemon_id = self.storage.add_pokemon(
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\discord_bot\discord_bot\games\storage\game_storage_engine.py", line 484, in add_pokemon
+    cursor = self.conn.execute("""
+             ^^^^^^^^^^^^^^^^^^^^^
+sqlite3.OperationalError: table pokemon has no column named hp
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Users\Eugen\AppData\Local\Programs\Python\Python311\Lib\site-packages\discord\app_commands\tree.py", line 1248, in _call
+    await command._invoke_with_namespace(interaction, namespace)
+  File "C:\Users\Eugen\AppData\Local\Programs\Python\Python311\Lib\site-packages\discord\app_commands\commands.py", line 853, in _invoke_with_namespace
+    return await self._do_call(interaction, transformed_values)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Eugen\AppData\Local\Programs\Python\Python311\Lib\site-packages\discord\app_commands\commands.py", line 846, in _do_call
+    raise CommandInvokeError(self, e) from e
+discord.app_commands.errors.CommandInvokeError: Command 'catch' raised an exception: OperationalError: table pokemon has no column named hp
+2025-11-03 14:26:37,475 ERROR discord.app_commands.tree [corr=cc997d5fa40e4e45b58dc45e0f52c304] Ignoring exception in command 'catch'
+Traceback (most recent call last):
+  File "C:\Users\Eugen\AppData\Local\Programs\Python\Python311\Lib\site-packages\discord\app_commands\commands.py", line 827, in _do_call
+    return await self._callback(self.binding, interaction, **params)  # type: ignore
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\discord_bot\discord_bot\cogs\game_cog.py", line 508, in catch
+    caught, pokemon = self.pokemon_game.attempt_catch(user_id, encounter)
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\discord_bot\discord_bot\games\pokemon_game.py", line 265, in attempt_catch
+    pokemon_id = self.storage.add_pokemon(
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\discord_bot\discord_bot\games\storage\game_storage_engine.py", line 484, in add_pokemon
+    cursor = self.conn.execute("""
+             ^^^^^^^^^^^^^^^^^^^^^
+sqlite3.OperationalError: table pokemon has no column named hp
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Users\Eugen\AppData\Local\Programs\Python\Python311\Lib\site-packages\discord\app_commands\tree.py", line 1248, in _call
+    await command._invoke_with_namespace(interaction, namespace)
+  File "C:\Users\Eugen\AppData\Local\Programs\Python\Python311\Lib\site-packages\discord\app_commands\commands.py", line 853, in _invoke_with_namespace
+    return await self._do_call(interaction, transformed_values)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Eugen\AppData\Local\Programs\Python\Python311\Lib\site-packages\discord\app_commands\commands.py", line 846, in _do_call
+    raise CommandInvokeError(self, e) from e
+discord.app_commands.errors.CommandInvokeError: Command 'catch' raised an exception: OperationalError: table pokemon has no column named hp
+2025-11-03 14:27:08,117 INFO  hippo_bot.language_context.context_engine [corr=cc997d5fa40e4e45b58dc45e0f52c304] 🧭 plan_for_author no_target: guild=1368251858363355196 user=335206014049845258 src=en len=37 preview='/baby hippo I want to catch a pokemon'
+2025-11-03 14:29:24,890 INFO  hippo_bot.main [corr=cc997d5fa40e4e45b58dc45e0f52c304] 🛑 HippoBot shut down cleanly.
+2025-11-03 14:29:24,894 INFO  hippo_bot.input_engine [corr=cc997d5fa40e4e45b58dc45e0f52c304] SOS message cleanup task cancelled
+2025-11-03 14:52:52,393 INFO  hippo_bot.main [corr=39b650a836274d1685b6d2d373eae4d2] 🚀 Starting HippoBot (instance=39b650a836274d1685b6d2d373eae4d2)
+2025-11-03 14:52:52,573 INFO  hippo_bot.integration_loader [corr=39b650a836274d1685b6d2d373eae4d2] 🛠️ Preparing engines and integrations
+2025-11-03 14:52:52,573 INFO  hippo_bot.input_engine [corr=39b650a836274d1685b6d2d373eae4d2] InputEngine initialised
+2025-11-03 14:52:52,588 INFO  hippo_bot.google_translate_adapter [corr=39b650a836274d1685b6d2d373eae4d2] Google Translate adapter initialized (100+ languages)
+2025-11-03 14:52:52,588 INFO  hippo_bot.integration_loader [corr=39b650a836274d1685b6d2d373eae4d2] TranslationOrchestratorEngine created (DeepL ➜ MyMemory ➜ Google Translate)
+2025-11-03 14:52:52,589 INFO  hippo_bot.integration_loader [corr=39b650a836274d1685b6d2d373eae4d2] 📦 Engine registry snapshot (post-enable): ✅ ready: admin_ui_engine, translationui_engine
+2025-11-03 14:52:52,590 INFO  hippo_bot.integration_loader [corr=39b650a836274d1685b6d2d373eae4d2] 📦 Engine registry snapshot (ready): ✅ ready: admin_ui_engine, translationui_engine
+2025-11-03 14:52:53,338 INFO  hippo_bot.integration_loader [corr=39b650a836274d1685b6d2d373eae4d2] ⚙️ Mounted cogs: translation, admin, help, language, sos, events, ranking, easteregg, game
+2025-11-03 14:52:55,878 INFO  hippo_bot.integration_loader [corr=39b650a836274d1685b6d2d373eae4d2] HippoBot logged in as Baby Hippo#0405 (1422308496279339118)
+2025-11-03 14:52:56,458 INFO  hippo_bot.integration_loader [corr=39b650a836274d1685b6d2d373eae4d2] Command sync complete (schema_version=1, global: 22)
+2025-11-03 14:52:57,061 INFO  hippo_bot.integration_loader [corr=39b650a836274d1685b6d2d373eae4d2] Sent startup message to guild TheAwakeningOnes in channel 💬membership-chat🥂
+2025-11-03 14:52:57,278 INFO  hippo_bot.integration_loader [corr=39b650a836274d1685b6d2d373eae4d2] Sent startup message to guild mars._.3's server in channel general
+2025-11-03 14:53:24,294 ERROR discord.app_commands.tree [corr=39b650a836274d1685b6d2d373eae4d2] Ignoring exception in command 'stats'
+Traceback (most recent call last):
+  File "C:\Users\Eugen\AppData\Local\Programs\Python\Python311\Lib\site-packages\discord\app_commands\tree.py", line 1248, in _call
+    await command._invoke_with_namespace(interaction, namespace)
+  File "C:\Users\Eugen\AppData\Local\Programs\Python\Python311\Lib\site-packages\discord\app_commands\commands.py", line 853, in _invoke_with_namespace
+    return await self._do_call(interaction, transformed_values)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Eugen\AppData\Local\Programs\Python\Python311\Lib\site-packages\discord\app_commands\commands.py", line 841, in _do_call
+    raise CommandSignatureMismatch(self) from None
+discord.app_commands.errors.CommandSignatureMismatch: The signature for command 'stats' is different from the one provided by Discord. This can happen because either your code is out of date or you have not synced the commands with Discord, causing the mismatch in data. It is recommended to sync the command tree to fix this issue.
+2025-11-03 14:53:30,786 ERROR discord.app_commands.tree [corr=39b650a836274d1685b6d2d373eae4d2] Ignoring exception in command 'leaderboard'
+Traceback (most recent call last):
+  File "C:\Users\Eugen\AppData\Local\Programs\Python\Python311\Lib\site-packages\discord\app_commands\tree.py", line 1248, in _call
+    await command._invoke_with_namespace(interaction, namespace)
+  File "C:\Users\Eugen\AppData\Local\Programs\Python\Python311\Lib\site-packages\discord\app_commands\commands.py", line 853, in _invoke_with_namespace
+    return await self._do_call(interaction, transformed_values)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Eugen\AppData\Local\Programs\Python\Python311\Lib\site-packages\discord\app_commands\commands.py", line 841, in _do_call
+    raise CommandSignatureMismatch(self) from None
+discord.app_commands.errors.CommandSignatureMismatch: The signature for command 'leaderboard' is different from the one provided by Discord. This can happen because either your code is out of date or you have not synced the commands with Discord, causing the mismatch in data. It is recommended to sync the command tree to fix this issue.
+2025-11-03 14:56:19,732 ERROR discord.app_commands.tree [corr=39b650a836274d1685b6d2d373eae4d2] Ignoring exception in command 'leaderboard'
+Traceback (most recent call last):
+  File "C:\Users\Eugen\AppData\Local\Programs\Python\Python311\Lib\site-packages\discord\app_commands\tree.py", line 1248, in _call
+    await command._invoke_with_namespace(interaction, namespace)
+  File "C:\Users\Eugen\AppData\Local\Programs\Python\Python311\Lib\site-packages\discord\app_commands\commands.py", line 853, in _invoke_with_namespace
+    return await self._do_call(interaction, transformed_values)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Eugen\AppData\Local\Programs\Python\Python311\Lib\site-packages\discord\app_commands\commands.py", line 841, in _do_call
+    raise CommandSignatureMismatch(self) from None
+discord.app_commands.errors.CommandSignatureMismatch: The signature for command 'leaderboard' is different from the one provided by Discord. This can happen because either your code is out of date or you have not synced the commands with Discord, causing the mismatch in data. It is recommended to sync the command tree to fix this issue.
+2025-11-03 14:57:37,077 INFO  hippo_bot.language_context.context_engine [corr=39b650a836274d1685b6d2d373eae4d2] 🧭 plan_for_author no_target: guild=1368251858363355196 user=335206014049845258 src=en len=23 preview='Does anyone caught any?'
+2025-11-03 14:58:07,352 INFO  hippo_bot.main [corr=39b650a836274d1685b6d2d373eae4d2] 🛑 HippoBot shut down cleanly.
+2025-11-03 14:58:07,357 INFO  hippo_bot.input_engine [corr=39b650a836274d1685b6d2d373eae4d2] SOS message cleanup task cancelled
+2025-11-03 15:39:03,087 INFO  hippo_bot.main [corr=7920ff45befa4870abf8c292421c34cb] 🚀 Starting HippoBot (instance=7920ff45befa4870abf8c292421c34cb)
+2025-11-03 15:39:03,307 WARNING discord.client [corr=7920ff45befa4870abf8c292421c34cb] PyNaCl is not installed, voice will NOT be supported
+2025-11-03 15:39:03,307 INFO  hippo_bot.integration_loader [corr=7920ff45befa4870abf8c292421c34cb] 🛠️ Preparing engines and integrations
+2025-11-03 15:39:03,307 INFO  hippo_bot.input_engine [corr=7920ff45befa4870abf8c292421c34cb] InputEngine initialised
+2025-11-03 15:39:03,324 INFO  hippo_bot.google_translate_adapter [corr=7920ff45befa4870abf8c292421c34cb] Google Translate adapter initialized (100+ languages)
+2025-11-03 15:39:03,324 INFO  hippo_bot.integration_loader [corr=7920ff45befa4870abf8c292421c34cb] TranslationOrchestratorEngine created (DeepL ➜ MyMemory ➜ Google Translate)
+2025-11-03 15:39:03,324 INFO  hippo_bot.integration_loader [corr=7920ff45befa4870abf8c292421c34cb] 📦 Engine registry snapshot (post-enable): ✅ ready: admin_ui_engine, translationui_engine
+2025-11-03 15:39:03,324 INFO  hippo_bot.integration_loader [corr=7920ff45befa4870abf8c292421c34cb] 📦 Engine registry snapshot (ready): ✅ ready: admin_ui_engine, translationui_engine
+2025-11-03 15:39:04,061 INFO  hippo_bot.integration_loader [corr=7920ff45befa4870abf8c292421c34cb] ⚙️ Mounted cogs: translation, admin, help, language, sos, events, ranking, easteregg, game
+2025-11-03 15:39:06,648 INFO  hippo_bot.integration_loader [corr=7920ff45befa4870abf8c292421c34cb] HippoBot logged in as Baby Hippo#0405 (1422308496279339118)
+2025-11-03 15:39:07,128 INFO  hippo_bot.integration_loader [corr=7920ff45befa4870abf8c292421c34cb] Command sync complete (schema_version=1, global: 22)
+2025-11-03 15:39:07,947 INFO  hippo_bot.integration_loader [corr=7920ff45befa4870abf8c292421c34cb] Sent startup message to guild TheAwakeningOnes in channel 💬membership-chat🥂
+2025-11-03 15:39:08,147 INFO  hippo_bot.integration_loader [corr=7920ff45befa4870abf8c292421c34cb] Sent startup message to guild mars._.3's server in channel general
+2025-11-03 15:39:24,031 ERROR discord.app_commands.tree [corr=7920ff45befa4870abf8c292421c34cb] Ignoring exception in command 'explore'
+Traceback (most recent call last):
+  File "C:\discord_bot\.venv\Lib\site-packages\discord\app_commands\commands.py", line 858, in _do_call
+    return await self._callback(self.binding, interaction, **params)  # type: ignore
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\discord_bot\discord_bot\cogs\game_cog.py", line 652, in explore
+    caught, pokemon = self.pokemon_game.attempt_catch(user_id, encounter)
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\discord_bot\discord_bot\games\pokemon_game.py", line 265, in attempt_catch
+    pokemon_id = self.storage.add_pokemon(
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\discord_bot\discord_bot\games\storage\game_storage_engine.py", line 484, in add_pokemon
+    cursor = self.conn.execute("""
+             ^^^^^^^^^^^^^^^^^^^^^
+sqlite3.OperationalError: table pokemon has no column named special_attack
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\discord_bot\.venv\Lib\site-packages\discord\app_commands\tree.py", line 1297, in _call
+    await command._invoke_with_namespace(interaction, namespace)
+  File "C:\discord_bot\.venv\Lib\site-packages\discord\app_commands\commands.py", line 884, in _invoke_with_namespace
+    return await self._do_call(interaction, transformed_values)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\discord_bot\.venv\Lib\site-packages\discord\app_commands\commands.py", line 877, in _do_call
+    raise CommandInvokeError(self, e) from e
+discord.app_commands.errors.CommandInvokeError: Command 'explore' raised an exception: OperationalError: table pokemon has no column named special_attack
+2025-11-03 15:39:33,487 ERROR discord.app_commands.tree [corr=7920ff45befa4870abf8c292421c34cb] Ignoring exception in command 'stats'
+Traceback (most recent call last):
+  File "C:\discord_bot\.venv\Lib\site-packages\discord\app_commands\tree.py", line 1297, in _call
+    await command._invoke_with_namespace(interaction, namespace)
+  File "C:\discord_bot\.venv\Lib\site-packages\discord\app_commands\commands.py", line 884, in _invoke_with_namespace
+    return await self._do_call(interaction, transformed_values)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\discord_bot\.venv\Lib\site-packages\discord\app_commands\commands.py", line 872, in _do_call
+    raise CommandSignatureMismatch(self) from None
+discord.app_commands.errors.CommandSignatureMismatch: The signature for command 'stats' is different from the one provided by Discord. This can happen because either your code is out of date or you have not synced the commands with Discord, causing the mismatch in data. It is recommended to sync the command tree to fix this issue.
+2025-11-03 15:39:39,528 ERROR discord.app_commands.tree [corr=7920ff45befa4870abf8c292421c34cb] Ignoring exception in command 'leaderboard'
+Traceback (most recent call last):
+  File "C:\discord_bot\.venv\Lib\site-packages\discord\app_commands\tree.py", line 1297, in _call
+    await command._invoke_with_namespace(interaction, namespace)
+  File "C:\discord_bot\.venv\Lib\site-packages\discord\app_commands\commands.py", line 884, in _invoke_with_namespace
+    return await self._do_call(interaction, transformed_values)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\discord_bot\.venv\Lib\site-packages\discord\app_commands\commands.py", line 872, in _do_call
+    raise CommandSignatureMismatch(self) from None
+discord.app_commands.errors.CommandSignatureMismatch: The signature for command 'leaderboard' is different from the one provided by Discord. This can happen because either your code is out of date or you have not synced the commands with Discord, causing the mismatch in data. It is recommended to sync the command tree to fix this issue.
+2025-11-03 15:57:55,335 INFO  hippo_bot.main [corr=15c5dd3a5b31466297b1d82f15bd7b18] 🚀 Starting HippoBot (instance=15c5dd3a5b31466297b1d82f15bd7b18)
+2025-11-03 15:57:55,458 WARNING discord.client [corr=15c5dd3a5b31466297b1d82f15bd7b18] PyNaCl is not installed, voice will NOT be supported
+2025-11-03 15:57:55,458 INFO  hippo_bot.integration_loader [corr=15c5dd3a5b31466297b1d82f15bd7b18] 🛠️ Preparing engines and integrations
+2025-11-03 15:57:55,458 INFO  hippo_bot.input_engine [corr=15c5dd3a5b31466297b1d82f15bd7b18] InputEngine initialised
+2025-11-03 15:57:55,458 INFO  hippo_bot.google_translate_adapter [corr=15c5dd3a5b31466297b1d82f15bd7b18] Google Translate adapter initialized (100+ languages)
+2025-11-03 15:57:55,458 INFO  hippo_bot.integration_loader [corr=15c5dd3a5b31466297b1d82f15bd7b18] TranslationOrchestratorEngine created (DeepL ➜ MyMemory ➜ Google Translate)
+2025-11-03 15:57:55,458 INFO  hippo_bot.integration_loader [corr=15c5dd3a5b31466297b1d82f15bd7b18] 📦 Engine registry snapshot (post-enable): ✅ ready: admin_ui_engine, translationui_engine
+2025-11-03 15:57:55,458 INFO  hippo_bot.integration_loader [corr=15c5dd3a5b31466297b1d82f15bd7b18] 📦 Engine registry snapshot (ready): ✅ ready: admin_ui_engine, translationui_engine
+2025-11-03 15:57:56,209 INFO  hippo_bot.integration_loader [corr=15c5dd3a5b31466297b1d82f15bd7b18] ⚙️ Mounted cogs: translation, admin, help, language, sos, events, ranking, easteregg, game
+2025-11-03 15:57:58,717 INFO  hippo_bot.integration_loader [corr=15c5dd3a5b31466297b1d82f15bd7b18] HippoBot logged in as Baby Hippo#0405 (1422308496279339118)
+2025-11-03 15:57:59,515 INFO  hippo_bot.integration_loader [corr=15c5dd3a5b31466297b1d82f15bd7b18] Command sync complete (schema_version=1, global: 22)
+2025-11-03 15:58:00,182 INFO  hippo_bot.integration_loader [corr=15c5dd3a5b31466297b1d82f15bd7b18] Sent startup message to guild TheAwakeningOnes in channel 💬membership-chat🥂
+2025-11-03 15:58:00,394 INFO  hippo_bot.integration_loader [corr=15c5dd3a5b31466297b1d82f15bd7b18] Sent startup message to guild mars._.3's server in channel general
+2025-11-03 15:59:37,121 ERROR discord.app_commands.tree [corr=15c5dd3a5b31466297b1d82f15bd7b18] Ignoring exception in command 'compare_me'
+Traceback (most recent call last):
+  File "C:\discord_bot\.venv\Lib\site-packages\discord\app_commands\tree.py", line 1297, in _call
+    await command._invoke_with_namespace(interaction, namespace)
+  File "C:\discord_bot\.venv\Lib\site-packages\discord\app_commands\commands.py", line 884, in _invoke_with_namespace
+    return await self._do_call(interaction, transformed_values)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\discord_bot\.venv\Lib\site-packages\discord\app_commands\commands.py", line 872, in _do_call
+    raise CommandSignatureMismatch(self) from None
+discord.app_commands.errors.CommandSignatureMismatch: The signature for command 'compare_me' is different from the one provided by Discord. This can happen because either your code is out of date or you have not synced the commands with Discord, causing the mismatch in data. It is recommended to sync the command tree to fix this issue.
+2025-11-03 15:59:48,476 ERROR discord.app_commands.tree [corr=15c5dd3a5b31466297b1d82f15bd7b18] Ignoring exception in command 'results'
+Traceback (most recent call last):
+  File "C:\discord_bot\.venv\Lib\site-packages\discord\app_commands\tree.py", line 1297, in _call
+    await command._invoke_with_namespace(interaction, namespace)
+  File "C:\discord_bot\.venv\Lib\site-packages\discord\app_commands\commands.py", line 884, in _invoke_with_namespace
+    return await self._do_call(interaction, transformed_values)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\discord_bot\.venv\Lib\site-packages\discord\app_commands\commands.py", line 872, in _do_call
+    raise CommandSignatureMismatch(self) from None
+discord.app_commands.errors.CommandSignatureMismatch: The signature for command 'results' is different from the one provided by Discord. This can happen because either your code is out of date or you have not synced the commands with Discord, causing the mismatch in data. It is recommended to sync the command tree to fix this issue.
+2025-11-03 16:01:40,110 INFO  hippo_bot.language_context.context_engine [corr=15c5dd3a5b31466297b1d82f15bd7b18] 🧭 plan_for_author no_target: guild=1368251858363355196 user=447484453414109186 src=en len=21 preview='do the games work lol'
+2025-11-03 16:01:57,587 INFO  hippo_bot.language_context.context_engine [corr=15c5dd3a5b31466297b1d82f15bd7b18] 🧭 plan_for_author no_target: guild=1368251858363355196 user=583293296051224576 src=en len=6 preview='me too'
+2025-11-03 16:02:08,913 ERROR discord.app_commands.tree [corr=15c5dd3a5b31466297b1d82f15bd7b18] Ignoring exception in command 'easteregg'
+Traceback (most recent call last):
+  File "C:\discord_bot\.venv\Lib\site-packages\discord\app_commands\commands.py", line 858, in _do_call
+    return await self._callback(self.binding, interaction, **params)  # type: ignore
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\discord_bot\discord_bot\cogs\easteregg_cog.py", line 225, in easter_egg
+    await self._start_trivia(interaction)
+  File "C:\discord_bot\discord_bot\cogs\easteregg_cog.py", line 528, in _start_trivia
+    await interaction.response.send_message(
+  File "C:\discord_bot\.venv\Lib\site-packages\discord\interactions.py", line 1023, in send_message
+    raise InteractionResponded(self._parent)
+discord.errors.InteractionResponded: This interaction has already been responded to before
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\discord_bot\.venv\Lib\site-packages\discord\app_commands\tree.py", line 1297, in _call
+    await command._invoke_with_namespace(interaction, namespace)
+  File "C:\discord_bot\.venv\Lib\site-packages\discord\app_commands\commands.py", line 884, in _invoke_with_namespace
+    return await self._do_call(interaction, transformed_values)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\discord_bot\.venv\Lib\site-packages\discord\app_commands\commands.py", line 877, in _do_call
+    raise CommandInvokeError(self, e) from e
+discord.app_commands.errors.CommandInvokeError: Command 'easteregg' raised an exception: InteractionResponded: This interaction has already been responded to before
+2025-11-03 16:02:23,976 ERROR asyncio [corr=-] Task exception was never retrieved
+future: <Task finished name='discord-ui-view-timeout-029e6c7ef5cf6bcd07fff18def711f03' coro=<HelpNavigator.on_timeout() done, defined at C:\discord_bot\discord_bot\cogs\help_cog.py:439> exception=AttributeError("'HelpNavigator' object has no attribute 'disable_all_items'")>
+Traceback (most recent call last):
+  File "C:\discord_bot\discord_bot\cogs\help_cog.py", line 440, in on_timeout
+    self.disable_all_items()
+    ^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'HelpNavigator' object has no attribute 'disable_all_items'
+2025-11-03 16:02:28,068 INFO  hippo_bot.language_context.context_engine [corr=15c5dd3a5b31466297b1d82f15bd7b18] 🧭 plan_for_author no_target: guild=1368251858363355196 user=583293296051224576 src=en len=29 preview='easteregg says still thinking'
+2025-11-03 16:02:52,650 INFO  hippo_bot.language_context.context_engine [corr=15c5dd3a5b31466297b1d82f15bd7b18] 🧭 plan_for_author no_target: guild=1368251858363355196 user=447484453414109186 src=en len=20 preview='refresh your browers'
+2025-11-03 16:03:05,446 INFO  hippo_bot.language_context.context_engine [corr=15c5dd3a5b31466297b1d82f15bd7b18] 🧭 plan_for_author no_target: guild=1368251858363355196 user=583293296051224576 src=en len=15 preview='game locked!!!!'
+2025-11-03 16:03:39,962 INFO  hippo_bot.language_context.context_engine [corr=15c5dd3a5b31466297b1d82f15bd7b18] 🧭 plan_for_author no_target: guild=1368251858363355196 user=447484453414109186 src=en len=174 preview='im trying to get a whole new system in for the kvk scores...'
+2025-11-03 16:04:04,209 INFO  hippo_bot.language_context.context_engine [corr=15c5dd3a5b31466297b1d82f15bd7b18] 🧭 plan_for_author no_target: guild=1368251858363355196 user=583293296051224576 src=en len=48 preview='game locked again <a:BlazDab:641506896725016577>'
+2025-11-03 16:04:26,516 INFO  hippo_bot.language_context.context_engine [corr=15c5dd3a5b31466297b1d82f15bd7b18] 🧭 plan_for_author no_target: guild=1368251858363355196 user=447484453414109186 src=en len=131 preview='i had to reset everyones data if you check advanced setti...'
+2025-11-03 16:08:56,615 INFO  hippo_bot.main [corr=15c5dd3a5b31466297b1d82f15bd7b18] 🛑 HippoBot shut down cleanly.
+2025-11-03 16:08:56,629 INFO  hippo_bot.input_engine [corr=15c5dd3a5b31466297b1d82f15bd7b18] SOS message cleanup task cancelled

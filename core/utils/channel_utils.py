@@ -2,7 +2,8 @@
 
 import logging
 import os
-from typing import List, Optional, Set
+from typing import List, Optional, Set, Union
+
 import discord
 
 
@@ -72,22 +73,44 @@ def get_allowed_channel_ids() -> Set[int]:
     return allowed_ids
 
 
-def is_allowed_channel(channel_id: int) -> bool:
+ChannelLike = Union[int, discord.abc.Snowflake, discord.abc.Messageable]
+
+
+def is_allowed_channel(channel: ChannelLike) -> bool:
     """
     Check if a channel is in the allowed channels list to use / commands in.
     
     If no allowed channels are configured, returns True (allow all channels).
     
     Args:
-        channel_id: Discord channel ID to check
+        channel: Channel object or ID to check. Threads inherit their parent's allowance.
         
     Returns:
         True if channel is allowed or no restrictions exist, False otherwise
     """
+    parent_id: Optional[int] = None
+    if isinstance(channel, int):
+        channel_id = channel
+    else:
+        channel_id = getattr(channel, "id", None)
+        parent = getattr(channel, "parent", None)
+        if parent and hasattr(parent, "id"):
+            parent_id = parent.id
+        elif hasattr(channel, "parent_id"):
+            parent_id = getattr(channel, "parent_id")
+
+    if channel_id is None:
+        logging.warning("is_allowed_channel called with channel lacking an id: %s", channel)
+        return False
+
     allowed = get_allowed_channel_ids()
     if not allowed:
         return True  # No restrictions configured
-    return channel_id in allowed
+    if channel_id in allowed:
+        return True
+    if parent_id and parent_id in allowed:
+        return True
+    return False
 
 
 def find_bot_channel(guild: discord.Guild) -> Optional[discord.TextChannel]:

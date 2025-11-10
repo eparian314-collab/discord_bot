@@ -1,0 +1,7 @@
+2025-10-28 17:04:41,911 - ERROR - Failed to initialize security systems: Configuration validation failed: Missing required configuration: DISCORD_TOKEN
+2025-10-28 17:06:15,528 - WARNING - Security configuration incomplete: Configuration validation failed: Missing required configuration: DISCORD_TOKEN
+2025-10-28 17:06:15,528 - INFO - Security engine initialized
+2025-10-28 17:19:28,383 - WARNING - Security configuration incomplete: Configuration validation failed: Missing required configuration: DISCORD_TOKEN
+2025-10-28 17:19:28,383 - INFO - Security engine initialized
+2025-10-28 17:19:37,569 - WARNING - Security configuration incomplete: Configuration validation failed: Missing required configuration: DISCORD_TOKEN
+2025-10-28 17:19:37,569 - INFO - Security engine initialized

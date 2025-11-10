@@ -56,7 +56,7 @@ class BattleCog(commands.Cog):
         if not interaction.channel:
             return False
         
-        if not is_allowed_channel(interaction.channel.id):
+        if not is_allowed_channel(interaction.channel):
             await interaction.response.send_message(
                 "🦛 I can only respond to battle commands in designated channels! "
                 "Check with your server admins for the right channels.",

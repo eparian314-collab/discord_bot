@@ -1,0 +1,156 @@
+2025-11-02 06:15:19,074 [INFO] ============================================================
+2025-11-02 06:15:19,074 [INFO] Starting preflight checks...
+2025-11-02 06:15:19,074 [INFO] ============================================================
+2025-11-02 06:15:19,074 [INFO] Running check: Python Version
+2025-11-02 06:15:19,074 [INFO] Checking Python version...
+2025-11-02 06:15:19,074 [INFO] Python version 3.11 is compatible
+2025-11-02 06:15:19,074 [INFO] Running check: Environment File
+2025-11-02 06:15:19,074 [INFO] Checking environment file...
+2025-11-02 06:15:19,074 [INFO] Environment file check passed
+2025-11-02 06:15:19,074 [INFO] Running check: Channel Configuration
+2025-11-02 06:15:19,074 [INFO] Checking channel configuration...
+2025-11-02 06:15:19,075 [INFO] Channel configuration check passed
+2025-11-02 06:15:19,075 [INFO] Running check: Required Directories
+2025-11-02 06:15:19,075 [INFO] Checking required directories...
+2025-11-02 06:15:19,075 [INFO] Directory data exists
+2025-11-02 06:15:19,075 [INFO] Directory logs exists
+2025-11-02 06:15:19,075 [INFO] Directory core exists
+2025-11-02 06:15:19,075 [INFO] Directory cogs exists
+2025-11-02 06:15:19,075 [INFO] Directory games exists
+2025-11-02 06:15:19,075 [INFO] Directory integrations exists
+2025-11-02 06:15:19,075 [INFO] Directory language_context exists
+2025-11-02 06:15:19,076 [INFO] Running check: Databases
+2025-11-02 06:15:19,076 [INFO] Checking databases...
+2025-11-02 06:15:19,081 [INFO] Database data/game_data.db is accessible
+2025-11-02 06:15:19,083 [INFO] Database data/event_rankings.db is accessible
+2025-11-02 06:15:19,083 [INFO] Running check: Language Map
+2025-11-02 06:15:19,083 [INFO] Checking language map...
+2025-11-02 06:15:19,083 [INFO] Language map is valid
+2025-11-02 06:15:19,084 [INFO] Running check: Critical Imports
+2025-11-02 06:15:19,084 [INFO] Checking critical imports...
+2025-11-02 06:15:19,516 [INFO] Import check passed: discord.py
+2025-11-02 06:15:19,517 [INFO] Import check passed: aiohttp
+2025-11-02 06:15:19,517 [INFO] Import check passed: sqlite3 (built-in)
+2025-11-02 06:15:19,517 [INFO] Running check: Disk Space
+2025-11-02 06:15:19,517 [INFO] Checking disk space...
+2025-11-02 06:15:19,517 [INFO] Disk space check passed: 720.36 GB free
+2025-11-02 06:15:19,517 [INFO] ============================================================
+2025-11-02 06:15:19,517 [INFO] Preflight checks complete
+2025-11-02 06:15:19,517 [INFO] Errors: 0, Warnings: 0
+2025-11-02 06:15:19,517 [INFO] ============================================================
+2025-11-03 17:37:07,888 [INFO] ============================================================
+2025-11-03 17:37:07,888 [INFO] Starting preflight checks...
+2025-11-03 17:37:07,888 [INFO] ============================================================
+2025-11-03 17:37:07,888 [INFO] Running check: Python Version
+2025-11-03 17:37:07,888 [INFO] Checking Python version...
+2025-11-03 17:37:07,888 [INFO] Python version 3.11 is compatible
+2025-11-03 17:37:07,888 [INFO] Running check: Environment File
+2025-11-03 17:37:07,888 [INFO] Checking environment file...
+2025-11-03 17:37:07,888 [INFO] Environment file check passed
+2025-11-03 17:37:07,888 [INFO] Running check: Channel Configuration
+2025-11-03 17:37:07,888 [INFO] Checking channel configuration...
+2025-11-03 17:37:07,888 [INFO] Channel configuration check passed
+2025-11-03 17:37:07,888 [INFO] Running check: Required Directories
+2025-11-03 17:37:07,888 [INFO] Checking required directories...
+2025-11-03 17:37:07,888 [INFO] Directory data exists
+2025-11-03 17:37:07,888 [INFO] Directory logs exists
+2025-11-03 17:37:07,888 [INFO] Directory core exists
+2025-11-03 17:37:07,888 [INFO] Directory cogs exists
+2025-11-03 17:37:07,888 [INFO] Directory games exists
+2025-11-03 17:37:07,888 [INFO] Directory integrations exists
+2025-11-03 17:37:07,888 [INFO] Directory language_context exists
+2025-11-03 17:37:07,888 [INFO] Running check: Databases
+2025-11-03 17:37:07,888 [INFO] Checking databases...
+2025-11-03 17:37:07,894 [INFO] Database data/game_data.db is accessible
+2025-11-03 17:37:07,894 [INFO] Database data/event_rankings.db is accessible
+2025-11-03 17:37:07,894 [INFO] Running check: Language Map
+2025-11-03 17:37:07,894 [INFO] Checking language map...
+2025-11-03 17:37:07,894 [INFO] Language map is valid
+2025-11-03 17:37:07,894 [INFO] Running check: Critical Imports
+2025-11-03 17:37:07,894 [INFO] Checking critical imports...
+2025-11-03 17:37:08,270 [INFO] Import check passed: discord.py
+2025-11-03 17:37:08,270 [INFO] Import check passed: aiohttp
+2025-11-03 17:37:08,270 [INFO] Import check passed: sqlite3 (built-in)
+2025-11-03 17:37:08,270 [INFO] Running check: Disk Space
+2025-11-03 17:37:08,270 [INFO] Checking disk space...
+2025-11-03 17:37:08,270 [INFO] Disk space check passed: 718.69 GB free
+2025-11-03 17:37:08,270 [INFO] ============================================================
+2025-11-03 17:37:08,270 [INFO] Preflight checks complete
+2025-11-03 17:37:08,270 [INFO] Errors: 0, Warnings: 0
+2025-11-03 17:37:08,270 [INFO] ============================================================
+2025-11-03 17:38:29,262 [INFO] ============================================================
+2025-11-03 17:38:29,262 [INFO] Starting preflight checks...
+2025-11-03 17:38:29,262 [INFO] ============================================================
+2025-11-03 17:38:29,262 [INFO] Running check: Python Version
+2025-11-03 17:38:29,262 [INFO] Checking Python version...
+2025-11-03 17:38:29,262 [INFO] Python version 3.11 is compatible
+2025-11-03 17:38:29,262 [INFO] Running check: Environment File
+2025-11-03 17:38:29,262 [INFO] Checking environment file...
+2025-11-03 17:38:29,262 [ERROR] .env file not found
+2025-11-03 17:38:29,262 [ERROR] Check failed: Environment File
+2025-11-03 17:38:29,262 [INFO] Running check: Channel Configuration
+2025-11-03 17:38:29,262 [INFO] Checking channel configuration...
+2025-11-03 17:38:29,262 [ERROR] RANKINGS_CHANNEL_ID is not configured in .env
+2025-11-03 17:38:29,262 [ERROR] Check failed: Channel Configuration
+2025-11-03 17:38:29,262 [INFO] Running check: Required Directories
+2025-11-03 17:38:29,262 [INFO] Checking required directories...
+2025-11-03 17:38:29,262 [INFO] Directory data exists
+2025-11-03 17:38:29,262 [ERROR] Required directory missing: logs
+2025-11-03 17:38:29,262 [ERROR] Check failed: Required Directories
+2025-11-03 17:38:29,262 [INFO] Running check: Databases
+2025-11-03 17:38:29,262 [INFO] Checking databases...
+2025-11-03 17:38:29,262 [WARNING] Database data/game_data.db does not exist (will be auto-created)
+2025-11-03 17:38:29,262 [WARNING] Database data/event_rankings.db does not exist (will be auto-created)
+2025-11-03 17:38:29,262 [INFO] Running check: Language Map
+2025-11-03 17:38:29,262 [INFO] Checking language map...
+2025-11-03 17:38:29,262 [INFO] Language map is valid
+2025-11-03 17:38:29,262 [INFO] Running check: Critical Imports
+2025-11-03 17:38:29,262 [INFO] Checking critical imports...
+2025-11-03 17:38:29,467 [INFO] Import check passed: discord.py
+2025-11-03 17:38:29,467 [INFO] Import check passed: aiohttp
+2025-11-03 17:38:29,467 [INFO] Import check passed: sqlite3 (built-in)
+2025-11-03 17:38:29,467 [INFO] Running check: Disk Space
+2025-11-03 17:38:29,467 [INFO] Checking disk space...
+2025-11-03 17:38:29,467 [INFO] Disk space check passed: 718.70 GB free
+2025-11-03 17:38:29,467 [INFO] ============================================================
+2025-11-03 17:38:29,467 [INFO] Preflight checks complete
+2025-11-03 17:38:29,467 [INFO] Errors: 6, Warnings: 2
+2025-11-03 17:38:29,467 [INFO] ============================================================
+2025-11-03 17:38:36,809 [INFO] ============================================================
+2025-11-03 17:38:36,809 [INFO] Starting preflight checks...
+2025-11-03 17:38:36,809 [INFO] ============================================================
+2025-11-03 17:38:36,809 [INFO] Running check: Python Version
+2025-11-03 17:38:36,809 [INFO] Checking Python version...
+2025-11-03 17:38:36,809 [INFO] Python version 3.11 is compatible
+2025-11-03 17:38:36,809 [INFO] Running check: Environment File
+2025-11-03 17:38:36,809 [INFO] Checking environment file...
+2025-11-03 17:38:36,809 [ERROR] .env file not found
+2025-11-03 17:38:36,809 [ERROR] Check failed: Environment File
+2025-11-03 17:38:36,809 [INFO] Running check: Channel Configuration
+2025-11-03 17:38:36,809 [INFO] Checking channel configuration...
+2025-11-03 17:38:36,809 [ERROR] RANKINGS_CHANNEL_ID is not configured in .env
+2025-11-03 17:38:36,809 [ERROR] Check failed: Channel Configuration
+2025-11-03 17:38:36,809 [INFO] Running check: Required Directories
+2025-11-03 17:38:36,809 [INFO] Checking required directories...
+2025-11-03 17:38:36,809 [INFO] Directory data exists
+2025-11-03 17:38:36,809 [ERROR] Required directory missing: logs
+2025-11-03 17:38:36,809 [ERROR] Check failed: Required Directories
+2025-11-03 17:38:36,809 [INFO] Running check: Databases
+2025-11-03 17:38:36,809 [INFO] Checking databases...
+2025-11-03 17:38:36,809 [WARNING] Database data/game_data.db does not exist (will be auto-created)
+2025-11-03 17:38:36,809 [WARNING] Database data/event_rankings.db does not exist (will be auto-created)
+2025-11-03 17:38:36,809 [INFO] Running check: Language Map
+2025-11-03 17:38:36,809 [INFO] Checking language map...
+2025-11-03 17:38:36,809 [INFO] Language map is valid
+2025-11-03 17:38:36,809 [INFO] Running check: Critical Imports
+2025-11-03 17:38:36,809 [INFO] Checking critical imports...
+2025-11-03 17:38:36,809 [INFO] Import check passed: discord.py
+2025-11-03 17:38:36,809 [INFO] Import check passed: aiohttp
+2025-11-03 17:38:36,809 [INFO] Import check passed: sqlite3 (built-in)
+2025-11-03 17:38:36,809 [INFO] Running check: Disk Space
+2025-11-03 17:38:36,809 [INFO] Checking disk space...
+2025-11-03 17:38:36,809 [INFO] Disk space check passed: 718.70 GB free
+2025-11-03 17:38:36,809 [INFO] ============================================================
+2025-11-03 17:38:36,809 [INFO] Preflight checks complete
+2025-11-03 17:38:36,809 [INFO] Errors: 6, Warnings: 2
+2025-11-03 17:38:36,809 [INFO] ============================================================
