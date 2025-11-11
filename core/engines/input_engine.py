@@ -29,7 +29,6 @@ import discord
 from discord.ext import commands
 
 from discord_bot.language_context.context_engine import ContextEngine
-from discord_bot.language_context.context_utils import safe_truncate
 from discord_bot.language_context.translation_job import TranslationJob
 from discord_bot.core.utils import find_bot_channel
 
@@ -78,7 +77,6 @@ class InputEngine:
         self.error_engine = error_engine or getattr(processing_engine, "error_engine", None)
 
         self._bot_alert_channel_cache: Dict[int, Optional[int]] = {}
-        self.active_mirror_pairs: Set[frozenset[int]] = set()
         self._sos_overrides: Dict[int, Dict[str, str]] = {}
         self._sos_cooldowns: Dict[int, float] = {}  # guild_id -> last_trigger_timestamp
         self._processed_sos_messages: Set[int] = set()  # message_id tracking to prevent duplicates
@@ -111,12 +109,10 @@ class InputEngine:
         1. Filter: Skip bot messages and empty content
         2. Session tracking: Record event for analytics
         3. SOS detection: Check for emergency keywords → broadcast alerts + translated DMs
-        4. Reply translation: If replying to another user → translate for them (ephemeral)
-        5. Standard path: DISABLED (legacy auto-DM translation removed)
+        4. Standard path: DISABLED (legacy auto-DM translation removed)
         
         Active translation features:
         - /translate commands (via TranslationCog)
-        - Reply-based mirror translation (user replies to another user)
         - SOS emergency broadcasts with translated DMs
         """
         # Ensure deferred cleanup task starts once we are inside an event loop
@@ -149,11 +145,6 @@ class InputEngine:
             await self._trigger_sos(message, emergency_payload)
             return
 
-        # Reply-based mirror translation (user replying to another user)
-        if message.reference and message.reference.resolved:
-            await self._handle_mirror_reply(message)
-            return
-
         # Standard translation path (DISABLED - see _handle_standard for details)
         await self._handle_standard(message)
 
@@ -183,8 +174,7 @@ class InputEngine:
         
         This feature is now disabled. Translation only happens via:
         1. Explicit /translate commands
-        2. Reply-based mirror translation (_handle_mirror_reply)
-        3. SOS emergency translations
+        2. SOS emergency translations
         """
         # Legacy auto-DM translation disabled - this was causing unnecessary translation triggers
         # on every message for users with language roles, creating spam and wasted API calls.
@@ -194,30 +184,6 @@ class InputEngine:
         # - Only translating in designated translation channels
         # - Requiring explicit user action (command/reaction) to trigger
         return
-
-    async def _handle_mirror_reply(self, message: discord.Message) -> None:
-        guild_id = message.guild.id if message.guild else 0
-        author_id = message.author.id
-        reference = message.reference.resolved
-        if not isinstance(reference, discord.Message):
-            return
-
-        content = safe_truncate((message.content or "").strip())
-        channel_id = getattr(message.channel, "id", None)
-
-        job_env = await self._build_job_for_pair(guild_id, author_id, reference.author.id, content, channel_id=channel_id)
-        if not job_env:
-            return
-
-        job = job_env.get("job")
-        if not job:
-            return
-
-        translated = await self._execute_job(job, guild_id=guild_id, author_id=author_id, original_text=content, channel_id=channel_id)
-        if not translated:
-            return
-
-        await self.output.send_ephemeral(message.channel, reference.author, translated)
 
     # ------------------------------------------------------------------
     # Translation orchestration
@@ -264,13 +230,6 @@ class InputEngine:
             return await self.context.plan_for_author(guild_id, author_id, text=text, channel_id=channel_id)
         except Exception as exc:
             await self._log_error(exc, context="plan_for_author")
-            return None
-
-    async def _build_job_for_pair(self, guild_id: int, author_id: int, other_user_id: int, text: str, *, channel_id: Optional[int]) -> Optional[Dict[str, Any]]:
-        try:
-            return await self.context.plan_for_pair(guild_id, author_id, other_user_id, text=text, channel_id=channel_id)
-        except Exception as exc:
-            await self._log_error(exc, context="plan_for_pair")
             return None
 
     # ------------------------------------------------------------------
