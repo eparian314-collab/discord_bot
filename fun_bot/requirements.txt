@@ -1,0 +1,2 @@
+# FunBot requirements
+# Add only game/easter egg/fun related dependencies here

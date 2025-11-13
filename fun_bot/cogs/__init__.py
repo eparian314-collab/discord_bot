@@ -1,0 +1,1 @@
+# FunBot cogs package

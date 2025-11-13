@@ -1,0 +1,14 @@
+[Unit]
+Description=Hippo FunBot Discord Service
+After=network.target
+
+[Service]
+Type=simple
+User=discordbot
+WorkingDirectory=/home/geneparian/dev/discord_bot/fun_bot
+ExecStart=/home/geneparian/dev/discord_bot/fun_bot/ready_set_go.sh
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,1 @@
+# LanguageBot cogs package
