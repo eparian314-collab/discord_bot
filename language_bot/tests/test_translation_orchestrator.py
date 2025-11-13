@@ -92,7 +92,7 @@ async def test_translate_raises_when_all_providers_fail(orchestrator: Translatio
 
 @pytest.mark.asyncio
 async def test_translate_via_deepl(monkeypatch, sample_config: LanguageBotConfig):
-    sample_config.deepl_api_key = "deepl"
+    sample_config.deepl_api_key = ""
     orchestrator = TranslationOrchestrator(sample_config)
 
     class DummyResponse:
@@ -130,7 +130,7 @@ async def test_translate_via_deepl(monkeypatch, sample_config: LanguageBotConfig
 
 @pytest.mark.asyncio
 async def test_translate_via_deepl_without_translations(monkeypatch, sample_config: LanguageBotConfig):
-    sample_config.deepl_api_key = "deepl"
+    sample_config.deepl_api_key = ""
     orchestrator = TranslationOrchestrator(sample_config)
 
     class DummyResponse:
@@ -219,7 +219,7 @@ async def test_translate_via_mymemory_uses_response_data(monkeypatch, orchestrat
 
 @pytest.mark.asyncio
 async def test_translate_via_openai(monkeypatch, sample_config: LanguageBotConfig):
-    sample_config.openai_api_key = "key"
+    sample_config.openai_api_key = ""
 
     class DummyCompletion:
         def __init__(self):
