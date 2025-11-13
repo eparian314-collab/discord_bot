@@ -10,6 +10,11 @@ VENV_PATH="${VENV_PATH:-$PROJECT_ROOT/.venv}"
 RUN_TESTS=true
 RUN_BOT=true
 
+# Auto-update: Pull latest changes from git
+cd "$PROJECT_ROOT"
+echo "[INFO] Pulling latest changes from git..."
+git pull origin main || echo "[WARNING] Git pull failed, continuing with current version."
+
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --test-only)
