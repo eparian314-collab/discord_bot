@@ -1,0 +1,36 @@
+# FunBot local ignores
+
+# Env and venv
+.venv/
+.env
+*.env
+.env.*
+.envrc
+
+# Python cache and build
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.pylint.d/
+*.egg-info/
+dist/
+build/
+
+# Coverage/reports
+.coverage*
+coverage.xml
+htmlcov/
+
+# Logs and runtime artifacts
+*.log
+logs/
+cache/
+tmp/
+
+# IDE/OS
+.vscode/
+.idea/
+.DS_Store
+*.swp
