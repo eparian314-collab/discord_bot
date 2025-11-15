@@ -1,19 +1,23 @@
 #!/usr/bin/env bash
-# Unified bootstrap script for LanguageBot runtime + smoke checks.
+#!/usr/bin/env bash
+# Unified bootstrap script for LanguageBot runtime + smoke checks (EC2/systemd friendly).
 
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 LANG_ROOT="$PROJECT_ROOT/language_bot"
-VENV_PATH="${VENV_PATH:-$PROJECT_ROOT/.venv}"
+VENV_PATH="${VENV_PATH:-$LANG_ROOT/.venv}"
 RUN_TESTS=true
 RUN_BOT=true
+AUTO_GIT_PULL="${AUTO_GIT_PULL:-0}"
 
-# Auto-update: Pull latest changes from git
+# Optional: pull latest (disabled by default for immutable deployments)
 cd "$PROJECT_ROOT"
-echo "[INFO] Pulling latest changes from git..."
-git pull origin main || echo "[WARNING] Git pull failed, continuing with current version."
+if [[ "$AUTO_GIT_PULL" == "1" ]]; then
+  echo "[INFO] Pulling latest changes from git..."
+  git pull --ff-only || echo "[WARNING] Git pull failed, continuing with current version."
+fi
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -32,6 +36,7 @@ Usage: ready_set_go.sh [--test-only] [--skip-tests]
 Environment overrides:
   VENV_PATH         Custom virtual environment directory (default ../.venv)
   SKIP_PIP_INSTALL  When set to 1, skip the dependency installation step.
+  AUTO_GIT_PULL     When set to 1, git pull before starting (off by default).
 EOF
             exit 0
             ;;

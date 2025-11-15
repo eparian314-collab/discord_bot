@@ -47,22 +47,61 @@ class LanguageBotRunner:
         ui_engine = TranslationUIEngine()
 
         async def setup_hook() -> None:
-            await self.bot.add_cog(
-                TranslationCog(
+            try:
+                wipe_raw = os.getenv("LANGUAGEBOT_WIPE_COMMANDS", "").strip().lower()
+                wipe_commands = wipe_raw in {"1", "true", "yes", "on"}
+
+                if wipe_commands:
+                    logger.warning(
+                        "LANGUAGEBOT_WIPE_COMMANDS is enabled – clearing all registered "
+                        "slash commands for LanguageBot from Discord."
+                    )
+                    # Clear global commands from the local tree and propagate the empty
+                    # state to Discord (removes any existing global app commands).
+                    self.bot.tree.clear_commands(guild=None)
+                    await self.bot.tree.sync()
+
+                    # Also clear any guild-scoped commands that may have been synced
+                    # using TEST_GUILDS / per‑guild registration.
+                    if self.config.test_guild_ids:
+                        for gid in self.config.test_guild_ids:
+                            guild = discord.Object(id=gid)
+                            self.bot.tree.clear_commands(guild=guild)
+                            await self.bot.tree.sync(guild=guild)
+
+                    logger.info(
+                        "LanguageBot slash commands wiped from Discord. "
+                        "Restart without LANGUAGEBOT_WIPE_COMMANDS to resync fresh commands."
+                    )
+                    return
+
+                # Normal boot path: load cogs and sync the current command set.
+                translation_cog = TranslationCog(
                     self.bot,
                     self.config,
                     orchestrator,
                     ui_engine,
                     self.language_directory,
                 )
-            )
-            await self.bot.add_cog(
-                LanguageRoleManager(
-                    self.bot,
-                    self.config,
-                    self.language_directory,
+                await self.bot.add_cog(translation_cog)
+                await self.bot.add_cog(
+                    LanguageRoleManager(
+                        self.bot,
+                        self.config,
+                        self.language_directory,
+                    )
                 )
-            )
+
+                translation_cog.setup_slash(self.bot)
+                if self.config.test_guild_ids:
+                    for gid in self.config.test_guild_ids:
+                        guild = discord.Object(id=gid)
+                        await self.bot.tree.sync(guild=guild)
+                else:
+                    await self.bot.tree.sync()
+                logger.info("Slash commands synced")
+            except Exception as exc:
+                logger.warning("Failed to sync slash commands: %s", exc)
 
         self.bot.setup_hook = setup_hook  # type: ignore[assignment]
 

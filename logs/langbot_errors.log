@@ -1,0 +1,18 @@
+2025-11-13 21:11:25,338 ERROR Exception in Uncaught Exception: invalid literal for int() with base 10: '1433469524438683668,1370753888659181589,1437180558148112624'
+NoneType: None
+
+2025-11-13 22:36:50,992 ERROR Exception in Uncaught Exception: invalid literal for int() with base 10: '1433469524438683668,1370753888659181589,1437180558148112624'
+NoneType: None
+
+2025-11-13 22:37:21,788 ERROR Exception in Uncaught Exception: invalid literal for int() with base 10: '1433469524438683668,1370753888659181589,1437180558148112624'
+NoneType: None
+
+2025-11-14 00:35:41,782 ERROR Exception in Uncaught Exception: Shard ID None WebSocket closed with 4004
+NoneType: None
+
+2025-11-14 01:06:02,404 ERROR Exception in Uncaught Exception: context menus cannot be defined inside a class
+NoneType: None
+
+2025-11-14 01:13:59,530 ERROR Exception in Uncaught Exception: unmatched ']' (flag_map.py, line 89)
+NoneType: None
+

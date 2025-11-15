@@ -27,6 +27,8 @@ class FunBotConfig:
     command_prefix: str = "!"
     openai_api_key: Optional[str] = None
     openai_model: str = "gpt-4o-mini"
+    db_path: str = "data/funbot.sqlite3"
+    bot_channel_ids: Set[int] = field(default_factory=set)
 
     @classmethod
     def from_env(cls) -> "FunBotConfig":
@@ -43,8 +45,9 @@ class FunBotConfig:
                 or None
             ),
             openai_model=os.getenv("OPENAI_PERSONALITY_MODEL", "gpt-4o-mini").strip(),
+            db_path=os.getenv("FUNBOT_DB_PATH", "data/funbot.sqlite3").strip() or "data/funbot.sqlite3",
+            bot_channel_ids=_split_ints(os.getenv("BOT_CHANNEL_ID", "")),
         )
 
 
 __all__ = ["FunBotConfig"]
-

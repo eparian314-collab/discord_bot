@@ -3,7 +3,6 @@ from __future__ import annotations
 import os
 import sys
 from pathlib import Path
-from language_bot.core.error_engine import ErrorEngine
 
 
 def _bootstrap_paths() -> Path:
@@ -15,22 +14,19 @@ def _bootstrap_paths() -> Path:
 
 
 def main() -> None:
-    """
-    Launch the HippoBot stack in language-only mode.
-
-    This simply forces the ``BOT_PROFILE`` environment variable before reusing
-    the existing root-level ``main`` module. All heavy lifting (config loading,
-    event loop management, etc.) stays in one place.
-    """
+    """Launch LanguageBot directly via its runner."""
     _bootstrap_paths()
     os.environ.setdefault("BOT_PROFILE", "language")
+
+    from language_bot.core.error_engine import ErrorEngine
 
     error_engine = ErrorEngine()
     error_engine.catch_uncaught()
 
-    from main import main as root_main
+    # Import the package runner explicitly to avoid self-import recursion
+    from language_bot.runner import run_language_bot
 
-    root_main()
+    run_language_bot()
 
 
 if __name__ == "__main__":

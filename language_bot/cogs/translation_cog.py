@@ -61,12 +61,35 @@ class TranslationCog(commands.Cog):
         mention_members = cast(Sequence[discord.Member], message.mentions)
         mentions = [member for member in mention_members if member.id != message.author.id]
 
-        # Always define targets
+        # Always define targets from mentions and, if applicable, the user being replied to.
         if mentions:
             target_map = {member: self._extract_languages(member.roles) for member in mentions}
-            targets = {member: langs for member, langs in target_map.items() if langs}
+            targets: dict[discord.Member, list[str]] = {
+                member: langs for member, langs in target_map.items() if langs
+            }
         else:
             targets = {}
+
+        # If this message is a reply, treat the replied-to member as a translation
+        # target as well, using their language roles.
+        try:
+            replied: Optional[discord.Message] = None
+            if message.reference and message.reference.resolved:
+                replied = cast(discord.Message, message.reference.resolved)
+            elif message.reference and message.reference.message_id:
+                try:
+                    replied = await message.channel.fetch_message(message.reference.message_id)
+                except Exception:
+                    replied = None
+
+            if replied and isinstance(replied.author, discord.Member):
+                reply_member = replied.author
+                if reply_member.id != message.author.id and reply_member not in targets:
+                    langs = self._extract_languages(reply_member.roles)
+                    if langs:
+                        targets[reply_member] = langs
+        except Exception as exc:  # pragma: no cover - defensive
+            logger.warning("Failed to resolve reply target for translation: %s", exc)
 
         detected_language = self.orchestrator.detect_language(message.content)
         if not detected_language:
@@ -97,30 +120,150 @@ class TranslationCog(commands.Cog):
             )
 
     # --------------------------------------------------------------
-    # Slash Commands
+    # Slash & context menu commands
     # --------------------------------------------------------------
 
-    @app_commands.command(name="translate", description="Translate text to another language (context-aware)")
-    @app_commands.describe(text="Text to translate", target_language="Target language code (e.g. en, es, fr)")
-    async def translate_slash(self, interaction: discord.Interaction, text: str, target_language: str):
-        await interaction.response.defer()
-        # Context-aware: auto-detect source language
+    @app_commands.command(
+        name="translate",
+        description="Translate text to another language (context-aware)",
+    )
+    @app_commands.describe(
+        text="Text to translate",
+        target_language="Target language code (e.g. en, es, fr)",
+    )
+    async def translate_slash(
+        self,
+        interaction: discord.Interaction,
+        text: str,
+        target_language: str,
+    ) -> None:
         source_language = self.orchestrator.detect_language(text)
         try:
             result = await self.orchestrator.translate(
                 text=text,
                 target_language=target_language,
                 source_language=source_language,
+                strict=False,
             )
-            await interaction.followup.send(
-                f"**Translated ({result.provider}):** {result.translated_text}\n"
-                f"From `{result.source_language}` to `{result.target_language}`"
+            embed = discord.Embed(
+                title="Translation",
+                description=result.translated_text or "(no text returned)",
+                color=discord.Color.blurple(),
             )
+            embed.set_footer(
+                text=f"{(result.source_language or 'auto').upper()} → "
+                f"{result.target_language.upper()} via {result.provider}",
+            )
+            await interaction.response.send_message(embed=embed)
         except Exception as exc:
-            await interaction.followup.send(f"Translation failed: {exc}")
+            await interaction.followup.send(
+                f"Translation failed: {exc}",
+                ephemeral=True,
+            )
 
-    def setup_slash(self, bot):
-        bot.tree.add_command(self.translate_slash)
+    async def translate_message_context(
+        self,
+        interaction: discord.Interaction,
+        message: discord.Message,
+    ) -> None:
+        """Right-click message → Apps → Translate message."""
+
+        if not message.content:
+            await interaction.response.send_message(
+                "I can only translate messages that contain text.",
+                ephemeral=True,
+            )
+            return
+
+        await interaction.response.defer(ephemeral=True)
+
+        # Derive target languages from the caller's language roles; fall back
+        # to the server default if none are present.
+        member = interaction.user
+        roles = getattr(member, "roles", [])
+        target_langs = self._extract_languages(roles)
+        if not target_langs:
+            target_langs = [self.config.default_fallback_language]
+
+        detected = self.orchestrator.detect_language(
+            message.content,
+            channel_id=message.channel.id if message.channel else None,
+            user_id=message.author.id,
+        )
+
+        results: list[TranslationResult] = []
+        seen_targets: set[str] = set()
+        for lang in target_langs:
+            code = (lang or "").split("-", 1)[0].upper()
+            if not code or code in seen_targets:
+                continue
+            seen_targets.add(code)
+            try:
+                result = await self.orchestrator.translate(
+                    text=message.content,
+                    target_language=code,
+                    source_language=detected,
+                    channel_id=message.channel.id if message.channel else None,
+                    user_id=interaction.user.id,
+                    strict=False,
+                )
+                results.append(result)
+            except TranslationError as exc:
+                logger.warning("Context-menu translation to %s failed: %s", code, exc)
+            except Exception as exc:  # pragma: no cover - network edge cases
+                logger.warning("Unexpected error during context-menu translation: %s", exc)
+
+        if not results:
+            await interaction.followup.send(
+                "I wasn't able to translate that message using the configured providers.",
+                ephemeral=True,
+            )
+            return
+
+        # Build a compact embed showing one or more target languages.
+        snippet = message.content
+        if len(snippet) > 300:
+            snippet = snippet[:297] + "..."
+
+        embed = discord.Embed(
+            title="Message translation",
+            description=f"**Original:** {snippet}",
+            color=discord.Color.blurple(),
+        )
+        embed.set_footer(text=f"Source language: {detected or 'auto'}")
+
+        for result in results:
+            name = f"{result.target_language.upper()} ({result.provider})"
+            value = result.translated_text or "(no text returned)"
+            embed.add_field(name=name, value=value, inline=False)
+
+        await interaction.followup.send(embed=embed, ephemeral=True)
+
+    def setup_slash(self, bot: commands.Bot) -> None:
+        """Register slash and context-menu commands idempotently."""
+
+        if bot.tree.get_command("translate") is None:
+            bot.tree.add_command(self.translate_slash)
+
+        # Context-menu commands must be registered on the command tree, not
+        # defined via decorator inside the class. Create a wrapper callback
+        # that forwards to the cog method.
+        async def _context_callback(
+            interaction: discord.Interaction,
+            message: discord.Message,
+        ) -> None:
+            await self.translate_message_context(interaction, message)
+
+        # Avoid duplicate registration by checking existing context menus.
+        for cmd in bot.tree.walk_commands():
+            if isinstance(cmd, app_commands.ContextMenu) and cmd.name == "Translate message":
+                break
+        else:
+            context_menu = app_commands.ContextMenu(
+                name="Translate message",
+                callback=_context_callback,
+            )
+            bot.tree.add_command(context_menu)
 
     # --------------------------------------------------------------
     # Internal helpers

@@ -23,7 +23,17 @@ def orchestrator(sample_config):
 
 @pytest.fixture()
 def personality_engine(sample_config):
-    return PersonalityEngine(api_key="dummy", model="gpt-4o-mini")
+    # Construct engine but stub OpenAI to avoid real network calls in tests
+    eng = PersonalityEngine(api_key="dummy", model="gpt-4o-mini")
+    class _StubOpenAI:
+        async def personality_response(self, persona, user_message):
+            return f"[{persona}] {user_message}"
+    # Inject stub so get_ai_personality_reply works offline
+    try:
+        eng._openai = _StubOpenAI()  # type: ignore[attr-defined]
+    except Exception:
+        pass
+    return eng
 
 @pytest.mark.asyncio
 async def test_full_translation_api_flow(orchestrator):

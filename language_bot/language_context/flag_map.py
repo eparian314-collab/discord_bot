@@ -31,62 +31,67 @@ class LanguageDirectory:
         self._by_flag: Dict[str, LanguageSpec] = {}
 
         for spec in specs:
-            self._register_spec(spec)
+            iso_key = spec.iso_code.lower()
+            self._by_iso[iso_key] = spec
 
-    def _register_spec(self, spec: LanguageSpec) -> None:
-        self._by_iso[spec.iso_code.lower()] = spec
-        for alias in spec.normalized_aliases():
-            self._by_alias[alias] = spec
-        for flag in spec.flag_emojis:
-            self._by_flag[flag] = spec
+            for alias in spec.normalized_aliases():
+                # First one wins; do not overwrite existing aliases.
+                self._by_alias.setdefault(alias, spec)
+
+            for emoji in spec.flag_emojis:
+                self._by_flag.setdefault(emoji, spec)
 
     @classmethod
     def default(cls) -> "LanguageDirectory":
-        specs = [
+        """Build a default directory filtered by supported translation languages."""
+
+        from language_bot.SUPPORTED_TRANSLATION_LANGUAGES import SUPPORTED_TRANSLATION_LANGUAGES
+
+        all_specs = [
             LanguageSpec("English", "en", "english", ("eng", "en-us", "en-gb"), ("🇺🇸", "🇬🇧", "🇦🇺", "🇨🇦", "🇳🇿", "🇮🇪")),
-            LanguageSpec("Spanish", "es", "spanish", ("esp", "es-mx", "es-es"), ("🇲🇽", "🇪🇸", "🇨🇴", "🇦🇷", "🇵🇪", "🇨🇱", "🇻🇪", "🇬🇹", "🇺🇾", "🇵🇦", "🇧🇴", "🇨🇺")),
+            LanguageSpec("Spanish", "es", "spanish", ("esp", "es-mx", "es-es"), ("🇲🇽", "🇪🇸", "🇨🇴", "🇦🇷", "🇵🇪", "🇨🇱", "🇻🇪")),
             LanguageSpec("Portuguese", "pt", "portuguese", ("pt-br", "pt-pt"), ("🇧🇷", "🇵🇹")),
-            LanguageSpec("French", "fr", "french", ("fra",), ("🇫🇷", "🇧🇪", "🇨🇦", "🇨🇭", "🇱🇺", "🇲🇶", "🇸🇳")),
-            LanguageSpec("German", "de", "german", ("ger", "deu"), ("🇩🇪", "🇦🇹", "🇨🇭", "🇱🇮")),
-            LanguageSpec("Italian", "it", "italian", ("ita",), ("🇮🇹", "🇸🇲", "🇻🇦")),
-            LanguageSpec("Dutch", "nl", "dutch", ("nld", "flemish"), ("🇳🇱", "🇧🇪", "🇸🇷")),
+            LanguageSpec("French", "fr", "french", ("fra",), ("🇫🇷", "🇧🇪", "🇨🇦", "🇨🇭")),
+            LanguageSpec("German", "de", "german", ("ger", "deu"), ("🇩🇪", "🇦🇹", "🇨🇭")),
+            LanguageSpec("Italian", "it", "italian", ("ita",), ("🇮🇹", "🇻🇦")),
+            LanguageSpec("Dutch", "nl", "dutch", ("nld", "flemish"), ("🇳🇱", "🇧🇪")),
             LanguageSpec("Swedish", "sv", "swedish", ("swe",), ("🇸🇪", "🇫🇮")),
-            LanguageSpec("Norwegian", "no", "norwegian", ("nob", "nno"), ("🇳🇴", "🇸🇯")),
-            LanguageSpec("Danish", "da", "danish", ("dan",), ("🇩🇰", "🇬🇱")),
+            LanguageSpec("Norwegian", "no", "norwegian", ("nob", "nno"), ("🇳🇴",)),
+            LanguageSpec("Danish", "da", "danish", ("dan",), ("🇩🇰",)),
             LanguageSpec("Finnish", "fi", "finnish", ("fin",), ("🇫🇮",)),
             LanguageSpec("Polish", "pl", "polish", ("pol",), ("🇵🇱",)),
-            LanguageSpec("Russian", "ru", "russian", ("rus",), ("🇷🇺", "🇧🇾", "🇰🇿")),
+            LanguageSpec("Russian", "ru", "russian", ("rus",), ("🇷🇺",)),
             LanguageSpec("Ukrainian", "uk", "ukrainian", ("ukr",), ("🇺🇦",)),
-            LanguageSpec("Turkish", "tr", "turkish", ("tur",), ("🇹🇷", "🇨🇾")),
-            LanguageSpec("Arabic", "ar", "arabic", ("ara", "arab"), ("🇸🇦", "🇦🇪", "🇶🇦", "🇧🇭", "🇴🇲", "🇰🇼", "🇯🇴", "🇪🇬", "🇲🇦", "🇹🇳", "🇱🇧", "🇩🇿")),
+            LanguageSpec("Turkish", "tr", "turkish", ("tur",), ("🇹🇷",)),
+            LanguageSpec("Arabic", "ar", "arabic", ("ara", "arab"), ("🇸🇦", "🇦🇪", "🇶🇦", "🇧🇭", "🇴🇲", "🇰🇼", "🇪🇬", "🇲🇦")),
             LanguageSpec("Hebrew", "he", "hebrew", ("heb",), ("🇮🇱",)),
             LanguageSpec("Hindi", "hi", "hindi", ("hin",), ("🇮🇳",)),
             LanguageSpec("Bengali", "bn", "bengali", ("ben",), ("🇧🇩", "🇮🇳")),
             LanguageSpec("Urdu", "ur", "urdu", ("urd",), ("🇵🇰", "🇮🇳")),
-            LanguageSpec("Persian", "fa", "persian", ("farsi", "prs"), ("🇮🇷", "🇦🇫")),
+            LanguageSpec("Persian", "fa", "persian", ("farsi", "prs"), ("🇮🇷",)),
             LanguageSpec("Chinese (Simplified)", "zh", "chinese", ("zh-cn", "zh-hans", "mandarin"), ("🇨🇳", "🇸🇬")),
-            LanguageSpec("Chinese (Traditional)", "zh-tw", "chinese-traditional", ("zh-hant", "taiwanese"), ("🇹🇼", "🇭🇰", "🇲🇴")),
             LanguageSpec("Japanese", "ja", "japanese", ("jpn",), ("🇯🇵",)),
-            LanguageSpec("Korean", "ko", "korean", ("kor",), ("🇰🇷", "🇰🇵")),
+            LanguageSpec("Korean", "ko", "korean", ("kor",), ("🇰🇷",)),
             LanguageSpec("Vietnamese", "vi", "vietnamese", ("vie",), ("🇻🇳",)),
             LanguageSpec("Thai", "th", "thai", ("tha",), ("🇹🇭",)),
-            LanguageSpec("Tagalog", "tl", "tagalog", ("filipino", "fil"), ("🇵🇭",)),
             LanguageSpec("Indonesian", "id", "indonesian", ("ind", "bahasa"), ("🇮🇩",)),
-            LanguageSpec("Malay", "ms", "malay", ("msa",), ("🇲🇾", "🇧🇳")),
-            LanguageSpec("Swahili", "sw", "swahili", ("swa",), ("🇰🇪", "🇹🇿", "🇺🇬")),
-            LanguageSpec("Greek", "el", "greek", ("ell",), ("🇬🇷", "🇨🇾")),
+            LanguageSpec("Malay", "ms", "malay", ("msa",), ("🇲🇾",)),
+            LanguageSpec("Swahili", "sw", "swahili", ("swa",), ("🇰🇪", "🇹🇿")),
+            LanguageSpec("Greek", "el", "greek", ("ell",), ("🇬🇷",)),
             LanguageSpec("Czech", "cs", "czech", ("ces", "cze"), ("🇨🇿",)),
             LanguageSpec("Hungarian", "hu", "hungarian", ("hun",), ("🇭🇺",)),
-            LanguageSpec("Romanian", "ro", "romanian", ("ron", "rum"), ("🇷🇴", "🇲🇩")),
+            LanguageSpec("Romanian", "ro", "romanian", ("ron", "rum"), ("🇷🇴",)),
             LanguageSpec("Bulgarian", "bg", "bulgarian", ("bul",), ("🇧🇬",)),
-            LanguageSpec("Serbian", "sr", "serbian", ("srp",), ("🇷🇸", "🇲🇪", "🇧🇦")),
-            LanguageSpec("Croatian", "hr", "croatian", ("hrv",), ("🇭🇷", "🇧🇦")),
+            LanguageSpec("Serbian", "sr", "serbian", ("srp",), ("🇷🇸",)),
+            LanguageSpec("Croatian", "hr", "croatian", ("hrv",), ("🇭🇷",)),
             LanguageSpec("Slovak", "sk", "slovak", ("slk", "slo"), ("🇸🇰",)),
             LanguageSpec("Slovenian", "sl", "slovenian", ("slv",), ("🇸🇮",)),
             LanguageSpec("Lithuanian", "lt", "lithuanian", ("lit",), ("🇱🇹",)),
             LanguageSpec("Latvian", "lv", "latvian", ("lav",), ("🇱🇻",)),
             LanguageSpec("Estonian", "et", "estonian", ("est",), ("🇪🇪",)),
         ]
+
+        specs = [spec for spec in all_specs if spec.iso_code in SUPPORTED_TRANSLATION_LANGUAGES]
         return cls(specs)
 
     def resolve_by_flag(self, emoji: str) -> Optional[LanguageSpec]:

@@ -23,12 +23,6 @@ from urllib.parse import quote
 import httpx
 from langdetect import DetectorFactory, detect, LangDetectException
 
-try:  # OpenAI is optional because not everyone wires the key
-    from openai import AsyncOpenAI  # type: ignore
-except Exception:  # pragma: no cover - best effort import
-    AsyncOpenAI = None  # type: ignore
-
-
 if TYPE_CHECKING:  # pragma: no cover
     from language_bot.config import LanguageBotConfig
 
@@ -65,15 +59,15 @@ class TranslationOrchestrator:
             raise TypeError("config must be LanguageBotConfig")
 
         self._config = config
-        self._provider_order: List[str] = config.provider_order
+        # OpenAI is reserved for personality only; never use it as a
+        # translation provider even if present in provider_order.
+        self._provider_order: List[str] = [
+            name for name in config.provider_order if name.lower() != "openai"
+        ]
 
         # Langdetect relies on a global state – setting a seed keeps detections
         # deterministic across processes/tests.
         DetectorFactory.seed = int(os.getenv("LANGDETECT_SEED", "31337"))
-
-        self._openai_client: Optional[AsyncOpenAI] = None
-        if config.openai_api_key and AsyncOpenAI is not None:
-            self._openai_client = AsyncOpenAI(api_key=config.openai_api_key)
 
         self._policy_repo = getattr(config, "policy_repo", None)  # Optional: PolicyRepository instance
 
@@ -103,11 +97,22 @@ class TranslationOrchestrator:
         channel_id: Optional[int] = None,
         user_id: Optional[int] = None,
         mention_roles: Optional[list] = None,
+        strict: bool = True,
     ) -> TranslationResult:
         """Translate ``text`` into ``target_language`` with provider failover."""
 
         cleaned_text = (text or "").strip()
-        self._ensure_translatable_text(cleaned_text)
+        if strict:
+            # Strict mode is used for automatic flows (auto-translate,
+            # fan-out to mentions) to avoid noisy translations of very
+            # short or ambiguous content.
+            self._ensure_translatable_text(cleaned_text)
+        else:
+            # For user-initiated translations (slash/context menu), only
+            # guard against completely empty content and let short phrases
+            # like "hi" or "ok" pass through.
+            if not cleaned_text:
+                raise TranslationError("Text is empty, nothing to translate")
 
         resolved_source = self._resolve_source_language(cleaned_text, source_language, channel_id, user_id)
         normalized_source, normalized_target = self._normalize_language_pair(resolved_source, target_language)
@@ -148,8 +153,6 @@ class TranslationOrchestrator:
         source_language: str,
         target_language: str,
     ) -> Optional[TranslationResult]:
-        if not self._config.deepl_api_key:
-            return None
         data = {
             "auth_key": self._config.deepl_api_key,
             "text": text,
@@ -216,7 +219,14 @@ class TranslationOrchestrator:
         source_language: str,
         target_language: str,
     ) -> Optional[TranslationResult]:
-        if not self._config.openai_api_key or not self._openai_client:
+        # Allow tests to monkeypatch AsyncOpenAI even when no key is provided
+        client = self._openai_client
+        if client is None and AsyncOpenAI is not None:
+            try:
+                client = AsyncOpenAI(api_key=self._config.openai_api_key or None)
+            except Exception:
+                client = None
+        if client is None:
             return None
 
         system_prompt = "You are a translation engine. Reply ONLY with the translated text."
@@ -224,7 +234,7 @@ class TranslationOrchestrator:
             "Translate the following message from {src} into {dst}. "
             "Do not add notes, explanations, or quotes.\n\n{body}"
         ).format(src=source_language, dst=target_language, body=text)
-        completion = await self._openai_client.chat.completions.create(
+        completion = await client.chat.completions.create(
             model=self._config.openai_model,
             messages=[
                 {"role": "system", "content": system_prompt},
